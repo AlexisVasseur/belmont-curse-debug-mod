@@ -25,6 +25,11 @@ public static class Skin
     public static Sprite GlowDiamond => GameSprites.Icon("ui_glow_diamond");
     public const float GlowScale = 128f / 80f;
     public static Sprite Circle => GameSprites.Icon("ui_circle");
+    // Écran Progression : écu doré des compétences, écu vide, lueur en forme d'écu, ceinture
+    public static Sprite VaniaSlot => GameSprites.Icon("ui_vania_slot");
+    public static Sprite VaniaSlotEmpty => GameSprites.Icon("ui_vania_slotmask");
+    public static Sprite VaniaGlow => GameSprites.Icon("ui_vania_glow");
+    public static Sprite VaniaBelt => GameSprites.Icon("ui_vania_belt");
     public static Sprite Disc => GameSprites.Icon("ui_disc");
     // Contour des barres de vie / mana du HUD (pointe ornée à droite) et forme de leur remplissage
     public static Sprite BarLife => GameSprites.Icon("ui_bar_life", new Vector4(117, 0, 117, 0));
