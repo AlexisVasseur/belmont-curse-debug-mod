@@ -29,7 +29,13 @@ public static class Skin
     public static Sprite Circle => GameSprites.Icon("ui_circle");
     public static Sprite Disc => GameSprites.Icon("ui_disc");
     /// <summary>Cadre des notifications du jeu (rempli après l'extraction des assets ; null tant qu'il manque).</summary>
-    public static Sprite Notification => GameSprites.Icon("ui_notification", new Vector4(120, 0, 120, 0));
+    public static Sprite Notification => GameSprites.Icon("ui_notification", new Vector4(0, 60, 0, 60));
+    public static Sprite NotificationGold => GameSprites.Icon("ui_notification_gold");
+    // Fioles du HUD : pleine, bonus, vide, et l'ornement qui sépare les normales des bonus
+    public static Sprite Potion => GameSprites.Icon("ui_potion");
+    public static Sprite PotionBonus => GameSprites.Icon("ui_potion_bonus");
+    public static Sprite PotionEmpty => GameSprites.Icon("ui_potion_empty");
+    public static Sprite PotionSeparator => GameSprites.Icon("ui_potion_separator");
     public static Sprite RowSupport => GameSprites.Icon("ui_row_support", new Vector4(500, 0, 500, 0));
     /// <summary>Icône de famille d'armes (médaillon de l'Armurerie), ex. « WeaponSpear » → ui_family_spear.</summary>
     public static Sprite Family(string key) => GameSprites.Icon("ui_family_" + key.Replace("Weapon", "").ToLowerInvariant());

@@ -31,6 +31,7 @@ public class SaveStatesView
     float toastUntil;
     const float ToastW = 640f, ToastH = 42f;
     Image toastAccent, toastFrame;
+    static readonly Color ToastTint = Theme.Hex(0x4a3628), ToastErrorTint = Theme.Hex(0x6a2220);
 
     class RowUi
     {
@@ -68,7 +69,7 @@ public class SaveStatesView
         var rt = bg.transform.parent.Cast<RectTransform>();
         rt.anchorMin = rt.anchorMax = new Vector2(0f, 0f);
         rt.pivot = new Vector2(0f, 0f);
-        rt.anchoredPosition = new Vector2(24f, 24f);
+        rt.anchoredPosition = new Vector2(44f, 28f);
         toast = rt.gameObject;
         toastAccent = Ui.Image(bg.transform, "Accent", 0f, 0f, 4f, ToastH - 2f, Theme.GoldBright);
         if (Skin.Notification != null)
@@ -76,9 +77,15 @@ public class SaveStatesView
             // Cadre des notifications du jeu (objet ramassé, tâche avancée) par-dessus le fond
             Ui.SetBorder(bg, new Color(0f, 0f, 0f, 0f));
             bg.color = new Color(0f, 0f, 0f, 0f);
-            toastFrame = Skin.Sliced(bg.transform, "Frame", -10f, -8f, ToastW + 18f, ToastH + 14f, Skin.Notification, Color.white, 2f);
+            toastFrame = Skin.Sliced(bg.transform, "Frame", -4f, -8f, ToastW + 8f, ToastH + 14f, Skin.Notification, ToastTint, 2f);
             toastFrame.transform.SetAsFirstSibling();
             Ui.SetActive(toastAccent, false);
+            // Pièce dorée à gauche, comme les notifications de tâche du jeu
+            if (Skin.NotificationGold != null)
+            {
+                var gold = Skin.Sprite(bg.transform, "Gold", -26f, -12f, 34f, ToastH + 22f, Skin.NotificationGold, Color.white);
+                gold.preserveAspect = true;
+            }
         }
         toastText = Ui.Text(bg.transform, "Text", 18f, 0f, ToastW - 30f, ToastH - 2f, GameFonts.Body, 20f, Theme.Text);
         toast.SetActive(false);
@@ -420,7 +427,7 @@ public class SaveStatesView
         Ui.SetText(toastText, msg);
         toastText.color = error ? Theme.Red : Theme.Text;
         if (toastAccent != null) toastAccent.color = error ? Theme.Red : Theme.GoldBright;
-        if (toastFrame != null) toastFrame.color = error ? Theme.Hex(0xff9a8a) : Color.white;
+        if (toastFrame != null) toastFrame.color = error ? ToastErrorTint : ToastTint;
         toastUntil = Time.unscaledTime + 3f;
     }
 

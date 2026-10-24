@@ -216,7 +216,9 @@ public partial class SidePanelView
     GaugeUi healthGauge, manaGauge;
     TextMeshProUGUI potionsValue;
     readonly List<(Image border, Image fill, float cx, float cy)> potionPips = new();
-    const float PotionPitch = 30f;
+    const float PotionPitch = 30f, PotionSepW = 16f;
+    float potionsX, potionsY;
+    Image potionSep;
 
     static string RefillPotions() =>
         Cheats.PotionValues(out int cur, out int max, out int bonus, out _) ? Cheats.SetPotions(Math.Max(max, cur + bonus)) : "Unavailable (load a game first)";
@@ -226,9 +228,37 @@ public partial class SidePanelView
         bool ok = Cheats.PotionValues(out int cur, out int max, out int bonus, out int bonusMax);
         Ui.SetText(potionsValue, !ok ? "—" : bonus > 0 ? $"{cur} / {max}  + {bonus} bonus" : $"{cur} / {max}");
         int total = cur + bonus, limit = max + bonusMax;
+        bool vials = potionPips.Count > 0 && potionPips[0].border == null;
+        if (potionSep != null)
+        {
+            Ui.SetActive(potionSep, ok && bonusMax > 0 && max < potionPips.Count);
+            Ui.Place(potionSep.rectTransform, potionsX + max * PotionPitch + 1, potionsY - 12, 13, 24);
+        }
         for (int i = 0; i < potionPips.Count; i++)
         {
             var (border, f, cx, cy) = potionPips[i];
+            if (vials)
+            {
+                // Bonus décalés après l'ornement séparateur
+                float vx = potionsX + i * PotionPitch + (i >= max ? PotionSepW : 0f);
+                cx = vx + 13f;
+                bool shown = ok && i < limit;
+                Ui.SetActive(f, shown);
+                if (!shown) continue;
+                Ui.Place(f.rectTransform, vx, cy - 14, 26, 27);
+                bool full = i < total;
+                var sp = !full ? Skin.PotionEmpty ?? Skin.Potion : i < max ? Skin.Potion : Skin.PotionBonus ?? Skin.Potion;
+                if (f.sprite != sp) f.sprite = sp;
+                bool over = hasMouse && Mathf.Abs(mx - cx) <= PotionPitch / 2f && Mathf.Abs(my - cy) <= 15f;
+                f.color = over ? Theme.Hex(0xffc890) : full ? Color.white : new Color(1f, 1f, 1f, 0.45f);
+                if (over && click && !handled)
+                {
+                    handled = true;
+                    int target = i + 1 == total ? i : i + 1;
+                    Notify?.Invoke(Cheats.SetPotions(target), false);
+                }
+                continue;
+            }
             bool exists = ok && i < limit;
             Ui.SetActive(border, exists);
             Ui.SetActive(f, exists);
@@ -316,15 +346,28 @@ public partial class SidePanelView
             potionsValue = Ui.Text(fill, "PotionsVal", right - 70 - 200, y, 190, 30, GameFonts.Numbers, 20f, Theme.GoldText, TextAlignmentOptions.Right);
             float ly = y + 34;
             Button(Pad + 4, ly, 34, 30, "-", GameFonts.Title, 18f, () => Notify?.Invoke(Cheats.ChangePotions(-1), false), "Potions");
-            float px = Pad + 4 + 34 + 12;
-            int slots = (int)((right - 34 - 12 - px) / PotionPitch);
-            for (int i = 0; i < slots; i++)
+            potionsX = Pad + 4 + 34 + 12;
+            potionsY = ly + 15;
+            int slots = (int)((right - 34 - 12 - potionsX - PotionSepW) / PotionPitch);
+            if (Skin.Potion != null)
             {
-                float cx = px + i * PotionPitch + PotionPitch / 2f;
-                var d = Ui.Diamond(fill, $"Potion{i}", cx, ly + 15, 18, GameFonts.Numbers, 10f);
-                d.label.text = "";
-                potionPips.Add((d.border, d.fill, cx, ly + 15));
+                // Fioles du HUD du jeu ; l'ornement séparateur est placé entre normales et bonus à chaque frame
+                if (Skin.PotionSeparator != null) { potionSep = Skin.Sprite(fill, "PotionSep", 0, ly + 3, 13, 24, Skin.PotionSeparator, Color.white); potionSep.preserveAspect = true; }
+                for (int i = 0; i < slots; i++)
+                {
+                    var img = Skin.Sprite(fill, $"Potion{i}", potionsX + i * PotionPitch, ly + 1, 26, 27, Skin.Potion, Color.white);
+                    img.preserveAspect = true;
+                    potionPips.Add((null, img, 0f, ly + 15));
+                }
             }
+            else
+                for (int i = 0; i < slots; i++)
+                {
+                    float cx = potionsX + i * PotionPitch + PotionPitch / 2f;
+                    var d = Ui.Diamond(fill, $"Potion{i}", cx, ly + 15, 18, GameFonts.Numbers, 10f);
+                    d.label.text = "";
+                    potionPips.Add((d.border, d.fill, cx, ly + 15));
+                }
             Button(right - 34, ly, 34, 30, "+", GameFonts.Title, 18f, () => Notify?.Invoke(Cheats.ChangePotions(+1), false), "Potions");
             Ui.Image(fill, "PotionsLine", 12, y + GaugeRowH - 1, iw - 24, 1, Theme.Line);
             y += GaugeRowH;
