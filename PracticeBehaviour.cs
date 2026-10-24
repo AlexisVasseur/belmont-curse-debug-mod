@@ -62,6 +62,13 @@ public class PracticeBehaviour : MonoBehaviour
                 if (target != null && !sequence.Active) TeleportTo(target.Value);
             }
             catch (Exception ex) { Plugin.Logger.LogError("[Carte] " + ex); }
+            try
+            {
+                Arenas.Update(sequence.Active);
+                if (Arenas.TakeRequest(out var level, out var pos) && !sequence.Active)
+                    Load(GameBridge.CaptureForTeleport(level, pos));
+            }
+            catch (Exception ex) { Plugin.Logger.LogError("[Arènes] " + ex); }
         }
 
         var kb = Keyboard.current;

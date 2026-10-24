@@ -15,11 +15,12 @@ public partial class SidePanelView
         public Bosses.Boss boss;
         public Image highlight, chipFill;
         public TextMeshProUGUI name, chip;
-        public float y;
+        public UiButton tp;
+        public float y, tpX;
     }
     readonly List<BossRowUi> bossRows = new();
     readonly List<(UiButton btn, float x, float y, float w, float h)> bossButtons = new();
-    const float BossRowH = 46f, BossChipW = 110f, BossIcon = 36f;
+    const float BossRowH = 46f, BossChipW = 110f, BossIcon = 36f, BossTpW = 52f;
     int bossesBuiltFor = -1;
     static int BossesShown => Bosses.Done ? Bosses.All.Count : -2; // la liste n'est affichée qu'une fois complète
 
@@ -56,10 +57,14 @@ public partial class SidePanelView
                 icon.preserveAspect = true;
                 nx += BossIcon + 10;
             }
-            r.name = Ui.Text(fill, "BossName" + i, nx, y, iw - nx - Pad - BossChipW - 12, BossRowH, GameFonts.Title, 18f, Theme.Text);
+            r.name = Ui.Text(fill, "BossName" + i, nx, y, iw - nx - Pad - BossChipW - BossTpW - 18, BossRowH, GameFonts.Title, 18f, Theme.Text);
             r.name.text = b.Name;
             r.chipFill = Ui.Frame(fill, "BossChip" + i, iw - Pad - BossChipW - 4, y + (BossRowH - 28) / 2f, BossChipW, 26, Theme.Gold, Theme.BgButton);
             r.chip = Ui.Label(r.chipFill.transform, "Text", 0, 0, BossChipW - 2, 26, GameFonts.Title, 15f, Theme.KeyText);
+            r.tpX = iw - Pad - BossChipW - BossTpW - 10;
+            var boss = b;
+            r.tp = UiButton.CreateSkinned(fill, "BossTp" + i, r.tpX, y + (BossRowH - 28) / 2f, BossTpW, 26, "TP", GameFonts.Title, 15f,
+                () => Notify?.Invoke(Arenas.RequestTeleport(boss), Arenas.Get(boss) == null));
             bossRows.Add(r);
             y += BossRowH;
         }
@@ -80,10 +85,24 @@ public partial class SidePanelView
 
         foreach (var r in bossRows)
         {
+            // Bouton TP : devant l'arène (connue une fois qu'on y est entré)
+            bool known = Arenas.Get(r.boss) != null;
+            float ty = r.y + (BossRowH - 28) / 2f;
+            bool overTp = hasMouse && mx >= r.tpX && mx < r.tpX + BossTpW && my >= ty && my < ty + 26;
+            r.tp.SetHover(overTp && known);
+            r.tp.LabelColor = known ? Theme.GoldText : Theme.TextDim;
+            if (overTp)
+            {
+                title = "Teleport: " + r.boss.Name;
+                text = known ? "Teleports you in front of the arena door, in the room before it."
+                    : "Unknown yet: enter this arena once (walking in through its door) and the mod will remember where the door is.";
+            }
+            if (overTp && click && !handled) { handled = true; r.tp.OnClick?.Invoke(); }
+
             bool hover = hasMouse && my >= r.y && my < r.y + BossRowH && mx >= 12 && mx < W - 14;
             Ui.SetActive(r.highlight, hover);
             bool? defeated = Bosses.IsDefeated(r.boss);
-            if (hover)
+            if (hover && !overTp)
             {
                 title = r.boss.Name;
                 text = defeated == true ? "Defeated. Click: bring it back (the fight starts again the next time you enter its arena)."

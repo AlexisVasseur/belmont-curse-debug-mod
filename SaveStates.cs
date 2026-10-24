@@ -464,6 +464,25 @@ public static class GameBridge
 
     static RoomStreamingHandle CurrentRoomHandle() => GetWorld()?.roomManager?._currentRoomHandle;
 
+    public static string CurrentLevelName() => SaveLogic.Get()?._currentLevelIdVariable?.CurrentValue?.name;
+
+    /// <summary>Boss de la salle courante si c'est une arène (sinon null) ; arcana : personnage boss contenu, en repli.</summary>
+    public static BossData CurrentRoomBoss(out string arcana)
+    {
+        arcana = null;
+        try
+        {
+            var cfg = CurrentRoomHandle()?.worldRoomData?.roomData?.configuration?.TryCast<RedWineRoomConfiguration>();
+            if (cfg == null || !cfg.isBossRoom) return null;
+            var data = cfg.bossData ?? cfg.bossDataRef?.Asset?.TryCast<BossData>();
+            var list = cfg.containedBossArcana;
+            if (list != null && list.Count > 0) arcana = list[0]?.name;
+            if (data == null && arcana == null) arcana = "?" + CurrentRoomName(); // arène sans boss identifiable
+            return data;
+        }
+        catch { return null; }
+    }
+
     static string CurrentRoomName()
     {
         try
