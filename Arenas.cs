@@ -30,7 +30,7 @@ public static class Arenas
 
     static string lastRoom;
     static bool lastRoomIsArena;
-    static float lastRoomSince, lastLoad = -100f;
+    static float lastRoomSince, lastLoad = -100f, dumpAt;
     static readonly Queue<(float t, Vector3 p)> trail = new();
 
     // Demande de téléportation venue de l'interface, traitée par PracticeBehaviour
@@ -73,12 +73,13 @@ public static class Arenas
             // Seulement en marchant : salle d'avant occupée au moins 1 s, et pas juste après un chargement
             bool walkedIn = lastRoom != null && !lastRoomIsArena && now - lastRoomSince >= 1f && now - lastLoad >= 3f;
             if (isArena && walkedIn) Learn(boss, arcana, lastRoom, BeforeDoor(now));
-            if (isArena) BossDiag.DumpDirectors("entrée dans l'arène");
+            if (isArena) dumpAt = now + 2f; // la salle finit de charger ses objets après le passage de la porte
             lastRoom = room;
             lastRoomSince = now;
             lastRoomIsArena = isArena;
             trail.Clear();
         }
+        if (dumpAt > 0f && now >= dumpAt) { dumpAt = 0f; BossDiag.DumpDirectors("2 s après l'entrée dans l'arène"); }
         trail.Enqueue((now, pos));
         while (trail.Count > 0 && trail.Peek().t < now - 2f) trail.Dequeue();
     }

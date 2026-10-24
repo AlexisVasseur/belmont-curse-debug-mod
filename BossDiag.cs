@@ -66,6 +66,8 @@ public static class BossDiag
         catch (Exception ex) { return "?" + ex.Message; }
     }
 
+    static string Try(Func<bool> f) { try { return f().ToString(); } catch (Exception ex) { return "?" + ex.Message; } }
+
     static string Ints(Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<int> a) =>
         a == null || a.Length == 0 ? "-" : string.Join(",", a.ToArray());
 
@@ -84,8 +86,12 @@ public static class BossDiag
                 if (nodes == null) continue;
                 bool boss = false;
                 foreach (var n in nodes) { string tn = n?.GetIl2CppType().Name ?? ""; if (tn.Contains("Boss")) { boss = true; break; } }
-                if (!boss) continue;
                 count++;
+                if (!boss)
+                {
+                    sb.AppendLine($"  director '{d.name}' actif={d.isActiveAndEnabled} données='{data.name}' {nodes.Length} nœuds (aucun nœud de boss)");
+                    continue;
+                }
                 var cur = new List<int>();
                 try { var cn = d._resolver?._currentNodes; if (cn != null) for (int i = 0; i < cn.Count; i++) cur.Add(cn[i].Index); } catch { }
                 sb.AppendLine($"  director '{d.name}' actif={d.isActiveAndEnabled} données='{data.name}' départ={Ints(data.StartIndexes)} en cours=[{string.Join(",", cur)}]");
@@ -107,7 +113,19 @@ public static class BossDiag
                     sb.AppendLine($"    [{i}] {t.Name.Replace("NodeData", "")} {string.Join(" ", fields)} →{Ints(n.NextNodes)}{els}");
                 }
             }
-            Plugin.Logger.LogInfo($"[Boss] graphes de combat ({when}) : {count}" + (count > 0 ? "\n" + sb : ""));
+            foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<BossFight>()))
+            {
+                var f = o.TryCast<BossFight>();
+                if (f == null || !f.gameObject.scene.IsValid()) continue;
+                sb.AppendLine($"  combat '{f.name}' actif={f.isActiveAndEnabled} boss={f._bossData?.name ?? "?"} orbePrêt={Try(() => f.IsOrbReady())} orbeDisparu={Try(() => f.HasOrbDisappeared())}");
+            }
+            foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<BossGateComponent>()))
+            {
+                var g = o.TryCast<BossGateComponent>();
+                if (g == null || !g.gameObject.scene.IsValid()) continue;
+                sb.AppendLine($"  porte '{g.name}' active={g.isActiveAndEnabled} boss={g.linkedBossData?.name ?? "?"} état={g.currentState}");
+            }
+            Plugin.Logger.LogInfo($"[Boss] graphes de combat ({when}) : {count} director(s)\n" + sb);
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Boss] graphes : " + ex); }
     }
