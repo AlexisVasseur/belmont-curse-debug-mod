@@ -75,13 +75,14 @@ public static class MapTeleport
         Vector2 cursor = context.currentCursorPosition;
         var target = new Vector3(cursor.x, cursor.y, e.transform.position.z);
         string what = "map point";
-        // Curseur sur un miroir : destination = le miroir lui-même
-        var mirror = context.currentItemSelection?.TryCast<LevelMapMirrorItem>();
-        if (mirror != null)
+        // Curseur sur un élément de la carte (miroir, salle de sauvegarde, porte…) : destination = l'élément lui-même
+        var sel = context.currentItemSelection;
+        if (sel != null)
         {
-            var mp = mirror.transform.position;
-            target = new Vector3(mp.x, mp.y, target.z);
-            what = "mirror";
+            var sp = sel.transform.position;
+            target = new Vector3(sp.x, sp.y, target.z);
+            what = sel.TryCast<LevelMapMirrorItem>() != null || sel.name.IndexOf("Mirror", StringComparison.OrdinalIgnoreCase) >= 0 ? "mirror" : sel.name;
+            Plugin.Logger.LogInfo($"[Carte] élément sélectionné : {sel.name} type={sel.GetIl2CppType().Name} salle={sel.itemWorldRoomId} position={sp}");
         }
         pending = target;
         pendingLevel = context.level;
