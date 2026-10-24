@@ -5,24 +5,30 @@ using UnityEngine.UI;
 namespace BelmontPractice;
 
 /// <summary>
-/// Onglet Bosses : un boss par ligne, état vaincu / vivant. Clic : le fait réapparaître s'il est vaincu
-/// (sinon le marque vaincu). Le combat revient à la prochaine entrée dans l'arène.
+/// Onglet Bosses : un boss par ligne, avec ses boutons d'état Alive / Defeated (l'état actuel en rouge)
+/// et un bouton TP devant son arène. Le combat revient à la prochaine entrée dans l'arène.
 /// </summary>
 public partial class SidePanelView
 {
     class BossRowUi
     {
         public Bosses.Boss boss;
-        public Image highlight, chipFill;
-        public TextMeshProUGUI name, chip;
-        public UiButton tp;
-        public float y, tpX;
+        public Image highlight;
+        public TextMeshProUGUI name;
+        public UiButton tp, alive, defeated;
+        public float y;
     }
     readonly List<BossRowUi> bossRows = new();
     readonly List<(UiButton btn, float x, float y, float w, float h)> bossButtons = new();
-    const float BossRowH = 46f, BossChipW = 110f, BossIcon = 36f, BossTpW = 52f;
+    const float BossRowH = 46f, BossIcon = 36f, BossTpW = 46f, BossStateW = 82f, BossBtnH = 26f, BossGap = 4f;
     int bossesBuiltFor = -1;
     static int BossesShown => Bosses.Done ? Bosses.All.Count : -2; // la liste n'est affichée qu'une fois complète
+
+    // Abscisses des boutons d'une ligne (de droite à gauche : Defeated, Alive, TP)
+    static float BossDefeatedX => W - 1 - Pad - 4 - BossStateW;
+    static float BossAliveX => BossDefeatedX - BossGap - BossStateW;
+    static float BossTpX => BossAliveX - 10 - BossTpW;
+    static float BossBtnY(float rowY) => rowY + (BossRowH - BossBtnH) / 2f;
 
     float BuildBosses(float y)
     {
@@ -57,23 +63,34 @@ public partial class SidePanelView
                 icon.preserveAspect = true;
                 nx += BossIcon + 10;
             }
-            r.name = Ui.Text(fill, "BossName" + i, nx, y, iw - nx - Pad - BossChipW - BossTpW - 18, BossRowH, GameFonts.Title, 18f, Theme.Text);
+            r.name = Ui.Text(fill, "BossName" + i, nx, y, BossTpX - nx - 6, BossRowH, GameFonts.Title, 18f, Theme.Text);
             r.name.text = b.Name;
-            r.chipFill = Ui.Frame(fill, "BossChip" + i, iw - Pad - BossChipW - 4, y + (BossRowH - 28) / 2f, BossChipW, 26, Theme.Gold, Theme.BgButton);
-            r.chip = Ui.Label(r.chipFill.transform, "Text", 0, 0, BossChipW - 2, 26, GameFonts.Title, 15f, Theme.KeyText);
-            r.tpX = iw - Pad - BossChipW - BossTpW - 10;
             var boss = b;
-            r.tp = UiButton.CreateSkinned(fill, "BossTp" + i, r.tpX, y + (BossRowH - 28) / 2f, BossTpW, 26, "TP", GameFonts.Title, 15f,
+            float by = BossBtnY(y);
+            r.tp = UiButton.CreateSkinned(fill, "BossTp" + i, BossTpX, by, BossTpW, BossBtnH, "TP", GameFonts.Title, 15f,
                 () => Notify?.Invoke(Arenas.RequestTeleport(boss), Arenas.Get(boss) == null));
+            r.alive = UiButton.CreateSkinned(fill, "BossAlive" + i, BossAliveX, by, BossStateW, BossBtnH, "Alive", GameFonts.Title, 15f,
+                () => Notify?.Invoke(Bosses.SetDefeated(boss, false), false));
+            r.defeated = UiButton.CreateSkinned(fill, "BossDefeated" + i, BossDefeatedX, by, BossStateW, BossBtnH, "Defeated", GameFonts.Title, 15f,
+                () => Notify?.Invoke(Bosses.SetDefeated(boss, true), false));
             bossRows.Add(r);
             y += BossRowH;
         }
         return y;
     }
 
+    /// <summary>Bouton d'état : rouge et volutes quand c'est l'état actuel, sombre sinon.</summary>
+    static void StyleStateButton(UiButton b, bool current, bool hover, bool enabled)
+    {
+        b.Selected = current;
+        b.BaseColor = current ? Theme.Crimson : b.Skinned ? Skin.TabIdle : Theme.BgButton;
+        b.LabelColor = !enabled ? Theme.TextDim : current ? Theme.GoldText : Theme.GoldLabel;
+        b.SetHover(hover && enabled && !current);
+    }
+
     void UpdateBosses(bool hasMouse, float mx, float my, bool click, ref bool handled)
     {
-        string title = "Bosses", text = "Click a defeated boss to bring it back: the fight starts again the next time you enter its arena. Click a boss still alive to mark it as defeated.";
+        string title = "Bosses", text = "Alive: the boss comes back, its fight starts again the next time you enter its arena. Defeated: the boss is marked as beaten. TP: teleports you in front of its arena.";
 
         foreach (var (btn, x, y, w, h) in bossButtons)
         {
@@ -83,42 +100,41 @@ public partial class SidePanelView
             if (click && hover && !handled) { handled = true; btn.OnClick?.Invoke(); }
         }
 
+        bool Over(float x, float w, float rowY) { float by = BossBtnY(rowY); return hasMouse && mx >= x && mx < x + w && my >= by && my < by + BossBtnH; }
+
         foreach (var r in bossRows)
         {
-            // Bouton TP : devant l'arène (connue une fois qu'on y est entré)
+            bool hover = hasMouse && my >= r.y && my < r.y + BossRowH && mx >= 12 && mx < W - 14;
+            Ui.SetActive(r.highlight, hover);
+            bool? defeated = Bosses.IsDefeated(r.boss);
             bool known = Arenas.Get(r.boss) != null;
-            float ty = r.y + (BossRowH - 28) / 2f;
-            bool overTp = hasMouse && mx >= r.tpX && mx < r.tpX + BossTpW && my >= ty && my < ty + 26;
-            r.tp.SetHover(overTp && known);
-            r.tp.LabelColor = known ? Theme.GoldText : Theme.TextDim;
+            bool overTp = Over(BossTpX, BossTpW, r.y), overAlive = Over(BossAliveX, BossStateW, r.y), overDefeated = Over(BossDefeatedX, BossStateW, r.y);
+
+            if (hover)
+            {
+                title = r.boss.Name;
+                text = defeated == true ? "Defeated. Alive: bring it back (the fight starts again the next time you enter its arena)."
+                    : defeated == false ? "Alive: its fight starts the next time you enter its arena. Defeated: mark it as beaten."
+                    : "State unknown (load a game first).";
+            }
             if (overTp)
             {
                 title = "Teleport: " + r.boss.Name;
                 text = known ? "Teleports you in front of the arena door, in the room before it."
                     : "Unknown yet: enter this arena once (walking in through its door) and the mod will remember where the door is.";
             }
-            if (overTp && click && !handled) { handled = true; r.tp.OnClick?.Invoke(); }
 
-            bool hover = hasMouse && my >= r.y && my < r.y + BossRowH && mx >= 12 && mx < W - 14;
-            Ui.SetActive(r.highlight, hover);
-            bool? defeated = Bosses.IsDefeated(r.boss);
-            if (hover && !overTp)
+            if (click && !handled)
             {
-                title = r.boss.Name;
-                text = defeated == true ? "Defeated. Click: bring it back (the fight starts again the next time you enter its arena)."
-                    : defeated == false ? "Not defeated yet. Click: mark it as defeated."
-                    : "State unknown (load a game first).";
+                if (overTp) { handled = true; r.tp.OnClick?.Invoke(); }
+                else if (overAlive && defeated != null) { handled = true; r.alive.OnClick?.Invoke(); defeated = Bosses.IsDefeated(r.boss); }
+                else if (overDefeated && defeated != null) { handled = true; r.defeated.OnClick?.Invoke(); defeated = Bosses.IsDefeated(r.boss); }
             }
-            if (hover && click && !handled && defeated != null)
-            {
-                handled = true;
-                Notify?.Invoke(Bosses.Toggle(r.boss), false);
-                defeated = Bosses.IsDefeated(r.boss);
-            }
-            Ui.SetText(r.chip, defeated == true ? "Defeated" : defeated == false ? "Alive" : "—");
-            r.chip.color = defeated == true ? Theme.TextDim : Theme.GoldText;
-            r.chipFill.color = defeated == false ? Theme.Crimson : Theme.BgButton;
-            Ui.SetBorder(r.chipFill, defeated == false ? Theme.GoldBright : Theme.Gold);
+
+            r.tp.SetHover(overTp && known);
+            r.tp.LabelColor = known ? Theme.GoldText : Theme.TextDim;
+            StyleStateButton(r.alive, defeated == false, overAlive, defeated != null);
+            StyleStateButton(r.defeated, defeated == true, overDefeated, defeated != null);
             r.name.color = defeated == true ? Theme.TextDim : hover ? Theme.GoldText : Theme.Text;
         }
 

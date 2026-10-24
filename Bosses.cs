@@ -110,18 +110,21 @@ public static class Bosses
         catch { return null; }
     }
 
-    /// <summary>Vaincu → réapparaît ; pas vaincu → marqué vaincu. Retourne le message à afficher.</summary>
-    public static string Toggle(Boss b)
+    /// <summary>
+    /// Met le boss dans l'état demandé, en entier (clé « vaincu » et absorption), quel que soit l'état actuel.
+    /// Retourne le message à afficher.
+    /// </summary>
+    public static string SetDefeated(Boss b, bool defeated)
     {
         var p = Progression();
         if (p == null) return "Unavailable (load a game first)";
         if (b.Key == null) return $"{b.Name}: no defeat flag in the game data";
-        bool defeated = p.HasProgressionKey(b.Key);
-        string before = Step(b);
-        if (defeated) Respawn(p, b); else { p.SetProgressionKey(b.Key); SetStep(b, CharacterProgressionStep.Absorbed); }
-        Plugin.Logger.LogInfo($"[Boss] {b.Name} : clé {b.Key.name} {(defeated ? "retirée" : "ajoutée")}, étape personnage {before} → {Step(b)}");
+        string before = $"clé={p.HasProgressionKey(b.Key)} étape={Step(b)}";
+        if (defeated) { p.SetProgressionKey(b.Key); SetStep(b, CharacterProgressionStep.Absorbed); }
+        else Respawn(p, b);
+        Plugin.Logger.LogInfo($"[Boss] {b.Name} → {(defeated ? "Defeated" : "Alive")} : avant {before}, après clé={p.HasProgressionKey(b.Key)} étape={Step(b)}");
         LogTriggers("après clic");
-        return defeated ? $"{b.Name} will be back (re-enter the arena)" : $"{b.Name} marked as defeated";
+        return defeated ? $"{b.Name}: defeated" : $"{b.Name}: alive (the fight starts again when you enter its arena)";
     }
 
     /// <summary>
