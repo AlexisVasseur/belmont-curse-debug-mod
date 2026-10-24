@@ -183,6 +183,7 @@ public class LoadSequence
         alpha = 0f;
         FadeOverlay.Set(0f);
         Cheats.ResyncNoclip();
+        SaveGuard.ReleaseSoon();
         Enter(Phase.Idle);
         Trace($"terminé en {Time.unscaledTime - sequenceStart:0.00}s");
         Plugin.Logger.LogInfo($"[Chargement] terminé en {Time.unscaledTime - sequenceStart:0.00}s");

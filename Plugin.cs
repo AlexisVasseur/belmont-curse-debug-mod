@@ -10,7 +10,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "fr.vasseur.belmontpractice";
     public const string Name = "Belmont Practice";
-    public const string Version = "0.17.0-visuel";
+    public const string Version = "0.17.1-visuel";
 
     internal static ManualLogSource Logger;
 
@@ -47,6 +47,7 @@ public class Plugin : BasePlugin
 
         // Pas de hooks Harmony : en IL2CPP, les méthodes au code identique (ex. méthodes vides) partagent
         // le même code natif, et patcher l'une patche des milliers d'autres méthodes du jeu.
+        SessionLog.Start();
         SaveBackup.Run();
         AddComponent<PracticeBehaviour>();
         Logger.LogInfo($"{Name} {Version} chargé");
