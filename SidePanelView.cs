@@ -14,7 +14,7 @@ namespace BelmontPractice;
 /// </summary>
 public partial class SidePanelView
 {
-    const float W = 470f, Pad = 14f, TabsH = 32f, TitleH = 44f, BarH = 30f;
+    const float W = 470f, Pad = 14f, TabsH = 38f, TitleH = 44f, BarH = 30f;
     const int Cols = 5;
     const float Gap = 6f, TileH = 124f, IconSize = 58f;
 
@@ -70,7 +70,6 @@ public partial class SidePanelView
         container.anchoredPosition = new Vector2(0f, 0f);
         panel = container.gameObject;
 
-        var edgeOuter = Ui.Image(container, "EdgeOuter", 0, 0, 0, 0, Theme.OuterLine); Stretch(edgeOuter.rectTransform, -6, 0, 0, 0); edgeOuter.rectTransform.anchorMax = new Vector2(0f, 1f); edgeOuter.rectTransform.offsetMax = new Vector2(-5f, 0f);
         
         var edgeGold = Ui.Image(container, "EdgeGold", 0, 0, 0, 0, Theme.Gold); Stretch(edgeGold.rectTransform, 0, 0, 0, 0); edgeGold.rectTransform.anchorMax = new Vector2(0f, 1f); edgeGold.rectTransform.offsetMax = new Vector2(1f, 0f);
         var bg = Ui.Image(container, "Fill", 0, 0, 0, 0, Theme.Bg);
@@ -81,14 +80,10 @@ public partial class SidePanelView
         // --- Onglets ---
         float y = 8;
         for (int i = 0; i < TabNames.Length; i++)
-        {
-            tabFrames[i] = Ui.Frame(fill, "Tab" + TabNames[i], TabX(i), y, TabW, TabsH, Theme.Gold, Theme.BgButton);
-            tabTexts[i] = Ui.Text(tabFrames[i].transform, "Text", 0, 0, TabW - 2, TabsH - 2, t, 17f, Theme.GoldLabel, TextAlignmentOptions.Center);
-            tabTexts[i].text = TabNames[i];
-        }
+            tabButtons[i] = UiButton.CreateSkinned(fill, "Tab" + TabNames[i], TabX(i), y, TabW, TabsH, TabNames[i], t, 18f, null);
 
         Ui.Image(fill, "TabsLine", Pad, y + TabsH + 4, iw - Pad * 2, 1, Theme.LineGold);
-        y += TabsH + 14;
+        y += TabsH + 8;
 
         // Zone défilante sous les onglets : masque + une page par onglet (mêmes coordonnées que le fond)
         var root = fill;
@@ -176,10 +171,9 @@ public partial class SidePanelView
     enum Tab { General, Skills, Weapons, Keybinds }
     static readonly string[] TabNames = { "General", "Skills", "Weapons", "Keybinds" };
     Tab tab = Tab.General;
-    static float TabW => (W - 1 - Pad * 2 - 6 * (TabNames.Length - 1)) / TabNames.Length; // les onglets occupent toute la largeur
-    float TabX(int i) => Pad + i * (TabW + 6);
-    readonly Image[] tabFrames = new Image[TabNames.Length];
-    readonly TextMeshProUGUI[] tabTexts = new TextMeshProUGUI[TabNames.Length];
+    static float TabW => (W - 1 - Pad * 2 - 4 * (TabNames.Length - 1)) / TabNames.Length; // les onglets occupent toute la largeur
+    float TabX(int i) => Pad + i * (TabW + 4);
+    readonly UiButton[] tabButtons = new UiButton[TabNames.Length];
     // Par onglet : page, hauteur du contenu, position de défilement
     readonly GameObject[] pages = new GameObject[TabNames.Length];
     readonly float[] contentH = new float[TabNames.Length], scrollPos = new float[TabNames.Length];
@@ -189,15 +183,22 @@ public partial class SidePanelView
         if (click && !handled && my >= 8 && my < 8 + TabsH)
             for (int i = 0; i < TabNames.Length; i++)
                 if (mx >= TabX(i) && mx < TabX(i) + TabW) { tab = (Tab)i; handled = true; }
-        for (int i = 0; i < TabNames.Length; i++) StyleTab(tabFrames[i], tabTexts[i], pages[i], (int)tab == i);
+        for (int i = 0; i < TabNames.Length; i++)
+        {
+            bool over = hasMouse && my >= 8 && my < 8 + TabsH && mx >= TabX(i) && mx < TabX(i) + TabW;
+            StyleTab(tabButtons[i], pages[i], (int)tab == i, over);
+        }
         if (tab != Tab.Keybinds) Keybinds.Capturing = null; // onglet quitté pendant la saisie d'une touche
     }
 
-    static void StyleTab(Image frame, TextMeshProUGUI text, GameObject page, bool active)
+    /// <summary>Onglet actif : fond bordeaux et volutes dorées ; les autres : fond sombre, sans volutes.</summary>
+    static void StyleTab(UiButton b, GameObject page, bool active, bool hover)
     {
-        frame.color = active ? Theme.Crimson : Theme.BgButton;
-        Ui.SetBorder(frame, active ? Theme.GoldBright : Theme.Gold);
-        text.color = active ? Theme.GoldText : Theme.GoldLabel;
+        b.Selected = active;
+        b.BaseColor = active ? Theme.Crimson : b.Skinned ? Skin.TabIdle : Theme.BgButton;
+        b.LabelColor = active ? Theme.GoldText : Theme.GoldLabel;
+        b.SetHover(hover && !active); // survol : fond sombre, texte doré, volutes (l'onglet actif reste rouge)
+        if (!b.Skinned) Ui.SetBorder(b.Fill, active ? Theme.GoldBright : Theme.Gold);
         if (page.activeSelf != active) page.SetActive(active);
     }
 
@@ -208,8 +209,9 @@ public partial class SidePanelView
         public string name, desc;
         public Func<bool> get;
         public Action<bool> set;
-        public Image highlight, pillFill;
-        public TextMeshProUGUI pill, label;
+        public Image highlight;
+        public UiButton pill;
+        public TextMeshProUGUI label;
         public float y;
     }
     readonly List<CheatUi> cheatRows = new();
@@ -217,7 +219,9 @@ public partial class SidePanelView
     GaugeUi healthGauge, manaGauge;
     TextMeshProUGUI potionsValue;
     readonly List<(Image border, Image fill, float cx, float cy)> potionPips = new();
-    const float PotionPitch = 30f;
+    const float PotionPitch = 30f, PotionSepW = 16f;
+    float potionsX, potionsY;
+    Image potionSep;
 
     static string RefillPotions() =>
         Cheats.PotionValues(out int cur, out int max, out int bonus, out _) ? Cheats.SetPotions(Math.Max(max, cur + bonus)) : "Unavailable (load a game first)";
@@ -227,9 +231,37 @@ public partial class SidePanelView
         bool ok = Cheats.PotionValues(out int cur, out int max, out int bonus, out int bonusMax);
         Ui.SetText(potionsValue, !ok ? "—" : bonus > 0 ? $"{cur} / {max}  + {bonus} bonus" : $"{cur} / {max}");
         int total = cur + bonus, limit = max + bonusMax;
+        bool vials = potionPips.Count > 0 && potionPips[0].border == null;
+        if (potionSep != null)
+        {
+            Ui.SetActive(potionSep, ok && bonusMax > 0 && max < potionPips.Count);
+            Ui.Place(potionSep.rectTransform, potionsX + max * PotionPitch + 1, potionsY - 12, 13, 24);
+        }
         for (int i = 0; i < potionPips.Count; i++)
         {
             var (border, f, cx, cy) = potionPips[i];
+            if (vials)
+            {
+                // Bonus décalés après l'ornement séparateur
+                float vx = potionsX + i * PotionPitch + (i >= max ? PotionSepW : 0f);
+                cx = vx + 13f;
+                bool shown = ok && i < limit;
+                Ui.SetActive(f, shown);
+                if (!shown) continue;
+                Ui.Place(f.rectTransform, vx, cy - 14, 26, 27);
+                bool full = i < total;
+                var sp = !full ? Skin.PotionEmpty ?? Skin.Potion : i < max ? Skin.Potion : Skin.PotionBonus ?? Skin.Potion;
+                if (f.sprite != sp) f.sprite = sp;
+                bool over = hasMouse && Mathf.Abs(mx - cx) <= PotionPitch / 2f && Mathf.Abs(my - cy) <= 15f;
+                f.color = over ? Theme.Hex(0xffc890) : full ? Color.white : new Color(1f, 1f, 1f, 0.45f);
+                if (over && click && !handled)
+                {
+                    handled = true;
+                    int target = i + 1 == total ? i : i + 1;
+                    Notify?.Invoke(Cheats.SetPotions(target), false);
+                }
+                continue;
+            }
             bool exists = ok && i < limit;
             Ui.SetActive(border, exists);
             Ui.SetActive(f, exists);
@@ -247,7 +279,7 @@ public partial class SidePanelView
             }
         }
     }
-    const float GaugeRowH = 68f;
+    const float GaugeRowH = 72f;
 
     static void UpdateGauge(GaugeUi g, bool ok, float cur, float max)
     {
@@ -272,8 +304,7 @@ public partial class SidePanelView
             Ui.Image(fill, "CheatLine" + name, 12, y + CheatRowH - 1, iw - 24, 1, Theme.Line);
             r.label = Ui.Text(fill, "CheatName" + name, Pad + 4, y, iw - Pad * 2 - 90, CheatRowH, GameFonts.Title, 19f, Theme.Text);
             r.label.text = name;
-            r.pillFill = Ui.Frame(fill, "CheatPill" + name, iw - Pad - 70, y + (CheatRowH - 28) / 2f, 64, 26, Theme.Gold, Theme.BgButton);
-            r.pill = Ui.Label(r.pillFill.transform, "Text", 0, 0, 62, 26, GameFonts.Title, 15f, Theme.KeyText);
+            r.pill = UiButton.CreateSkinned(fill, "CheatPill" + name, iw - Pad - 76, y + (CheatRowH - 30) / 2f, 70, 30, "", GameFonts.Title, 15f, null);
             cheatRows.Add(r);
             y += CheatRowH;
         }
@@ -292,7 +323,7 @@ public partial class SidePanelView
             Ui.Text(fill, name + "Name", Pad + 4, y, 160, 30, GameFonts.Title, 19f, Theme.Text).text = name;
             Button(right - 70, y + 2, 70, 26, fullLabel, GameFonts.Title, 14f, () => Notify?.Invoke(change(null), false), name);
             g.value = Ui.Text(fill, name + "Val", right - 70 - 150, y, 140, 30, GameFonts.Numbers, 20f, Theme.GoldText, TextAlignmentOptions.Right);
-            float by = y + 34, bw = 42, bh = 24, gap = 5;
+            float by = y + 34, bw = 46, bh = 28, gap = 5;
             float x = Pad + 4;
             Button(x, by, bw, bh, "-50", GameFonts.Title, 13f, () => Notify?.Invoke(change(-50), false), name); x += bw + gap;
             Button(x, by, bw, bh, "-10", GameFonts.Title, 13f, () => Notify?.Invoke(change(-10), false), name); x += bw + gap + 4;
@@ -318,15 +349,28 @@ public partial class SidePanelView
             potionsValue = Ui.Text(fill, "PotionsVal", right - 70 - 200, y, 190, 30, GameFonts.Numbers, 20f, Theme.GoldText, TextAlignmentOptions.Right);
             float ly = y + 34;
             Button(Pad + 4, ly, 34, 30, "-", GameFonts.Title, 18f, () => Notify?.Invoke(Cheats.ChangePotions(-1), false), "Potions");
-            float px = Pad + 4 + 34 + 12;
-            int slots = (int)((right - 34 - 12 - px) / PotionPitch);
-            for (int i = 0; i < slots; i++)
+            potionsX = Pad + 4 + 34 + 12;
+            potionsY = ly + 15;
+            int slots = (int)((right - 34 - 12 - potionsX - PotionSepW) / PotionPitch);
+            if (Skin.Potion != null)
             {
-                float cx = px + i * PotionPitch + PotionPitch / 2f;
-                var d = Ui.Diamond(fill, $"Potion{i}", cx, ly + 15, 18, GameFonts.Numbers, 10f);
-                d.label.text = "";
-                potionPips.Add((d.border, d.fill, cx, ly + 15));
+                // Fioles du HUD du jeu ; l'ornement séparateur est placé entre normales et bonus à chaque frame
+                if (Skin.PotionSeparator != null) { potionSep = Skin.Sprite(fill, "PotionSep", 0, ly + 3, 13, 24, Skin.PotionSeparator, Color.white); potionSep.preserveAspect = true; }
+                for (int i = 0; i < slots; i++)
+                {
+                    var img = Skin.Sprite(fill, $"Potion{i}", potionsX + i * PotionPitch, ly + 1, 26, 27, Skin.Potion, Color.white);
+                    img.preserveAspect = true;
+                    potionPips.Add((null, img, 0f, ly + 15));
+                }
             }
+            else
+                for (int i = 0; i < slots; i++)
+                {
+                    float cx = potionsX + i * PotionPitch + PotionPitch / 2f;
+                    var d = Ui.Diamond(fill, $"Potion{i}", cx, ly + 15, 18, GameFonts.Numbers, 10f);
+                    d.label.text = "";
+                    potionPips.Add((d.border, d.fill, cx, ly + 15));
+                }
             Button(right - 34, ly, 34, 30, "+", GameFonts.Title, 18f, () => Notify?.Invoke(Cheats.ChangePotions(+1), false), "Potions");
             Ui.Image(fill, "PotionsLine", 12, y + GaugeRowH - 1, iw - 24, 1, Theme.Line);
             y += GaugeRowH;
@@ -344,10 +388,11 @@ public partial class SidePanelView
             bool on = r.get();
             bool hover = hasMouse && my >= r.y && my < r.y + CheatRowH && mx >= 12 && mx < W - 14;
             Ui.SetActive(r.highlight, hover);
-            Ui.SetText(r.pill, on ? "On" : "Off");
-            r.pill.color = on ? Theme.GoldText : Theme.TextDim;
-            r.pillFill.color = on ? Theme.Crimson : Theme.BgButton;
-            Ui.SetBorder(r.pillFill, on ? Theme.GoldBright : Theme.Gold);
+            Ui.SetText(r.pill.Label, on ? "On" : "Off");
+            r.pill.BaseColor = on ? Theme.Crimson : r.pill.Skinned ? Skin.ButtonIdle : Theme.BgButton;
+            r.pill.LabelColor = on ? Theme.GoldText : Theme.TextDim;
+            r.pill.SetHover(false);
+            if (!r.pill.Skinned) Ui.SetBorder(r.pill.Fill, on ? Theme.GoldBright : Theme.Gold);
             r.label.color = on ? Theme.GoldText : Theme.Text;
             if (click && hover && !handled)
             {
@@ -366,6 +411,8 @@ public partial class SidePanelView
         public TextMeshProUGUI value, sub;
         public Image icon;
         public List<(Image img, float x, float y)> hearts = new();
+        // Couches de chaque cœur (fond, 4 pièces, cadre) : le cœur en cours n'affiche que ses pièces trouvées
+        public List<Image[]> layers = new();
     }
     readonly List<UpgradeUi> upgradeRows = new();
     bool wasVisible;
@@ -419,6 +466,16 @@ public partial class SidePanelView
                 var img = Ui.Image(fill, $"UpgHeart{kind}{i}", x, ly, HeartSize, HeartSize, new Color(1f, 1f, 1f, 1f));
                 img.preserveAspect = true;
                 r.hearts.Add((img, x, ly));
+                bool mana = kind == Upgrades.Kind.ManaFragments;
+                if (Skin.HeartBg != null && Skin.HeartFrame != null && Skin.HeartPiece(mana, 4) != null)
+                {
+                    img.gameObject.SetActive(false);
+                    var layers = new Image[6];
+                    layers[0] = Skin.Sprite(fill, $"UpgHeart{kind}{i}Bg", x, ly, HeartSize, HeartSize, Skin.HeartBg, Color.white);
+                    for (int k = 1; k <= 4; k++) layers[k] = Skin.Sprite(fill, $"UpgHeart{kind}{i}P{k}", x, ly, HeartSize, HeartSize, Skin.HeartPiece(mana, k), Color.white);
+                    layers[5] = Skin.Sprite(fill, $"UpgHeart{kind}{i}Frame", x, ly, HeartSize, HeartSize, Skin.HeartFrame, Color.white);
+                    r.layers.Add(layers);
+                }
             }
             float after = hx + Upgrades.MaxHearts * (HeartSize + HeartGap) + 6;
             Button(after, ly, 34, 30, "+", GameFonts.Title, 18f, () => ChangeUpgrade(kind, +1), kind.ToString());
@@ -454,6 +511,24 @@ public partial class SidePanelView
                 var (img, x, y) = r.hearts[i];
                 if (img.sprite == null) img.sprite = r.icon.sprite;
                 bool hover = hasMouse && mx >= x - HeartGap / 2f && mx < x + HeartSize + HeartGap / 2f && my >= y && my < y + HeartSize;
+                if (i < r.layers.Count)
+                {
+                    // Pièces affichées : 4 pour un cœur complet, celles trouvées pour le cœur en cours, aucune sinon
+                    var lay = r.layers[i];
+                    int pieces = i < full ? 4 : i == full ? frags : 0;
+                    float shell = pieces > 0 || hover ? 1f : 0.45f;
+                    lay[0].color = new Color(1f, 1f, 1f, shell);
+                    for (int k = 1; k <= 4; k++) Ui.SetActive(lay[k], k <= pieces);
+                    lay[5].color = hover ? Theme.Hex(0xffc890) : new Color(1f, 1f, 1f, shell);
+                    if (hover && click && !handled)
+                    {
+                        handled = true;
+                        int tgt = (i + 1) * Upgrades.FragmentsPerHeart;
+                        if (v == tgt) tgt = i * Upgrades.FragmentsPerHeart;
+                        ChangeUpgrade(r.kind, tgt - v);
+                    }
+                    continue;
+                }
                 // Plein, partiel (morceaux déjà trouvés) ou vide
                 float a = i < full ? 1f : i == full && frags > 0 ? 0.3f + 0.15f * frags : 0.18f;
                 float tint = i < full || hover ? 1f : 0.55f;
@@ -472,13 +547,17 @@ public partial class SidePanelView
     // ---------- Armes ----------
 
     const float WeaponTile = 60f, WeaponGap = 8f, WeaponRowGap = 8f;
+    // Armurerie : médaillon de famille, 4 armes espacées, lignes aérées ; reliques espacées
+    // Cases élargies pour occuper toute la largeur du panneau (jusqu'à la barre de défilement)
+    const float ArmTile = 74f, ArmGap = 21f, ArmRowGap = 20f, Medallion = 56f, RelicTile = 66f, RelicGap = 22f;
+    const int RelicCols = 5;
     const int GridCols = 4; // 4 par ligne, comme l'Armurerie
     int weaponsBuiltFor = -1, relicsBuiltFor = -1;
-    class RelicUi { public Relics.Relic relic; public Image bg, icon, eq; public float x, y; }
+    class RelicUi { public Relics.Relic relic; public ItemTile tile; }
     readonly List<RelicUi> relicTiles = new();
     TextMeshProUGUI relicsCount;
 
-    class WeaponUi { public Weapons.Weapon weapon; public Image bg, icon, eq; public float x, y; }
+    class WeaponUi { public Weapons.Weapon weapon; public ItemTile tile; }
     readonly List<WeaponUi> weaponTiles = new();
     TextMeshProUGUI weaponDetailTitle, weaponDetailText;
 
@@ -493,30 +572,35 @@ public partial class SidePanelView
             y += 40;
         }
         relicTiles.Clear();
-        int maxCols = GridCols;
-        float gridW = maxCols * WeaponTile + (maxCols - 1) * WeaponGap;
-        float x0 = (iw - gridW) / 2f;
+        y += 6;
 
+        // Une ligne par famille, comme l'Armurerie : médaillon rond à gauche, filet qui traverse, 4 armes
+        float tilesX = Pad + Medallion + 16;
         for (int r = 0; r < Weapons.Families.Count; r++)
         {
             var fam = Weapons.Families[r];
-            float ry = y + r * (WeaponTile + WeaponRowGap);
-            // Filet horizontal derrière la ligne, comme dans l'Armurerie
-            Ui.Image(fill, $"WRow{r}Line", Pad, ry + WeaponTile / 2f, iw - Pad * 2, 1, Theme.LineGold);
-            for (int c = 0; c < fam.Weapons.Count && c < maxCols; c++)
+            float ry = y + r * (ArmTile + ArmRowGap), mid = ry + ArmTile / 2f;
+            if (Skin.RowSupport != null) Skin.Sliced(fill, $"WRow{r}Line", Pad + Medallion / 2f, mid - 12, iw - Pad * 2 - Medallion / 2f, 24, Skin.RowSupport, Theme.Hex(0xb8a070), 8f);
+            else Ui.Image(fill, $"WRow{r}Line", Pad, mid, iw - Pad * 2, 1, Theme.LineGold);
+
+            float mcx = Pad + Medallion / 2f;
+            Ui.Image(fill, $"WFam{r}Bg", mcx - Medallion / 2f + 4, mid - Medallion / 2f + 4, Medallion - 8, Medallion - 8, Theme.Hex(0x0b0706)).sprite = Skin.Disc;
+            var famIcon = Skin.Family(fam.Key);
+            if (famIcon != null) { var fi = Skin.Sprite(fill, $"WFam{r}Icon", mcx - 18, mid - 18, 36, 36, famIcon, Theme.GoldText); fi.preserveAspect = true; }
+            if (Skin.Circle != null) Skin.Sprite(fill, $"WFam{r}Ring", mcx - Medallion / 2f, mid - Medallion / 2f, Medallion, Medallion, Skin.Circle, Theme.GoldBright);
+
+            for (int c = 0; c < fam.Weapons.Count && c < GridCols; c++)
             {
-                float tx = x0 + c * (WeaponTile + WeaponGap);
-                var bgImg = Ui.Frame(fill, $"W{r}_{c}", tx, ry, WeaponTile, WeaponTile, Theme.Gold, Theme.TileOff);
-                var icon = Ui.Image(bgImg.transform, "Icon", 2, 2, WeaponTile - 6, WeaponTile - 6, new Color(1f, 1f, 1f, 1f));
-                icon.preserveAspect = true;
-                var eq = Ui.Image(bgImg.transform, "Equipped", 0, 0, 9, 9, Theme.GoldText);
-                eq.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-                eq.rectTransform.anchoredPosition = new Vector2((WeaponTile - 2) / 2f, -(WeaponTile - 4));
-                eq.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
-                weaponTiles.Add(new WeaponUi { weapon = fam.Weapons[c], bg = bgImg, icon = icon, eq = eq, x = tx, y = ry });
+                float tx = tilesX + c * (ArmTile + ArmGap);
+                var tile = ItemTile.Build(fill, $"W{r}_{c}", tx, ry, ArmTile);
+                tile.frameTint = Skin.TierTint(fam.Weapons[c].Tier);
+                weaponTiles.Add(new WeaponUi { weapon = fam.Weapons[c], tile = tile });
             }
         }
-        y += Weapons.Families.Count * (WeaponTile + WeaponRowGap) + 6;
+        y += Weapons.Families.Count * (ArmTile + ArmRowGap) + 4;
+        // Reliques : 5 par ligne, centrées sur la largeur utile (barre de défilement exclue)
+        float gridW = RelicCols * RelicTile + (RelicCols - 1) * RelicGap;
+        float x0 = (iw - ScrollbarW - 6 - gridW) / 2f;
 
         // --- Reliques : 3 emplacements équipables, toutes affichées, 4 par ligne ---
         relicsBuiltFor = Relics.All.Count;
@@ -525,19 +609,12 @@ public partial class SidePanelView
         y += 16;
         for (int i = 0; i < Relics.All.Count; i++)
         {
-            float tx = x0 + (i % GridCols) * (WeaponTile + WeaponGap), ty = y + (i / GridCols) * (WeaponTile + WeaponRowGap);
-            var bgImg = Ui.Frame(fill, $"R{i}", tx, ty, WeaponTile, WeaponTile, Theme.Gold, Theme.TileOff);
-            var icon = Ui.Image(bgImg.transform, "Icon", 2, 2, WeaponTile - 6, WeaponTile - 6, new Color(1f, 1f, 1f, 1f));
-            icon.preserveAspect = true;
-            var eq = Ui.Image(bgImg.transform, "Equipped", 0, 0, 9, 9, Theme.GoldText);
-            eq.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            eq.rectTransform.anchoredPosition = new Vector2((WeaponTile - 2) / 2f, -(WeaponTile - 4));
-            eq.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
-            relicTiles.Add(new RelicUi { relic = Relics.All[i], bg = bgImg, icon = icon, eq = eq, x = tx, y = ty });
+            float tx = x0 + (i % RelicCols) * (RelicTile + RelicGap), ty = y + (i / RelicCols) * (RelicTile + RelicGap);
+            relicTiles.Add(new RelicUi { relic = Relics.All[i], tile = ItemTile.Build(fill, $"R{i}", tx, ty, RelicTile) });
         }
         if (Relics.All.Count == 0)
             Ui.Text(fill, "RelicsWaiting", Pad, y, iw - Pad * 2, 30, GameFonts.Body, 19f, Theme.TextDim, TextAlignmentOptions.Center).text = "Load a game to see the relics";
-        y += Math.Max(1, (Relics.All.Count + GridCols - 1) / GridCols) * (WeaponTile + WeaponRowGap) + 8;
+        y += Math.Max(1, (Relics.All.Count + RelicCols - 1) / RelicCols) * (RelicTile + RelicGap) + 8;
 
         contentH[(int)Tab.Weapons] = y + 8;
     }
@@ -549,15 +626,12 @@ public partial class SidePanelView
         {
             bool? owned = Weapons.IsOwned(t.weapon);
             bool equipped = owned == true && Weapons.IsEquipped(t.weapon);
-            bool hover = hasMouse && mx >= t.x && mx < t.x + WeaponTile && my >= t.y && my < t.y + WeaponTile;
+            bool hover = hasMouse && t.tile.Contains(mx, my);
 
             var sprite = ItemIcons.Get(t.weapon.Item);
-            if (sprite != null && t.icon.sprite == null) t.icon.sprite = sprite;
-            Ui.SetActive(t.icon, t.icon.sprite != null);
-            t.icon.color = owned == true ? new Color(1f, 1f, 1f, 1f) : new Color(0.3f, 0.27f, 0.25f, 0.75f);
-            t.bg.color = hover ? Theme.Crimson : owned == true ? Theme.TileOn : Theme.TileOff;
-            Ui.SetBorder(t.bg, equipped ? Theme.GoldText : owned == true ? Theme.GoldBright : Theme.Line);
-            Ui.SetActive(t.eq, equipped);
+            if (sprite != null && t.tile.icon.sprite == null) t.tile.icon.sprite = sprite;
+            Ui.SetActive(t.tile.icon, t.tile.icon.sprite != null);
+            t.tile.Apply(hover, owned == true, equipped);
 
             if (hover)
             {
@@ -573,15 +647,12 @@ public partial class SidePanelView
         {
             bool? owned = Relics.IsOwned(t.relic);
             bool equipped = owned == true && Relics.IsEquipped(t.relic);
-            bool hover = hasMouse && mx >= t.x && mx < t.x + WeaponTile && my >= t.y && my < t.y + WeaponTile;
+            bool hover = hasMouse && t.tile.Contains(mx, my);
 
             var sprite = ItemIcons.Get(t.relic.Item);
-            if (sprite != null && t.icon.sprite == null) t.icon.sprite = sprite;
-            Ui.SetActive(t.icon, t.icon.sprite != null);
-            t.icon.color = owned == true ? new Color(1f, 1f, 1f, 1f) : new Color(0.3f, 0.27f, 0.25f, 0.75f);
-            t.bg.color = hover ? Theme.Crimson : owned == true ? Theme.TileOn : Theme.TileOff;
-            Ui.SetBorder(t.bg, equipped ? Theme.GoldText : owned == true ? Theme.GoldBright : Theme.Line);
-            Ui.SetActive(t.eq, equipped);
+            if (sprite != null && t.tile.icon.sprite == null) t.tile.icon.sprite = sprite;
+            Ui.SetActive(t.tile.icon, t.tile.icon.sprite != null);
+            t.tile.Apply(hover, owned == true, equipped);
 
             if (hover)
             {
@@ -604,11 +675,11 @@ public partial class SidePanelView
     float spellsTop;
     int spellsBuiltFor = -1;
 
-    class TalentUi { public Arcana.Talent talent; public Image border, fill; public float cx, cy; }
+    class TalentUi { public Arcana.Talent talent; public Image border, fill, gem, gemHover; public float cx, cy; }
     class SpellUi
     {
         public Arcana.Spell spell;
-        public Image highlight, icon, line, equipped;
+        public Image highlight, icon, line, equipped, frame, glow, spikes;
         public GameObject iconRoot;
         public SpellItemData shownItem;
         public GameObject fallback;
@@ -666,13 +737,26 @@ public partial class SidePanelView
 
             // Icône du sort (les icônes d'arcanes du jeu sont déjà en losange)
             float iconX = cx + 4, iconY = cy + (SpellCellH - 4 - SpellIcon) / 2f;
+            float icx = iconX + SpellIcon / 2f, icy = iconY + SpellIcon / 2f;
+            // Losange du jeu derrière l'illustration (lueur orangée dessous au survol)
+            if (Skin.Diamond != null)
+            {
+                if (Skin.GlowDiamond != null) c.glow = Skin.ShapeGlow(fill, $"Spell{i}Glow", icx, icy, 54, Skin.GlowDiamond);
+                c.frame = Skin.Sprite(fill, $"Spell{i}Frame", icx - 27, icy - 27, 54, 54, Skin.Diamond, Color.white);
+            }
             var d = Ui.Diamond(fill, $"Spell{i}Fallback", iconX + SpellIcon / 2f, iconY + SpellIcon / 2f, 32, GameFonts.Numbers, 16f);
             d.label.text = "";
             c.fallback = d.border.transform.parent.gameObject;
             // Losange comme dans le menu Arcanes : l'illustration de la carte cadrée dans un masque en losange
             c.icon = DiamondArt(fill, $"Spell{i}Icon", iconX + SpellIcon / 2f, iconY + SpellIcon / 2f, SpellIcon * 0.72f, out c.iconRoot);
             c.iconRoot.SetActive(false);
-            // Marque « équipé » : petit losange doré sous l'icône
+            if (c.frame != null)
+            {
+                // Le losange du jeu sert de cadre : on masque le liseré doré de DiamondArt
+                var artBorder = c.iconRoot.transform.GetChild(0).GetComponent<Image>();
+                if (artBorder != null) artBorder.color = new Color(0f, 0f, 0f, 0f);
+            }
+            // Marque « équipé » (sans les assets) : petit losange doré sous l'icône
             c.equipped = Ui.Image(fill, $"Spell{i}Eq", 0, 0, 7, 7, Theme.GoldText);
             c.equipped.rectTransform.pivot = new Vector2(0.5f, 0.5f);
             c.equipped.rectTransform.anchoredPosition = new Vector2(iconX + SpellIcon / 2f, -(iconY + SpellIcon + 1));
@@ -685,6 +769,15 @@ public partial class SidePanelView
             for (int k = 0; k < n; k++)
             {
                 float tcx = lineX + lineW * (k + 1) / (n + 1f);
+                if (Skin.GemLocked != null && Skin.GemUnlocked != null)
+                {
+                    // Gemme du jeu : emplacement sombre (verrouillée) ou gemme (débloquée), halo doré au survol
+                    var gem = Skin.Sprite(fill, $"Spell{i}T{k}", tcx - 14, midY - 14, 28, 28, Skin.GemLocked, Color.white);
+                    Image halo = null;
+                    if (Skin.GemHover != null) { halo = Skin.Sprite(fill, $"Spell{i}T{k}Hover", tcx - 20, midY - 20, 40, 40, Skin.GemHover, Color.white); halo.gameObject.SetActive(false); }
+                    c.talents.Add(new TalentUi { talent = c.spell.Talents[k], gem = gem, gemHover = halo, cx = tcx, cy = midY });
+                    continue;
+                }
                 var td = Ui.Diamond(fill, $"Spell{i}T{k}", tcx, midY, TalentSize, GameFonts.Numbers, 12f);
                 td.label.text = "";
                 c.talents.Add(new TalentUi { talent = c.spell.Talents[k], border = td.border, fill = td.fill, cx = tcx, cy = midY });
@@ -719,7 +812,15 @@ public partial class SidePanelView
             if (c.iconRoot.activeSelf != hasIcon) c.iconRoot.SetActive(hasIcon);
             if (c.fallback.activeSelf == hasIcon) c.fallback.SetActive(!hasIcon);
             c.icon.color = owned == true ? new Color(1f, 1f, 1f, 1f) : new Color(0.3f, 0.27f, 0.25f, 0.75f);
-            Ui.SetActive(c.equipped, owned == true && Arcana.IsEquipped(c.spell));
+            bool spellEquipped = owned == true && Arcana.IsEquipped(c.spell);
+            Ui.SetActive(c.equipped, spellEquipped && c.frame == null);
+            if (c.frame != null)
+            {
+                var fs = overIcon && Skin.DiamondHover != null ? Skin.DiamondHover : Skin.Diamond;
+                if (c.frame.sprite != fs) c.frame.sprite = fs;
+                c.frame.color = owned == true || overIcon ? Color.white : new Color(0.55f, 0.5f, 0.45f, 1f);
+                Skin.ApplyGlow(c.glow, overIcon, spellEquipped);
+            }
             c.line.color = owned == true ? Theme.GoldBright : Theme.Line;
             Ui.SetActive(c.highlight, overIcon);
 
@@ -737,8 +838,17 @@ public partial class SidePanelView
             {
                 bool? on = Arcana.IsUnlocked(t.talent);
                 bool hover = inCell && Mathf.Abs(mx - t.cx) <= TalentSize * 0.75f && Mathf.Abs(my - t.cy) <= TalentSize * 0.75f;
-                t.fill.color = on == true ? Theme.GoldText : Theme.BgSolid;
-                t.border.color = hover ? Theme.Red : on == true ? Theme.GoldText : Theme.Gold;
+                if (t.gem != null)
+                {
+                    var gs = on == true ? Skin.GemUnlocked : Skin.GemLocked;
+                    if (t.gem.sprite != gs) t.gem.sprite = gs;
+                    Ui.SetActive(t.gemHover, hover);
+                }
+                else
+                {
+                    t.fill.color = on == true ? Theme.GoldText : Theme.BgSolid;
+                    t.border.color = hover ? Theme.Red : on == true ? Theme.GoldText : Theme.Gold;
+                }
                 if (hover)
                 {
                     title = $"{c.spell.Name} · upgrade {t.talent.Index + 1}";
@@ -753,6 +863,9 @@ public partial class SidePanelView
     float SectionTitle(string text, float y)
     {
         float iw = W - 1;
+        // Ruban bordeaux du jeu ; à défaut, titre doré entre deux filets
+        // Toute la largeur du panneau ; hauteur laissant ~10 px entre le titre et les filets dorés
+        if (Skin.BannerSprite != null) return Skin.Banner(fill, text, 0, y, iw, 70, GameFonts.Title) + 10;
         var title = Ui.Text(fill, "Section" + text, Pad, y, iw - Pad * 2, TitleH, GameFonts.Title, 32f, Theme.GoldText, TextAlignmentOptions.Center);
         title.text = text;
         float tw = Mathf.Min(iw - Pad * 2 - 40, title.preferredWidth + 24);
@@ -789,7 +902,7 @@ public partial class SidePanelView
 
     UiButton Button(float x, float y, float w, float h, string text, TMP_FontAsset font, float size, Action onClick, string id = "")
     {
-        var btn = UiButton.Create(fill, "Btn" + id + text, x, y, w, h, text, font, size, onClick);
+        var btn = UiButton.CreateSkinned(fill, "Btn" + id + text, x, y, w, h, text, font, size, onClick);
         buttons.Add((btn, x, y, w, h, buildPage));
         return btn;
     }

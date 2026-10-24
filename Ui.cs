@@ -173,15 +173,99 @@ public class UiButton
         return new UiButton { Rt = fill.transform.parent.Cast<RectTransform>(), Fill = fill, Label = label, OnClick = onClick };
     }
 
+    /// <summary>
+    /// Bouton habillé avec les assets du jeu (panneau latéral) : fond arrondi du jeu, fin contour doré,
+    /// volutes dorées sur les côtés au survol (ou en permanence si Selected). Retombe sur Create sans les assets.
+    /// </summary>
+    public static UiButton CreateSkinned(Transform parent, string name, float x, float y, float w, float h, string text, TMP_FontAsset font, float fontSize, Action onClick)
+    {
+        var sprite = Skin.Button;
+        if (sprite == null) return Create(parent, name, x, y, w, h, text, font, fontSize, onClick);
+        var rt = Ui.Rect(parent, name, x, y, w, h);
+        var fill = Skin.Sliced(rt, "Fill", 0, 0, w, h, sprite, Skin.ButtonIdle, 2f);
+        var outline = fill.gameObject.AddComponent<Outline>();
+        outline.effectColor = new Color(Theme.GoldBright.r, Theme.GoldBright.g, Theme.GoldBright.b, 0.7f);
+        outline.effectDistance = new Vector2(1f, -1f);
+        // Centrage vertical recalé sur les caractères réellement dessinés (voir CenterLabel)
+        var label = Ui.Text(fill.transform, "Label", 0, 0, w, h, font, fontSize, Skin.ButtonText, TextAlignmentOptions.Center);
+        label.overflowMode = TextOverflowModes.Overflow;
+        label.text = text;
+        // « - » et « + » : dessinés avec des barres au centre exact du bouton (les glyphes des polices du jeu tombent de travers)
+        Image barH = null, barV = null;
+        if (text == "-" || text == "+")
+        {
+            label.text = "";
+            float bw = Mathf.Round(Mathf.Min(w, h) * 0.38f), bt = 2f;
+            barH = Ui.Image(fill.transform, "SignH", (w - bw) / 2f, (h - bt) / 2f, bw, bt, Skin.ButtonText);
+            if (text == "+") barV = Ui.Image(fill.transform, "SignV", (w - bt) / 2f, (h - bw) / 2f, bt, bw, Skin.ButtonText);
+        }
+        var (l, r) = Skin.Ornaments(rt, w, h);
+        return new UiButton
+        {
+            Rt = rt, Fill = fill, Label = label, OnClick = onClick, Skinned = true, OrnamentL = l, OrnamentR = r, SignH = barH, SignV = barV,
+            BaseColor = Skin.ButtonIdle, LabelColor = Skin.ButtonText,
+        };
+    }
+
+    public bool Skinned;
+    string centeredFor;
+    Image SignH, SignV;
+
+    /// <summary>
+    /// Centre verticalement le texte sur la zone réellement occupée par ses caractères : la ligne de base
+    /// des polices du jeu tombe bas (« - », « + », chiffres). Refait quand le texte change.
+    /// </summary>
+    void CenterLabel()
+    {
+        if (!Skinned || Label == null || centeredFor == Label.text || !Label.gameObject.activeInHierarchy) return;
+        try
+        {
+            var rt = Label.rectTransform;
+            float baseY = 0f; // position d'origine (haut du bouton)
+            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY);
+            Label.ForceMeshUpdate();
+            // textBounds donne la hauteur de LIGNE de la police : on prend le haut et le bas réels des caractères
+            // dessinés (la police du jeu a des chiffres elzéviriens qui descendent sous la ligne : 3, 4, 5, 7, 9).
+            var info = Label.textInfo;
+            float top = float.MinValue, bottom = float.MaxValue;
+            for (int i = 0; info != null && i < info.characterCount; i++)
+            {
+                var ch = info.characterInfo[i];
+                if (!ch.isVisible) continue;
+                top = Mathf.Max(top, ch.topLeft.y);
+                bottom = Mathf.Min(bottom, ch.bottomLeft.y);
+            }
+            if (top < bottom) return; // texte pas encore construit : on réessaiera
+            float rectMidY = -rt.rect.height / 2f; // pivot en haut à gauche
+            float dy = rectMidY - (top + bottom) / 2f;
+            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY + dy);
+            centeredFor = Label.text;
+        }
+        catch (Exception ex) { centeredFor = Label.text; Plugin.Logger.LogWarning("[Interface] centrage : " + ex.Message); }
+    }
+
+    /// <summary>Élément sélectionné (onglet actif) : volutes affichées en permanence.</summary>
+    public bool Selected;
+    public GameObject OrnamentL, OrnamentR;
+
     /// <summary>Couleurs « au repos », fixées par la vue (ex. Edit actif en bordeaux, Read en rouge pendant une opération).</summary>
     public Color BaseColor = Theme.BgButton;
     public Color LabelColor = Theme.KeyText;
 
     public void SetHover(bool hover)
     {
-        var c = Enabled && hover ? Theme.BgButtonHover : BaseColor;
+        bool lit = Enabled && hover;
+        var c = lit ? (Skinned ? Skin.ButtonHover : Theme.BgButtonHover) : BaseColor;
         if (!Theme.Same(Fill.color, c)) Fill.color = c;
-        var tc = Enabled ? LabelColor : Theme.TextDim;
+        var tc = !Enabled ? Theme.TextDim : lit && Skinned ? Theme.GoldText : LabelColor;
         if (!Theme.Same(Label.color, tc)) Label.color = tc;
+        CenterLabel();
+        if (SignH != null)
+        {
+            if (!Theme.Same(SignH.color, tc)) SignH.color = tc;
+            if (SignV != null && !Theme.Same(SignV.color, tc)) SignV.color = tc;
+        }
+        bool orn = Skinned && (Selected || lit);
+        if (OrnamentL != null && OrnamentL.activeSelf != orn) { OrnamentL.SetActive(orn); OrnamentR.SetActive(orn); }
     }
 }

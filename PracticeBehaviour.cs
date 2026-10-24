@@ -28,7 +28,9 @@ public class PracticeBehaviour : MonoBehaviour
 
     void Update()
     {
+
         try { SaveGuard.Update(); } catch (Exception ex) { Plugin.Logger.LogError("[Protection] " + ex); }
+
         try { GameBridge.UpdateRoomReload(); }
         catch (Exception ex) { Plugin.Logger.LogError("[Salle] " + ex); }
         try { sequence.Update(); }
