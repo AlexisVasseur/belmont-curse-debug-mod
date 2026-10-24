@@ -31,7 +31,8 @@ public partial class SidePanelView
     class TileUi
     {
         public Abilities.Move move;
-        public Image bg, icon;
+        public Image bg, icon, glow;
+        public bool shield; // écu de l'écran Progression (sinon case classique)
         public GameObject fallback;
         public TextMeshProUGUI name;
         public string shownName;
@@ -141,14 +142,26 @@ public partial class SidePanelView
         allIndicator.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
         y += BarH + 8;
 
-        for (int i = 0; i < Abilities.Traversal.Count; i++)
+        if (Skin.VaniaSlot != null && Skin.VaniaSlotEmpty != null)
         {
-            int col = i % Cols, row = i / Cols;
-            float tx = Pad + col * (TileW + Gap), ty = y + row * (TileH + Gap);
-            tiles.Add(BuildTile(Abilities.Traversal[i], tx, ty, b));
+            // Comme l'écran Progression : la ceinture traverse la ligne, chaque compétence dans son écu doré
+            if (Skin.VaniaBelt != null) Skin.Sprite(fill, "MoveBelt", -10, y + 4, iw + 20, 96, Skin.VaniaBelt, Color.white);
+            float avail = iw - ScrollbarW - 6, step = avail / Abilities.Traversal.Count;
+            for (int i = 0; i < Abilities.Traversal.Count; i++)
+                tiles.Add(BuildShield(Abilities.Traversal[i], step * i + (step - ShieldW) / 2f, y + 6));
+            y += ShieldRowH + 10;
         }
-        int rowsCount = (Abilities.Traversal.Count + Cols - 1) / Cols;
-        y += rowsCount * (TileH + Gap) + 16;
+        else
+        {
+            for (int i = 0; i < Abilities.Traversal.Count; i++)
+            {
+                int col = i % Cols, row = i / Cols;
+                float tx = Pad + col * (TileW + Gap), ty = y + row * (TileH + Gap);
+                tiles.Add(BuildTile(Abilities.Traversal[i], tx, ty, b));
+            }
+            int rowsCount = (Abilities.Traversal.Count + Cols - 1) / Cols;
+            y += rowsCount * (TileH + Gap) + 16;
+        }
 
         // --- Section Spells ---
         y = SectionTitle("Arcanas", y);
@@ -913,6 +926,28 @@ public partial class SidePanelView
         return y + TitleH + 6;
     }
 
+    const float ShieldW = 80f, ShieldH = 88f, ShieldRowH = 140f;
+
+    /// <summary>Compétence dans l'écu doré de l'écran Progression, nom en dessous ; lueur orange en forme d'écu au survol.</summary>
+    TileUi BuildShield(Abilities.Move move, float x, float y)
+    {
+        var tile = new TileUi { move = move, shield = true, x = x - 6, y = y, w = ShieldW + 12, h = ShieldRowH - 10 };
+        if (Skin.VaniaGlow != null) { tile.glow = Skin.Sprite(fill, "ShieldGlow" + move.Key, x - 16, y - 16, ShieldW + 32, ShieldH + 32, Skin.VaniaGlow, Skin.HoverGlow); tile.glow.gameObject.SetActive(false); }
+        tile.bg = Skin.Sprite(fill, "Shield" + move.Key, x, y, ShieldW, ShieldH, Skin.VaniaSlot, Color.white);
+        var d = Ui.Diamond(fill, "ShieldFallback" + move.Key, x + ShieldW / 2f, y + 40, 26, GameFonts.Numbers, 16f);
+        d.label.text = "";
+        tile.fallback = d.border.transform.parent.gameObject;
+        tile.icon = Ui.Image(fill, "ShieldIcon" + move.Key, x + 14, y + 14, ShieldW - 28, ShieldW - 28, Color.white);
+        tile.icon.preserveAspect = true;
+        tile.icon.gameObject.SetActive(false);
+        tile.name = Ui.Text(fill, "ShieldName" + move.Key, x - 14, y + ShieldH + 4, ShieldW + 28, 40, GameFonts.Title, 15f, Theme.Text, TextAlignmentOptions.Top);
+        tile.name.enableWordWrapping = true;
+        tile.name.overflowMode = TextOverflowModes.Overflow;
+        tile.name.text = move.DisplayName;
+        tile.shownName = move.DisplayName;
+        return tile;
+    }
+
     TileUi BuildTile(Abilities.Move move, float x, float y, TMP_FontAsset font)
     {
         float w = TileW;
@@ -1061,8 +1096,19 @@ public partial class SidePanelView
             if (tile.icon.gameObject.activeSelf != hasIcon) tile.icon.gameObject.SetActive(hasIcon);
             if (tile.fallback.activeSelf == hasIcon) tile.fallback.SetActive(!hasIcon);
 
-            tile.bg.color = hover ? Theme.Crimson : on == true ? Theme.TileOn : Theme.TileOff;
-            Ui.SetBorder(tile.bg, on == true ? Theme.GoldBright : Theme.Line);
+            if (tile.shield)
+            {
+                // Débloquée : écu doré ; verrouillée : écu vide assombri ; survol : lueur orange en forme d'écu
+                var ss = on == true || hover ? Skin.VaniaSlot : Skin.VaniaSlotEmpty;
+                if (tile.bg.sprite != ss) tile.bg.sprite = ss;
+                tile.bg.color = on == true || hover ? Color.white : new Color(0.8f, 0.75f, 0.7f, 1f);
+                Skin.ApplyGlow(tile.glow, hover, false);
+            }
+            else
+            {
+                tile.bg.color = hover ? Theme.Crimson : on == true ? Theme.TileOn : Theme.TileOff;
+                Ui.SetBorder(tile.bg, on == true ? Theme.GoldBright : Theme.Line);
+            }
             tile.icon.color = on == true ? new Color(1f, 1f, 1f, 1f) : new Color(0.35f, 0.31f, 0.28f, 0.8f);
             tile.name.color = on == true ? Theme.Text : Theme.TextDim;
             // Le nom officiel arrive quand l'objet du jeu est chargé
