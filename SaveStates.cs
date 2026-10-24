@@ -82,6 +82,7 @@ public static class GameBridge
 
         // Met à jour la sauvegarde en mémoire avec l'état courant (sans l'écrire sur disque).
         logic.GeneratePlayerSaveWithPosition(entity, level, pos, SaveOrigin.DebugSpawn);
+        DedupeObjectives(logic._currentSave);
         // false : ne pas sauvegarder les entités créées à l'exécution (elles se dupliquaient à chaque cycle).
         logic.SaveRoom(false);
 
@@ -324,6 +325,7 @@ public static class GameBridge
         var logic = SaveLogic.Get() ?? throw new Exception("SaveLogic introuvable");
 
         var save = JsonUtility.FromJson(state.GlobalSaveJson, Il2CppType.Of<GlobalSave>()).Cast<GlobalSave>();
+        DedupeObjectives(save);
         logic._currentSave = save;
         if (!string.IsNullOrEmpty(state.RuntimeWorldSaveJson))
             logic._runtimeWorldSave = JsonUtility.FromJson(state.RuntimeWorldSaveJson, Il2CppType.Of<WorldSave>()).Cast<WorldSave>();
@@ -345,6 +347,7 @@ public static class GameBridge
             return true;
         }
         Plugin.Logger.LogInfo($"[Restore] chargement complet (niveau actuel '{currentLevel}', savestate '{state.Level}')");
+        SaveGuard.Arm(); // le rechargement complet peut faire écrire la sauvegarde du jeu sur le disque
         FullReload(state);
         return false;
     }
@@ -473,6 +476,28 @@ public static class GameBridge
             Plugin.Logger.LogInfo($"[Position] joueur en {before} après chargement de salle (écart {dist:0.00}) → replacé en {state.Position}");
         }
         else Plugin.Logger.LogInfo($"[Position] OK ({before})");
+    }
+
+    /// <summary>
+    /// Le jeu ajoute ses objectifs principaux à la liste à chaque génération de la sauvegarde du joueur,
+    /// sans la vider : chaque capture la faisait grossir (180 000 entrées pour 7 objectifs, sauvegarde à 6,7 Mo).
+    /// On ne garde qu'une occurrence de chaque, dans l'ordre.
+    /// </summary>
+    public static void DedupeObjectives(GlobalSave save)
+    {
+        try
+        {
+            var ps = save?.playerSave;
+            var list = ps?.receivedMainObjectives;
+            if (list == null || list.Length < 2) return;
+            var seen = new HashSet<string>();
+            var unique = new List<string>();
+            for (int i = 0; i < list.Length; i++) { var s = list[i]; if (s != null && seen.Add(s)) unique.Add(s); }
+            if (unique.Count == list.Length) return;
+            ps.receivedMainObjectives = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStringArray(unique.ToArray());
+            Plugin.Logger.LogInfo($"[Sauvegarde] objectifs en double retirés : {list.Length} → {unique.Count}");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Sauvegarde] doublons : " + ex.Message); }
     }
 
     static void FullReload(SaveState state)
