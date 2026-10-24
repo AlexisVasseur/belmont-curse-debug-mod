@@ -75,20 +75,59 @@ public static class MapTeleport
         Vector2 cursor = context.currentCursorPosition;
         var target = new Vector3(cursor.x, cursor.y, e.transform.position.z);
         string what = "map point";
-        // Curseur sur un élément de la carte (miroir, salle de sauvegarde, porte…) : destination = l'élément lui-même
-        var sel = context.currentItemSelection;
-        if (sel != null)
+        // Près d'un miroir (Mirror of Life = point de sauvegarde, miroir de voyage rapide) ou d'une transition
+        // vers un autre quartier : on se pose exactement dessus (viser à côté envoyait hors des salles)
+        var snap = NearestDestination(cursor, out string kind);
+        if (snap != null)
         {
-            var sp = sel.transform.position;
+            var sp = snap.transform.position;
             target = new Vector3(sp.x, sp.y, target.z);
-            what = sel.TryCast<LevelMapMirrorItem>() != null || sel.name.IndexOf("Mirror", StringComparison.OrdinalIgnoreCase) >= 0 ? "mirror" : sel.name;
-            Plugin.Logger.LogInfo($"[Carte] élément sélectionné : {sel.name} type={sel.GetIl2CppType().Name} salle={sel.itemWorldRoomId} position={sp}");
+            what = kind;
+            Plugin.Logger.LogInfo($"[Carte] {kind} le plus proche : {snap.name} salle={snap.itemWorldRoomId} position={sp}");
         }
         pending = target;
         pendingLevel = context.level;
         string lvl = context.level != null ? context.level.name : "?";
         Plugin.Logger.LogInfo($"[Carte] {what} choisi : curseur={cursor} niveau carte={lvl} (niveau du joueur : {(context.isCurrentMcLevel ? "oui" : "non")}) → destination {target}");
         Notify?.Invoke($"Teleport target set ({what}, {lvl}): close the map to go there", false);
+    }
+
+    const float SnapRadius = 12f;
+
+    /// <summary>Miroir ou transition de la carte le plus proche du curseur (dans SnapRadius), sinon null.</summary>
+    static LevelMapItem NearestDestination(Vector2 cursor, out string kind)
+    {
+        string bestKind = null;
+        LevelMapItem best = null;
+        float bestD = SnapRadius;
+        void Scan(Il2CppSystem.Collections.Generic.List<LevelMapItem> list)
+        {
+            if (list == null) return;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var it = list[i];
+                if (it == null || !it.gameObject.activeInHierarchy) continue;
+                string k = KindOf(it);
+                if (k == null) continue;
+                var p = it.transform.position;
+                float d = Vector2.Distance(cursor, new Vector2(p.x, p.y));
+                if (d < bestD) { bestD = d; best = it; bestKind = k; }
+            }
+        }
+        Scan(context.staticLevelMapItems);
+        Scan(context.dynamicLevelMapItems);
+        kind = bestKind;
+        return best;
+    }
+
+    /// <summary>Type de destination « accrochable » : miroir de sauvegarde, miroir de voyage rapide, transition.</summary>
+    static string KindOf(LevelMapItem it)
+    {
+        if (it.TryCast<LevelMapSavePointItem>() != null) return "Mirror of Life";
+        string n = it.name ?? "";
+        if (n.Contains("FastTravel")) return "fast travel mirror";
+        if (it.TryCast<LevelMapBiomeTransitionItem>() != null) return "district passage";
+        return null;
     }
 
     /// <summary>Recensement des éléments de la carte (par type) pour identifier les miroirs ; une fois par ouverture.</summary>
