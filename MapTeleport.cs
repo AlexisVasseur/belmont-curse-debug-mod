@@ -71,6 +71,14 @@ public static class MapTeleport
     static void Pick()
     {
         if (!MainCharacterSingleton.TryGetEntity(out Entity e) || e == null) return;
+        // Autre niveau : seulement un niveau déjà visité, jamais une fin (charger « 12_MQBadEnding » faisait planter le jeu)
+        if (!context.isCurrentMcLevel && !CanTravelTo(context.level, out string reason))
+        {
+            Plugin.Logger.LogInfo($"[Carte] téléportation refusée vers {(context.level != null ? context.level.name : "?")} : {reason}");
+            Notify?.Invoke("Can't teleport there: " + reason, true);
+            return;
+        }
+
         // La carte est à l'échelle du niveau (vérifié : position du joueur sur la carte = position dans le monde)
         Vector2 cursor = context.currentCursorPosition;
         var target = new Vector3(cursor.x, cursor.y, e.transform.position.z);
@@ -93,6 +101,25 @@ public static class MapTeleport
     }
 
     const float SnapRadius = 12f;
+
+    static bool CanTravelTo(LevelID level, out string reason)
+    {
+        reason = null;
+        if (level == null) { reason = "unknown area"; return false; }
+        if (level.name.IndexOf("Ending", StringComparison.OrdinalIgnoreCase) >= 0) { reason = "story ending area"; return false; }
+        try
+        {
+            var entered = SaveLogic.Get()?._currentSave?.playerSave?.enteredLevels;
+            if (entered != null)
+            {
+                for (int i = 0; i < entered.Length; i++) if (entered[i] == level.guid) return true;
+                reason = "area never visited";
+                return false;
+            }
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Carte] niveaux visités : " + ex.Message); }
+        return true;
+    }
 
     /// <summary>Miroir ou transition de la carte le plus proche du curseur (dans SnapRadius), sinon null.</summary>
     static LevelMapItem NearestDestination(Vector2 cursor, out string kind)
