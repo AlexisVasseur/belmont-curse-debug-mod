@@ -553,42 +553,41 @@ public static class GameBridge
         if (afmObj == null) throw new Exception("ApplicationFlowManager introuvable");
         var afm = afmObj.Cast<ApplicationFlowManager>();
         // Autre niveau : charger l'état de jeu de ce niveau (recharger l'état courant ramènerait au niveau actuel)
-        if (TryFindLevelState(state.Level, out var stateId) && afm.HasState(stateId))
+        string current = SaveLogic.Get()?._currentLevelIdVariable?.CurrentValue?.name ?? "";
+        if (!string.IsNullOrEmpty(state.Level) && state.Level != current)
         {
-            Plugin.Logger.LogInfo($"[Restore] chargement de l'état du niveau '{state.Level}' (au lieu de '{afm.GetCurrentState()?.name}')");
-            afm.LoadState(stateId);
+            var levelState = FindLevelState(state.Level);
+            if (levelState == null) throw new Exception($"game state of level '{state.Level}' not found");
+            Plugin.Logger.LogInfo($"[Restore] chargement de l'état '{levelState.name}' (au lieu de '{afm.GetCurrentState()?.name}')");
+            afm.LoadState(levelState);
             return;
         }
         Plugin.Logger.LogInfo($"[Restore] rechargement de l'état '{afm.GetCurrentState()?.name}'");
         afm.ReloadCurrentState();
     }
 
-    /// <summary>État de jeu (ApplicationState) d'un niveau, via la table niveau → état du jeu. False si c'est le niveau actuel ou introuvable.</summary>
-    static bool TryFindLevelState(string levelName, out MotherBase.ApplicationFlowManager.ApplicationStateID stateId)
+    /// <summary>
+    /// État de jeu (ApplicationState) d'un autre niveau : il porte le nom du niveau sans « LevelID_ »
+    /// (LevelID_03_Catacombs → 03_Catacombs). Null si c'est le niveau actuel ou s'il est introuvable.
+    /// (La table niveau → état du jeu passe par un paramètre de sortie structure qui faisait planter le jeu.)
+    /// </summary>
+    static MotherBase.ApplicationFlowManager.ApplicationState FindLevelState(string levelName)
     {
-        stateId = default;
         try
         {
             string current = SaveLogic.Get()?._currentLevelIdVariable?.CurrentValue?.name ?? "";
-            if (string.IsNullOrEmpty(levelName) || levelName == current) return false;
-            LevelID level = null;
-            foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<LevelID>()))
+            if (string.IsNullOrEmpty(levelName) || levelName == current) return null;
+            string wanted = levelName.StartsWith("LevelID_") ? levelName.Substring("LevelID_".Length) : levelName;
+            foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<MotherBase.ApplicationFlowManager.ApplicationState>()))
             {
-                var l = o.TryCast<LevelID>();
-                if (l != null && l.name == levelName) { level = l; break; }
+                var st = o.TryCast<MotherBase.ApplicationFlowManager.ApplicationState>();
+                if (st != null && st.name == wanted) return st;
             }
-            if (level == null) { Plugin.Logger.LogWarning($"[Restore] niveau '{levelName}' introuvable"); return false; }
-            foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<LevelApplicationStateDictionary>()))
-            {
-                var dict = o.TryCast<LevelApplicationStateDictionary>();
-                if (dict != null && dict.TryFindStateFromLevelGuid(level.guid, out stateId)) return true;
-            }
-            Plugin.Logger.LogWarning($"[Restore] état de jeu du niveau '{levelName}' introuvable");
+            Plugin.Logger.LogWarning($"[Restore] état de jeu '{wanted}' introuvable pour le niveau '{levelName}'");
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Restore] état du niveau : " + ex.Message); }
-        return false;
+        return null;
     }
-
     /// <summary>Une fois la salle chargée : remet les objets mobiles (scies, plateformes) où ils étaient.</summary>
     public static void RestoreRoomObjects(SaveState state)
     {
