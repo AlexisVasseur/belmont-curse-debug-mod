@@ -81,7 +81,7 @@ public partial class SidePanelView
         // --- Onglets ---
         float y = 8;
         for (int i = 0; i < TabNames.Length; i++)
-            tabButtons[i] = UiButton.CreateSkinned(fill, "Tab" + TabNames[i], TabX(i), y, TabW, TabsH, TabNames[i], t, 18f, null);
+            tabButtons[i] = UiButton.CreateSkinned(fill, "Tab" + TabNames[i], TabX(i), y, TabW, TabsH, TabNames[i], t, 16f, null);
 
         Ui.Image(fill, "TabsLine", Pad, y + TabsH + 4, iw - Pad * 2, 1, Theme.LineGold);
         y += TabsH + 8;
@@ -113,6 +113,9 @@ public partial class SidePanelView
         pages[(int)Tab.Keybinds] = Ui.Rect(viewport, "KeybindsPage", 0, 0, iw, 10).gameObject;
         fill = pages[(int)Tab.Keybinds].transform;
         contentH[(int)Tab.Keybinds] = BuildKeybinds(y) + 8;
+        pages[(int)Tab.Bosses] = Ui.Rect(viewport, "BossesPage", 0, 0, iw, 10).gameObject;
+        fill = pages[(int)Tab.Bosses].transform;
+        contentH[(int)Tab.Bosses] = BuildBosses(y) + 8;
         pages[(int)Tab.Weapons] = Ui.Rect(viewport, "WeaponsPage", 0, 0, iw, 10).gameObject;
         fill = pages[(int)Tab.Weapons].transform;
         weaponsBuiltFor = Weapons.Families.Count;
@@ -181,8 +184,8 @@ public partial class SidePanelView
     static float DetailAreaH => DetailH + Pad * 2;
     float viewportTop;
 
-    enum Tab { General, Skills, Weapons, Keybinds }
-    static readonly string[] TabNames = { "General", "Skills", "Weapons", "Keybinds" };
+    enum Tab { General, Skills, Weapons, Bosses, Keybinds }
+    static readonly string[] TabNames = { "General", "Skills", "Weapons", "Bosses", "Keybinds" };
     Tab tab = Tab.General;
     static float TabW => (W - 1 - Pad * 2 - 4 * (TabNames.Length - 1)) / TabNames.Length; // les onglets occupent toute la largeur
     float TabX(int i) => Pad + i * (TabW + 4);
@@ -1002,9 +1005,11 @@ public partial class SidePanelView
         Arcana.Resolve();
         Weapons.Resolve();
         Relics.Resolve();
-        // Reconstruit quand les polices ou les listes (sorts, armes) deviennent disponibles
+        Bosses.Resolve();
+        // Reconstruit quand les polices ou les listes (sorts, armes, boss) deviennent disponibles
         if (panel == null || (!builtWithGameFonts && GameFonts.Resolved) || spellsBuiltFor != Arcana.Spells.Count
-            || weaponsBuiltFor != Weapons.Families.Count || relicsBuiltFor != Relics.All.Count) Build();
+            || weaponsBuiltFor != Weapons.Families.Count || relicsBuiltFor != Relics.All.Count
+            || bossesBuiltFor != BossesShown) Build();
         if (!panel.activeSelf) panel.SetActive(true);
 
         bool hasMouse = UiCanvas.Mouse(out float mx, out float my);
@@ -1054,6 +1059,11 @@ public partial class SidePanelView
         if (tab == Tab.Weapons)
         {
             UpdateWeapons(hasMouse, mx, my, click, hasMouse && UiCanvas.RightClicked, ref handled);
+            return;
+        }
+        if (tab == Tab.Bosses)
+        {
+            UpdateBosses(hasMouse, mx, my, click, ref handled);
             return;
         }
         if (tab == Tab.Keybinds)
