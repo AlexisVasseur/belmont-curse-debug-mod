@@ -93,7 +93,7 @@ public static class Keybinds
 
     public static Bind TogglePanel, QuickSave, QuickLoad, QuickslotToFile, FileToQuickslot,
         SaveToFile, LoadFromFile, NextPage, PrevPage, RefreshFiles;
-    public static Bind ToggleInfiniteHealth, ToggleInfiniteMana, ToggleInfinitePotions, ToggleInfiniteJump, ToggleNoclip;
+    public static Bind ToggleInfiniteHealth, ToggleInfiniteMana, ToggleInfinitePotions, ToggleInfiniteJump, ToggleNoclip, MapTeleport;
 
     internal static ConfigEntry<bool> NumpadDigits;
 
@@ -132,6 +132,9 @@ public static class Keybinds
             "Infinite jump", "Turns infinite jump on or off.");
         ToggleNoclip = new Bind(c, "BasculerNoclip", "", "Active / désactive le noclip", U,
             "Noclip", "Turns noclip on or off.");
+
+        MapTeleport = new Bind(c, "TeleportCarte", "T", "Carte ouverte : choisit le point sous le curseur comme destination de téléportation", U,
+            "Map teleport", "With the map open: marks the point under the cursor (or middle-click). Close the map to be teleported there.");
 
         NumpadDigits = c.Bind("Raccourcis", "ChiffresPaveNumerique", false,
             "Choix de l'emplacement (0-9) avec le pavé numérique au lieu des chiffres du haut du clavier");
