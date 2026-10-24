@@ -120,8 +120,8 @@ public static class Bosses
         if (p == null) return "Unavailable (load a game first)";
         if (b.Key == null) return $"{b.Name}: no defeat flag in the game data";
         string before = $"clé={p.HasProgressionKey(b.Key)} étape={Step(b)}";
-        if (defeated) { p.SetProgressionKey(b.Key); SetStep(b, CharacterProgressionStep.Absorbed); }
-        else Respawn(p, b);
+        if (defeated) { p.SetProgressionKey(b.Key); SetStep(b, CharacterProgressionStep.Absorbed); BossRespawn.Pending.Remove(b.Id.name); }
+        else { Respawn(p, b); BossRespawn.Pending.Add(b.Id.name); }
         Plugin.Logger.LogInfo($"[Boss] {b.Name} → {(defeated ? "Defeated" : "Alive")} : avant {before}, après clé={p.HasProgressionKey(b.Key)} étape={Step(b)}");
         LogTriggers("après clic");
         return defeated ? $"{b.Name}: defeated" : $"{b.Name}: alive (the fight starts again when you enter its arena)";
@@ -158,7 +158,7 @@ public static class Bosses
         if (p == null) return "Unavailable (load a game first)";
         int n = 0;
         foreach (var b in All)
-            if (b.Key != null && p.HasProgressionKey(b.Key)) { Respawn(p, b); n++; }
+            if (b.Key != null && p.HasProgressionKey(b.Key)) { Respawn(p, b); BossRespawn.Pending.Add(b.Id.name); n++; }
         Plugin.Logger.LogInfo($"[Boss] {n} boss réapparaissent");
         return n == 0 ? "No defeated boss" : $"{n} boss{(n > 1 ? "es" : "")} will be back";
     }

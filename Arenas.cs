@@ -61,7 +61,12 @@ public static class Arenas
     public static void Update(bool loading)
     {
         float now = Time.unscaledTime;
-        if (loading) { lastRoom = null; trail.Clear(); lastLoad = now; return; }
+        if (loading)
+        {
+            if (lastRoomIsArena) BossRespawn.OnLeaveArena();
+            lastRoom = null; lastRoomIsArena = false; trail.Clear(); lastLoad = now;
+            return;
+        }
         string room = GameBridge.CurrentRoomId();
         if (string.IsNullOrEmpty(room)) return;
         Vector3 pos = GameBridge.PlayerPosition();
@@ -70,15 +75,17 @@ public static class Arenas
         {
             var boss = GameBridge.CurrentRoomBoss(out string arcana);
             bool isArena = boss != null || arcana != null;
+            if (lastRoomIsArena) BossRespawn.OnLeaveArena();
             // Seulement en marchant : salle d'avant occupée au moins 1 s, et pas juste après un chargement
             bool walkedIn = lastRoom != null && !lastRoomIsArena && now - lastRoomSince >= 1f && now - lastLoad >= 3f;
             if (isArena && walkedIn) Learn(boss, arcana, lastRoom, BeforeDoor(now));
-            if (isArena) dumpAt = now + 2f; // la salle finit de charger ses objets après le passage de la porte
+            if (isArena) { dumpAt = now + 2f; BossRespawn.OnEnterArena(BossOf(boss, arcana)); } // la salle finit de charger ses objets après le passage de la porte
             lastRoom = room;
             lastRoomSince = now;
             lastRoomIsArena = isArena;
             trail.Clear();
         }
+        BossRespawn.Update();
         if (dumpAt > 0f && now >= dumpAt) { dumpAt = 0f; BossDiag.DumpDirectors("2 s après l'entrée dans l'arène"); }
         trail.Enqueue((now, pos));
         while (trail.Count > 0 && trail.Peek().t < now - 2f) trail.Dequeue();
@@ -96,12 +103,17 @@ public static class Arenas
         return best;
     }
 
+    static Bosses.Boss BossOf(BossData data, string arcana)
+    {
+        foreach (var b in Bosses.All)
+            if ((data != null && b.Data != null && b.Data.name == data.name) || (arcana != null && b.Id?.name == arcana)) return b;
+        return null;
+    }
+
     static void Learn(BossData data, string arcana, string fromRoom, Vector3? pos)
     {
         if (pos == null) return;
-        Bosses.Boss boss = null;
-        foreach (var b in Bosses.All)
-            if ((data != null && b.Data != null && b.Data.name == data.name) || (arcana != null && b.Id?.name == arcana)) { boss = b; break; }
+        var boss = BossOf(data, arcana);
         string key = boss?.Id?.name ?? arcana ?? data?.name;
         if (key == null) return;
         string level = GameBridge.CurrentLevelName();
