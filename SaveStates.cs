@@ -506,7 +506,7 @@ public static class GameBridge
         else entity.transform.SetPositionAndRotation(state.Position, rot);
     }
 
-    const float GroundSnapDistance = 4f;
+    const float GroundSnapDistance = 12f; // même portée que l'accroche aux miroirs
 
     /// <summary>
     /// Téléportation, salle chargée : cherche un sol jusqu'à GroundSnapDistance sous la destination (en ignorant
