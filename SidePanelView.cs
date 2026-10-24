@@ -70,7 +70,6 @@ public partial class SidePanelView
         container.anchoredPosition = new Vector2(0f, 0f);
         panel = container.gameObject;
 
-        var edgeOuter = Ui.Image(container, "EdgeOuter", 0, 0, 0, 0, Theme.OuterLine); Stretch(edgeOuter.rectTransform, -6, 0, 0, 0); edgeOuter.rectTransform.anchorMax = new Vector2(0f, 1f); edgeOuter.rectTransform.offsetMax = new Vector2(-5f, 0f);
         
         var edgeGold = Ui.Image(container, "EdgeGold", 0, 0, 0, 0, Theme.Gold); Stretch(edgeGold.rectTransform, 0, 0, 0, 0); edgeGold.rectTransform.anchorMax = new Vector2(0f, 1f); edgeGold.rectTransform.offsetMax = new Vector2(1f, 0f);
         var bg = Ui.Image(container, "Fill", 0, 0, 0, 0, Theme.Bg);
@@ -184,17 +183,21 @@ public partial class SidePanelView
         if (click && !handled && my >= 8 && my < 8 + TabsH)
             for (int i = 0; i < TabNames.Length; i++)
                 if (mx >= TabX(i) && mx < TabX(i) + TabW) { tab = (Tab)i; handled = true; }
-        for (int i = 0; i < TabNames.Length; i++) StyleTab(tabButtons[i], pages[i], (int)tab == i);
+        for (int i = 0; i < TabNames.Length; i++)
+        {
+            bool over = hasMouse && my >= 8 && my < 8 + TabsH && mx >= TabX(i) && mx < TabX(i) + TabW;
+            StyleTab(tabButtons[i], pages[i], (int)tab == i, over);
+        }
         if (tab != Tab.Keybinds) Keybinds.Capturing = null; // onglet quitté pendant la saisie d'une touche
     }
 
     /// <summary>Onglet actif : fond bordeaux et volutes dorées ; les autres : fond sombre, sans volutes.</summary>
-    static void StyleTab(UiButton b, GameObject page, bool active)
+    static void StyleTab(UiButton b, GameObject page, bool active, bool hover)
     {
         b.Selected = active;
         b.BaseColor = active ? Theme.Crimson : b.Skinned ? Skin.TabIdle : Theme.BgButton;
         b.LabelColor = active ? Theme.GoldText : Theme.GoldLabel;
-        b.SetHover(false);
+        b.SetHover(hover && !active); // survol : fond sombre, texte doré, volutes (l'onglet actif reste rouge)
         if (!b.Skinned) Ui.SetBorder(b.Fill, active ? Theme.GoldBright : Theme.Gold);
         if (page.activeSelf != active) page.SetActive(active);
     }

@@ -225,12 +225,22 @@ public class UiButton
             float baseY = 0f; // position d'origine (haut du bouton)
             rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY);
             Label.ForceMeshUpdate();
-            var b = Label.textBounds;
+            // textBounds donne la hauteur de LIGNE de la police : on prend le haut et le bas réels des caractères
+            // dessinés (la police du jeu a des chiffres elzéviriens qui descendent sous la ligne : 3, 4, 5, 7, 9).
+            var info = Label.textInfo;
+            float top = float.MinValue, bottom = float.MaxValue;
+            for (int i = 0; info != null && i < info.characterCount; i++)
+            {
+                var ch = info.characterInfo[i];
+                if (!ch.isVisible) continue;
+                top = Mathf.Max(top, ch.topLeft.y);
+                bottom = Mathf.Min(bottom, ch.bottomLeft.y);
+            }
+            if (top < bottom) return; // texte pas encore construit : on réessaiera
             float rectMidY = -rt.rect.height / 2f; // pivot en haut à gauche
-            float dy = b.size.y > 0.01f ? rectMidY - b.center.y : 0f;
+            float dy = rectMidY - (top + bottom) / 2f;
             rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY + dy);
-            if (logged++ < 12) Plugin.Logger.LogInfo($"[Centrage] '{Label.text}' rect h={rt.rect.height:0.#} pivot={rt.pivot} bornes centre={b.center} taille={b.size} → décalage {dy:0.#}");
-            if (b.size.y <= 0.01f) return; // texte pas encore construit : on réessaiera
+            if (logged++ < 12) Plugin.Logger.LogInfo($"[Centrage] '{Label.text}' rect h={rt.rect.height:0.#} caractères {bottom:0.#}..{top:0.#} → décalage {dy:0.#}");
             centeredFor = Label.text;
         }
         catch (Exception ex) { centeredFor = Label.text; Plugin.Logger.LogWarning("[Centrage] " + ex.Message); }

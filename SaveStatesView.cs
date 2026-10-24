@@ -79,10 +79,11 @@ public class SaveStatesView
             bg.color = new Color(0f, 0f, 0f, 0f);
             if (Skin.BarMask != null)
             {
-                toastBack = Skin.Sliced(bg.transform, "Back", 2f, 6f, ToastW + 4f, ToastH - 12f, Skin.BarMask, Theme.Hex(0x120c0a, 0.92f), 1.6f);
+                toastBack = Skin.Sliced(bg.transform, "Back", 4f, 6f, ToastW + 14f, ToastH - 12f, Skin.BarMask, Theme.Hex(0x120c0a, 0.92f), 1.6f);
                 toastBack.transform.SetAsFirstSibling();
             }
-            toastFrame = Skin.Sliced(bg.transform, "Frame", -6f, -6f, ToastW + 66f, ToastH + 12f, Skin.BarMana, Color.white, 1.4f);
+            // L'image a une marge transparente avant son liseré : on la décale pour que le texte soit à l'intérieur
+            toastFrame = Skin.Sliced(bg.transform, "Frame", -31f, -6f, ToastW + 96f, ToastH + 12f, Skin.BarMana, Color.white, 1.4f);
             Ui.SetActive(toastAccent, false);
         }
         toastText = Ui.Text(bg.transform, "Text", 18f, 0f, ToastW - 30f, ToastH - 2f, GameFonts.Body, 20f, Theme.Text);
@@ -117,7 +118,10 @@ public class SaveStatesView
         if (Skin.BannerSprite != null)
         {
             Ui.Image(fill, "BannerShade", 0, 0, iw, BannerH, Theme.Hex(0x0b0706, 0.6f));
-            Skin.Sprite(fill, "Banner", 0, 2, iw, BannerH - 4, Skin.BannerSprite, Color.white);
+            // Le ruban occupe les lignes 8 à 61 de son image (70 px) : on l'agrandit pour que sa partie
+            // visible couvre exactement le bandeau, collée au cadre en haut
+            float bh = BannerH * 70f / 53f;
+            Skin.Sprite(fill, "Banner", 0, -bh * 8f / 70f, iw, bh, Skin.BannerSprite, Color.white);
             Ui.Text(fill, "Title", 0, 0, iw, BannerH, t, 30f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = "Savestates";
         }
         else
