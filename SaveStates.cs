@@ -43,6 +43,10 @@ public class SaveState
     [System.Text.Json.Serialization.JsonIgnore]
     public Vector3 Position => new(X, Y, Z);
 
+    /// <summary>Téléportation : poser le joueur sur le sol s'il est juste en dessous (jamais pour une vraie savestate).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool SnapToGround { get; set; }
+
     /// <summary>Copie indépendante (le quickslot et un emplacement ne partagent jamais le même objet).</summary>
     public SaveState Clone() => JsonSerializer.Deserialize<SaveState>(JsonSerializer.Serialize(this));
 
@@ -90,6 +94,7 @@ public static class GameBridge
         var state = new SaveState
         {
             Name = "Teleport",
+            SnapToGround = true,
             Level = level?.name ?? "",
             Room = "(teleport)", // autre salle : le jeu charge celle qui contient la destination
             X = pos.x, Y = pos.y, Z = pos.z,
@@ -499,6 +504,36 @@ public static class GameBridge
         var spawn = MainCharacterSpawnLogic.Get();
         if (spawn != null) spawn.PlaceMainCharacter(state.Position, rot);
         else entity.transform.SetPositionAndRotation(state.Position, rot);
+    }
+
+    const float GroundSnapDistance = 4f;
+
+    /// <summary>
+    /// Téléportation, salle chargée : cherche un sol jusqu'à GroundSnapDistance sous la destination (en ignorant
+    /// les colliders du joueur et les zones déclencheuses) et y abaisse la destination. Sinon, rien ne change.
+    /// </summary>
+    public static void SnapToGround(SaveState state)
+    {
+        if (!state.SnapToGround) return;
+        try
+        {
+            MainCharacterSingleton.TryGetEntity(out Entity player);
+            var origin = state.Position + Vector3.up * 0.5f;
+            var hits = Physics.RaycastAll(origin, Vector3.down, GroundSnapDistance + 0.5f, ~0, QueryTriggerInteraction.Ignore);
+            float best = float.MaxValue;
+            Vector3 point = default;
+            foreach (var h in hits)
+            {
+                var col = h.collider;
+                if (col == null) continue;
+                if (player != null && col.transform.IsChildOf(player.transform)) continue;
+                if (h.distance < best) { best = h.distance; point = h.point; }
+            }
+            if (best == float.MaxValue) { Plugin.Logger.LogInfo($"[Téléportation] pas de sol sous {state.Position} : position gardée"); return; }
+            Plugin.Logger.LogInfo($"[Téléportation] sol trouvé à {point.y:0.00} (destination {state.Y:0.00}) : joueur posé au sol");
+            state.Y = point.y;
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Téléportation] sol : " + ex.Message); }
     }
 
     /// <summary>Une fois la salle chargée : replace le joueur si le changement de salle l'a déplacé.</summary>

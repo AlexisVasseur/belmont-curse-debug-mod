@@ -10,7 +10,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "fr.vasseur.belmontpractice";
     public const string Name = "Belmont Practice";
-    public const string Version = "0.20.5-teleport";
+    public const string Version = "0.20.6-teleport";
 
     internal static ManualLogSource Logger;
 
