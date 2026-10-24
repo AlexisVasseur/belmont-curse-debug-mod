@@ -176,6 +176,7 @@ public static class Bosses
                 parts.Add($"'{t.name}' boss={t.bossData?.name ?? "?"} actif={t.gameObject.activeInHierarchy} vaincu={defeated} déclenché={t.encounterHasBeenTriggered}");
             }
             Plugin.Logger.LogInfo($"[Boss] déclencheurs ({when}) : {(parts.Count == 0 ? "aucun" : string.Join(" | ", parts))}");
+            BossDiag.DumpDirectors(when);
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Boss] déclencheurs : " + ex.Message); }
     }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Il2CppInterop.Runtime;
 using UnityEngine;
 
@@ -29,6 +30,7 @@ public static class Arenas
 
     static string lastRoom;
     static bool lastRoomIsArena;
+    static float lastRoomSince, lastLoad = -100f;
     static readonly Queue<(float t, Vector3 p)> trail = new();
 
     // Demande de téléportation venue de l'interface, traitée par PracticeBehaviour
@@ -58,18 +60,22 @@ public static class Arenas
     /// <summary>Chaque frame en jeu. loading : chargement du mod en cours (téléportation, savestate) → on n'apprend rien.</summary>
     public static void Update(bool loading)
     {
-        if (loading) { lastRoom = null; trail.Clear(); return; }
+        float now = Time.unscaledTime;
+        if (loading) { lastRoom = null; trail.Clear(); lastLoad = now; return; }
         string room = GameBridge.CurrentRoomId();
         if (string.IsNullOrEmpty(room)) return;
-        float now = Time.unscaledTime;
         Vector3 pos = GameBridge.PlayerPosition();
 
         if (room != lastRoom)
         {
             var boss = GameBridge.CurrentRoomBoss(out string arcana);
             bool isArena = boss != null || arcana != null;
-            if (lastRoom != null && !lastRoomIsArena && isArena) Learn(boss, arcana, lastRoom, BeforeDoor(now));
+            // Seulement en marchant : salle d'avant occupée au moins 1 s, et pas juste après un chargement
+            bool walkedIn = lastRoom != null && !lastRoomIsArena && now - lastRoomSince >= 1f && now - lastLoad >= 3f;
+            if (isArena && walkedIn) Learn(boss, arcana, lastRoom, BeforeDoor(now));
+            if (isArena) BossDiag.DumpDirectors("entrée dans l'arène");
             lastRoom = room;
+            lastRoomSince = now;
             lastRoomIsArena = isArena;
             trail.Clear();
         }
@@ -98,6 +104,19 @@ public static class Arenas
         string key = boss?.Id?.name ?? arcana ?? data?.name;
         if (key == null) return;
         string level = GameBridge.CurrentLevelName();
+        // La salle doit appartenir au niveau (« World_Biome_01_… » ↔ « LevelID_01_… »)
+        string roomNum = Regex.Match(fromRoom ?? "", @"Biome_(\d+)").Groups[1].Value, levelNum = Regex.Match(level ?? "", @"LevelID_(\d+)").Groups[1].Value;
+        if (roomNum.Length > 0 && levelNum.Length > 0 && roomNum != levelNum)
+        {
+            Plugin.Logger.LogInfo($"[Arènes] entrée ignorée : salle '{fromRoom}' hors du niveau {level}");
+            return;
+        }
+        // Une seule entrée par boss : la première porte franchie (une autre entrée peut être normalement verrouillée)
+        if (All().TryGetValue(key, out var old) && old.Room != fromRoom)
+        {
+            Plugin.Logger.LogInfo($"[Arènes] {boss?.Name ?? key} : autre entrée par '{fromRoom}', on garde '{old.Room}'");
+            return;
+        }
         All()[key] = new Entry
         {
             Level = level ?? "", Room = fromRoom,
