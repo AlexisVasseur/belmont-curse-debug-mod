@@ -74,7 +74,7 @@ public static class MapTeleport
             }
             else if (confirming) Cancel();
 
-            MapTeleportView.Update(open, confirming);
+            MapTeleportView.Update(open, confirming, open && confirming ? CursorCanvasPosition() : null);
 
             if (mapWasOpen && !open && pending != null)
             {
@@ -141,6 +141,59 @@ public static class MapTeleport
     }
 
     static void Cancel() => confirming = false;
+
+    static LevelMapCamera mapCam;
+    static UnityEngine.UI.RawImage mapImage;
+    static bool placementLogged;
+
+    /// <summary>
+    /// Position du viseur de la carte dans le canvas du mod (origine en bas à gauche, unités de référence).
+    /// La carte a sa propre caméra : soit elle dessine à l'écran, soit dans une texture affichée par une RawImage.
+    /// </summary>
+    static Vector2? CursorCanvasPosition()
+    {
+        try
+        {
+            if (mapCam == null) mapCam = UnityEngine.Object.FindObjectOfType(Il2CppType.Of<LevelMapCamera>())?.TryCast<LevelMapCamera>();
+            var cam = mapCam?.mapCamera;
+            if (cam == null) return null;
+            Vector2 c = context.currentCursorPosition;
+            var world = new Vector3(c.x, c.y, mapCam.cursor != null ? mapCam.cursor.transform.position.z : 0f);
+            Vector2 screen;
+            var rt = cam.targetTexture;
+            if (rt == null)
+            {
+                Vector3 s = cam.WorldToScreenPoint(world);
+                screen = new Vector2(s.x, s.y);
+                if (!placementLogged) { placementLogged = true; Plugin.Logger.LogInfo($"[Carte] viseur : caméra de carte à l'écran, {screen}"); }
+            }
+            else
+            {
+                if (mapImage == null || mapImage.texture != rt)
+                {
+                    mapImage = null;
+                    foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppType.Of<UnityEngine.UI.RawImage>()))
+                    {
+                        var ri = o.TryCast<UnityEngine.UI.RawImage>();
+                        if (ri != null && ri.texture != null && ri.texture.Pointer == rt.Pointer) { mapImage = ri; break; }
+                    }
+                }
+                if (mapImage == null) return null;
+                Vector3 vp = cam.WorldToViewportPoint(world);
+                var corners = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<Vector3>(4);
+                mapImage.rectTransform.GetWorldCorners(corners);
+                var canvas = mapImage.canvas;
+                Camera uiCam = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+                Vector3 a = corners[0], b = corners[2];
+                if (uiCam != null) { a = uiCam.WorldToScreenPoint(a); b = uiCam.WorldToScreenPoint(b); }
+                screen = new Vector2(Mathf.Lerp(a.x, b.x, vp.x), Mathf.Lerp(a.y, b.y, vp.y));
+                if (!placementLogged) { placementLogged = true; Plugin.Logger.LogInfo($"[Carte] viseur : texture de carte affichée par {mapImage.name}, {screen}"); }
+            }
+            float scale = UiCanvas.Canvas != null && UiCanvas.Canvas.scaleFactor > 0f ? UiCanvas.Canvas.scaleFactor : 1f;
+            return screen / scale;
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Carte] position du viseur : " + ex.Message); return null; }
+    }
 
     /// <summary>« LevelID_03_Catacombs » → « Catacombs ».</summary>
     static string AreaName(LevelID level)
