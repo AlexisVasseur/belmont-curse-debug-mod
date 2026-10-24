@@ -91,24 +91,35 @@ public static class MapTeleport
         Notify?.Invoke($"Teleport target set ({what}, {lvl}): close the map to go there", false);
     }
 
+    /// <summary>Recensement des éléments de la carte (par type) pour identifier les miroirs ; une fois par ouverture.</summary>
     static void LogMirrors()
     {
         try
         {
-            var sb = new StringBuilder("[Carte] miroirs connus :");
-            int n = 0;
-            foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<LevelMapMirrorItem>()))
+            var counts = new System.Collections.Generic.Dictionary<string, int>();
+            var detail = new StringBuilder();
+            void Scan(Il2CppSystem.Collections.Generic.List<LevelMapItem> list, string origin)
             {
-                var m = o.TryCast<LevelMapMirrorItem>();
-                if (m == null) continue;
-                n++;
-                sb.Append($"\n  {m.name} salle={m.itemWorldRoomId} carte={m.transform.position} actif={m.gameObject.activeInHierarchy}");
+                if (list == null) return;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var it = list[i];
+                    if (it == null) continue;
+                    string type = it.GetIl2CppType().Name;
+                    counts[type] = counts.TryGetValue(type, out int n) ? n + 1 : 1;
+                    string nm = it.name ?? "";
+                    if (type.Contains("Mirror") || type.Contains("FastTravel") || nm.Contains("Mirror") || nm.Contains("FastTravel") || nm.Contains("Save"))
+                        detail.Append($"\n  [{origin}] {type} '{nm}' salle={it.itemWorldRoomId} position={it.transform.position} actif={it.gameObject.activeInHierarchy}");
+                }
             }
-            sb.Append($"\n  ({n} miroir(s) ; joueur sur la carte = {context.GetCurrentMcLevelMcMapPosition(false)})");
+            Scan(context.staticLevelMapItems, "statique");
+            Scan(context.dynamicLevelMapItems, "dynamique");
+            var sb = new StringBuilder($"[Carte] éléments de la carte ({(context.level != null ? context.level.name : "?")}) :");
+            foreach (var kv in counts) sb.Append($" {kv.Key}×{kv.Value}");
+            sb.Append(detail);
             Plugin.Logger.LogInfo(sb.ToString());
         }
-        catch (Exception ex) { Plugin.Logger.LogWarning("[Carte] miroirs : " + ex.Message); }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Carte] recensement : " + ex.Message); }
     }
-
     public static Action<string, bool> Notify;
 }
