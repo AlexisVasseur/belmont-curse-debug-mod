@@ -471,6 +471,8 @@ public partial class SidePanelView
     // ---------- Armes ----------
 
     const float WeaponTile = 60f, WeaponGap = 8f, WeaponRowGap = 8f;
+    // Armurerie : médaillon de famille, 4 armes espacées, lignes aérées ; reliques espacées
+    const float ArmTile = 58f, ArmGap = 14f, ArmRowGap = 18f, Medallion = 56f, RelicGap = 16f;
     const int GridCols = 4; // 4 par ligne, comme l'Armurerie
     int weaponsBuiltFor = -1, relicsBuiltFor = -1;
     class RelicUi { public Relics.Relic relic; public ItemTile tile; }
@@ -492,23 +494,34 @@ public partial class SidePanelView
             y += 40;
         }
         relicTiles.Clear();
-        int maxCols = GridCols;
-        float gridW = maxCols * WeaponTile + (maxCols - 1) * WeaponGap;
-        float x0 = (iw - gridW) / 2f;
+        y += 6;
 
+        // Une ligne par famille, comme l'Armurerie : médaillon rond à gauche, filet qui traverse, 4 armes
+        float tilesX = Pad + Medallion + 18;
         for (int r = 0; r < Weapons.Families.Count; r++)
         {
             var fam = Weapons.Families[r];
-            float ry = y + r * (WeaponTile + WeaponRowGap);
-            // Filet horizontal derrière la ligne, comme dans l'Armurerie
-            Ui.Image(fill, $"WRow{r}Line", Pad, ry + WeaponTile / 2f, iw - Pad * 2, 1, Theme.LineGold);
-            for (int c = 0; c < fam.Weapons.Count && c < maxCols; c++)
+            float ry = y + r * (ArmTile + ArmRowGap), mid = ry + ArmTile / 2f;
+            if (Skin.RowSupport != null) Skin.Sliced(fill, $"WRow{r}Line", Pad + Medallion / 2f, mid - 12, iw - Pad * 2 - Medallion / 2f, 24, Skin.RowSupport, Theme.Hex(0xb8a070), 8f);
+            else Ui.Image(fill, $"WRow{r}Line", Pad, mid, iw - Pad * 2, 1, Theme.LineGold);
+
+            float mcx = Pad + Medallion / 2f;
+            Ui.Image(fill, $"WFam{r}Bg", mcx - Medallion / 2f + 4, mid - Medallion / 2f + 4, Medallion - 8, Medallion - 8, Theme.Hex(0x0b0706)).sprite = Skin.Disc;
+            var famIcon = Skin.Family(fam.Key);
+            if (famIcon != null) { var fi = Skin.Sprite(fill, $"WFam{r}Icon", mcx - 18, mid - 18, 36, 36, famIcon, Theme.GoldText); fi.preserveAspect = true; }
+            if (Skin.Circle != null) Skin.Sprite(fill, $"WFam{r}Ring", mcx - Medallion / 2f, mid - Medallion / 2f, Medallion, Medallion, Skin.Circle, Theme.GoldBright);
+
+            for (int c = 0; c < fam.Weapons.Count && c < GridCols; c++)
             {
-                float tx = x0 + c * (WeaponTile + WeaponGap);
-                weaponTiles.Add(new WeaponUi { weapon = fam.Weapons[c], tile = ItemTile.Build(fill, $"W{r}_{c}", tx, ry, WeaponTile) });
+                float tx = tilesX + c * (ArmTile + ArmGap);
+                var tile = ItemTile.Build(fill, $"W{r}_{c}", tx, ry, ArmTile);
+                tile.frameTint = Skin.TierTint(fam.Weapons[c].Tier);
+                weaponTiles.Add(new WeaponUi { weapon = fam.Weapons[c], tile = tile });
             }
         }
-        y += Weapons.Families.Count * (WeaponTile + WeaponRowGap) + 6;
+        y += Weapons.Families.Count * (ArmTile + ArmRowGap) + 4;
+        float gridW = GridCols * ArmTile + (GridCols - 1) * RelicGap;
+        float x0 = (iw - gridW) / 2f;
 
         // --- Reliques : 3 emplacements équipables, toutes affichées, 4 par ligne ---
         relicsBuiltFor = Relics.All.Count;
@@ -517,12 +530,12 @@ public partial class SidePanelView
         y += 16;
         for (int i = 0; i < Relics.All.Count; i++)
         {
-            float tx = x0 + (i % GridCols) * (WeaponTile + WeaponGap), ty = y + (i / GridCols) * (WeaponTile + WeaponRowGap);
-            relicTiles.Add(new RelicUi { relic = Relics.All[i], tile = ItemTile.Build(fill, $"R{i}", tx, ty, WeaponTile) });
+            float tx = x0 + (i % GridCols) * (ArmTile + RelicGap), ty = y + (i / GridCols) * (ArmTile + RelicGap);
+            relicTiles.Add(new RelicUi { relic = Relics.All[i], tile = ItemTile.Build(fill, $"R{i}", tx, ty, ArmTile) });
         }
         if (Relics.All.Count == 0)
             Ui.Text(fill, "RelicsWaiting", Pad, y, iw - Pad * 2, 30, GameFonts.Body, 19f, Theme.TextDim, TextAlignmentOptions.Center).text = "Load a game to see the relics";
-        y += Math.Max(1, (Relics.All.Count + GridCols - 1) / GridCols) * (WeaponTile + WeaponRowGap) + 8;
+        y += Math.Max(1, (Relics.All.Count + GridCols - 1) / GridCols) * (ArmTile + RelicGap) + 8;
 
         contentH[(int)Tab.Weapons] = y + 8;
     }
@@ -649,7 +662,7 @@ public partial class SidePanelView
             // Losange du jeu derrière l'illustration (lueur orangée dessous au survol)
             if (Skin.Diamond != null)
             {
-                if (Skin.Glow != null) { c.glow = Skin.Sprite(fill, $"Spell{i}Glow", icx - 42, icy - 42, 84, 84, Skin.Glow, Skin.Flame); c.glow.gameObject.SetActive(false); }
+                if (Skin.GlowDiamond != null) c.glow = Skin.ShapeGlow(fill, $"Spell{i}Glow", icx, icy, 54, Skin.GlowDiamond);
                 c.frame = Skin.Sprite(fill, $"Spell{i}Frame", icx - 27, icy - 27, 54, 54, Skin.Diamond, Color.white);
             }
             var d = Ui.Diamond(fill, $"Spell{i}Fallback", iconX + SpellIcon / 2f, iconY + SpellIcon / 2f, 32, GameFonts.Numbers, 16f);
@@ -663,8 +676,6 @@ public partial class SidePanelView
                 // Le losange du jeu sert de cadre : on masque le liseré doré de DiamondArt
                 var artBorder = c.iconRoot.transform.GetChild(0).GetComponent<Image>();
                 if (artBorder != null) artBorder.color = new Color(0f, 0f, 0f, 0f);
-                // Équipé : les pointes de métal du jeu aux quatre sommets
-                if (Skin.Equipped != null) { c.spikes = Skin.Sprite(fill, $"Spell{i}Spikes", icx - 35, icy - 35, 70, 70, Skin.Equipped, Color.white); c.spikes.gameObject.SetActive(false); }
             }
             // Marque « équipé » (sans les assets) : petit losange doré sous l'icône
             c.equipped = Ui.Image(fill, $"Spell{i}Eq", 0, 0, 7, 7, Theme.GoldText);
@@ -729,9 +740,7 @@ public partial class SidePanelView
                 var fs = overIcon && Skin.DiamondHover != null ? Skin.DiamondHover : Skin.Diamond;
                 if (c.frame.sprite != fs) c.frame.sprite = fs;
                 c.frame.color = owned == true || overIcon ? Color.white : new Color(0.55f, 0.5f, 0.45f, 1f);
-                Ui.SetActive(c.spikes, spellEquipped);
-                Ui.SetActive(c.glow, overIcon);
-                if (overIcon && c.glow != null) c.glow.color = new Color(Skin.Flame.r, Skin.Flame.g, Skin.Flame.b, 0.5f + 0.2f * Mathf.Sin(Time.unscaledTime * 5f));
+                Skin.ApplyGlow(c.glow, overIcon, spellEquipped);
             }
             c.line.color = owned == true ? Theme.GoldBright : Theme.Line;
             Ui.SetActive(c.highlight, overIcon);
@@ -776,7 +785,7 @@ public partial class SidePanelView
     {
         float iw = W - 1;
         // Ruban bordeaux du jeu ; à défaut, titre doré entre deux filets
-        if (Skin.BannerSprite != null) return Skin.Banner(fill, text, Pad - 8, y + 2, iw - Pad * 2 + 16, 46, GameFonts.Title) + 10;
+        if (Skin.BannerSprite != null) return Skin.Banner(fill, text, Pad - 10, y + 2, iw - Pad * 2 + 20, 60, GameFonts.Title) + 10;
         var title = Ui.Text(fill, "Section" + text, Pad, y, iw - Pad * 2, TitleH, GameFonts.Title, 32f, Theme.GoldText, TextAlignmentOptions.Center);
         title.text = text;
         float tw = Mathf.Min(iw - Pad * 2 - 40, title.preferredWidth + 24);

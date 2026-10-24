@@ -186,7 +186,9 @@ public class UiButton
         var outline = fill.gameObject.AddComponent<Outline>();
         outline.effectColor = new Color(Theme.GoldBright.r, Theme.GoldBright.g, Theme.GoldBright.b, 0.7f);
         outline.effectDistance = new Vector2(1f, -1f);
-        var label = Ui.Text(fill.transform, "Label", 0, 0, w, h, font, fontSize, Skin.ButtonText, TextAlignmentOptions.Center);
+        // Centré sur la forme réelle des caractères (la ligne de base des polices du jeu tombe bas)
+        var label = Ui.Text(fill.transform, "Label", 0, 0, w, h, font, fontSize, Skin.ButtonText, TextAlignmentOptions.CenterGeoAligned);
+        label.overflowMode = TextOverflowModes.Overflow;
         label.text = text;
         var (l, r) = Skin.Ornaments(rt, w, h);
         return new UiButton

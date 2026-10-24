@@ -22,6 +22,25 @@ public static class Skin
     public static Sprite GemUnlocked => GameSprites.Icon("ui_gem_unlocked");
     public static Sprite GemHover => GameSprites.Icon("ui_gem_hover");
     public static Sprite Glow => GameSprites.Icon("ui_glow");
+    // Lueurs qui épousent la forme (bord du carré / du losange à 24..104 sur 128 px), à teinter
+    public static Sprite GlowSquare => GameSprites.Icon("ui_glow_square");
+    public static Sprite GlowDiamond => GameSprites.Icon("ui_glow_diamond");
+    public const float GlowScale = 128f / 80f;
+    public static Sprite Circle => GameSprites.Icon("ui_circle");
+    public static Sprite Disc => GameSprites.Icon("ui_disc");
+    /// <summary>Cadre des notifications du jeu (rempli après l'extraction des assets ; null tant qu'il manque).</summary>
+    public static Sprite Notification => GameSprites.Icon("ui_notification", new Vector4(120, 0, 120, 0));
+    public static Sprite RowSupport => GameSprites.Icon("ui_row_support", new Vector4(500, 0, 500, 0));
+    /// <summary>Icône de famille d'armes (médaillon de l'Armurerie), ex. « WeaponSpear » → ui_family_spear.</summary>
+    public static Sprite Family(string key) => GameSprites.Icon("ui_family_" + key.Replace("Weapon", "").ToLowerInvariant());
+    /// <summary>Teinte du cadre selon le rang (1 à 4), comme les bordures de l'Armurerie.</summary>
+    public static Color TierTint(int tier) => tier switch
+    {
+        1 => Theme.Hex(0xc8a777),
+        2 => Theme.Hex(0xc98c74),
+        3 => Theme.Hex(0x8fb6d6),
+        _ => Theme.Hex(0xe8c35e),
+    };
 
     // Couleurs des boutons habillés
     public static readonly Color ButtonIdle = Theme.Hex(0x3b2a1f);
@@ -29,6 +48,27 @@ public static class Skin
     public static readonly Color TabIdle = Theme.Hex(0x241914);
     public static readonly Color ButtonText = Theme.Hex(0xf4dfa8);
     public static readonly Color Flame = Theme.Hex(0xff7a1a);
+    // États communs à toutes les cases : orange au survol, bleu quand l'objet est équipé
+    public static readonly Color HoverGlow = Theme.Hex(0xff8a2a);
+    public static readonly Color EquippedGlow = Theme.Hex(0x4aa8ff);
+
+    /// <summary>Lueur en forme, centrée sur un élément de taille « size » (carré ou losange).</summary>
+    public static Image ShapeGlow(Transform parent, string name, float cx, float cy, float size, Sprite sprite)
+    {
+        float g = size * GlowScale;
+        var img = Sprite(parent, name, cx - g / 2f, cy - g / 2f, g, g, sprite, Color.white);
+        img.gameObject.SetActive(false);
+        return img;
+    }
+
+    /// <summary>Survol : orange qui pulse ; équipé : bleu fixe ; sinon éteint.</summary>
+    public static void ApplyGlow(Image glow, bool hover, bool equipped)
+    {
+        if (glow == null) return;
+        Ui.SetActive(glow, hover || equipped);
+        if (hover) glow.color = new Color(HoverGlow.r, HoverGlow.g, HoverGlow.b, 0.8f + 0.2f * Mathf.Sin(Time.unscaledTime * 5f));
+        else if (equipped) glow.color = new Color(EquippedGlow.r, EquippedGlow.g, EquippedGlow.b, 0.9f);
+    }
 
     /// <summary>Image découpée en 9 : multiplier = facteur de réduction des bords fixes (bord affiché = bord source / multiplier).</summary>
     public static Image Sliced(Transform parent, string name, float x, float y, float w, float h, Sprite sprite, Color color, float multiplier)
@@ -75,7 +115,7 @@ public static class Skin
     public static float Banner(Transform parent, string text, float x, float y, float w, float h, TMP_FontAsset font)
     {
         Sliced(parent, "Banner" + text, x, y, w, h, BannerSprite, Color.white, 4f);
-        var t = Ui.Text(parent, "BannerText" + text, x, y, w, h, font, 25f, Theme.GoldText, TextAlignmentOptions.Center);
+        var t = Ui.Text(parent, "BannerText" + text, x, y, w, h, font, 25f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned);
         t.text = text;
         return y + h;
     }

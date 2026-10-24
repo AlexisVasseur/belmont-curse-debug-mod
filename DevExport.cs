@@ -46,6 +46,16 @@ public static class DevExport
         "Assets/_Object/UI/HUD/NotificationsHUD/SourcesSprites/AnimatedOrnament/T_UI_OrnataCorner_01.png",
         "Assets/_Object/UI/_CommonsInGame/1_Textures/T_CommonUI_BarSelector.png",
         "Assets/_Object/UI/_CommonsInGame/1_Textures/T_CommonUI_BarSelector_Background.png",
+        "Assets/_Object/UI/HUD/PlayerHUD/1_Textures/T_UI_PlayerHUD_Atlas.spriteatlasv2",
+        "Assets/_Object/UI/HUD/PlayerHUD/5_Prefabs/P_UI_PlayerHUD_HealCharges.prefab",
+        "Assets/_Object/UI/HUD/PlayerHUD/5_Prefabs/P_UI_PlayerHUD_HealCharge_UIElement.prefab",
+        "Assets/_Object/UI/HUD/PlayerHUD/5_Prefabs/P_UI_PlayerHUD_HealthChargeOverride_UIElement.prefab",
+        "Assets/_Object/UI/HUD/PlayerHUD/SourcesSprites/T_UI_PlayerHUD_HealPotion.png",
+        "Assets/_Object/UI/HUD/PlayerHUD/SourcesSprites/T_UI_PlayerHUD_HealPotionEmpty.png",
+        "Assets/_Object/UI/HUD/PlayerHUD/SourcesSprites/T_UI_PlayerHUD_HealPotionTemp.png",
+        "Assets/_Object/UI/GameMenus/Equipment/Overlay_WeaponInventory/1_Textures/T_UI_Items_WeaponsFamily_Atlas.png",
+        "Assets/_Object/UI/GameMenus/Equipment/Overlay_WeaponInventory/5_Prefabs/InventoryWeapon_ArchetypeWeaponLists.prefab",
+        "Assets/_Object/UI/HUD/NotificationsHUD/1_Textures/T_UI_Notifications_Atlas.spriteatlasv2",
     };
 
     static readonly Dictionary<string, AsyncOperationHandle<UnityEngine.Object>> handles = new();

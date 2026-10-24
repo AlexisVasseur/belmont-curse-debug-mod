@@ -29,6 +29,8 @@ public class SaveStatesView
     TextMeshProUGUI quickName, pageLabel, pageConfirm, toastText;
     UiButton editBtn, addPage, removePage, movePageL, movePageR, pageYes, pageNo;
     float toastUntil;
+    const float ToastW = 640f, ToastH = 42f;
+    Image toastAccent, toastFrame;
 
     class RowUi
     {
@@ -61,9 +63,24 @@ public class SaveStatesView
 
     void BuildToast()
     {
-        var bg = Ui.Frame(root.transform, "Toast", 24f, 24f, 640f, 36f, Theme.Gold, Theme.Bg);
-        toast = bg.transform.parent.gameObject;
-        toastText = Ui.Text(bg.transform, "Text", 12f, 0f, 614f, 34f, GameFonts.Body, 20f, Theme.Text);
+        // En bas à gauche de l'écran (en haut, il recouvrait la barre de vie du HUD)
+        var bg = Ui.Frame(root.transform, "Toast", 0f, 0f, ToastW, ToastH, Theme.Gold, Theme.Bg);
+        var rt = bg.transform.parent.Cast<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0f, 0f);
+        rt.pivot = new Vector2(0f, 0f);
+        rt.anchoredPosition = new Vector2(24f, 24f);
+        toast = rt.gameObject;
+        toastAccent = Ui.Image(bg.transform, "Accent", 0f, 0f, 4f, ToastH - 2f, Theme.GoldBright);
+        if (Skin.Notification != null)
+        {
+            // Cadre des notifications du jeu (objet ramassé, tâche avancée) par-dessus le fond
+            Ui.SetBorder(bg, new Color(0f, 0f, 0f, 0f));
+            bg.color = new Color(0f, 0f, 0f, 0f);
+            toastFrame = Skin.Sliced(bg.transform, "Frame", -10f, -8f, ToastW + 18f, ToastH + 14f, Skin.Notification, Color.white, 2f);
+            toastFrame.transform.SetAsFirstSibling();
+            Ui.SetActive(toastAccent, false);
+        }
+        toastText = Ui.Text(bg.transform, "Text", 18f, 0f, ToastW - 30f, ToastH - 2f, GameFonts.Body, 20f, Theme.Text);
         toast.SetActive(false);
     }
 
@@ -92,13 +109,22 @@ public class SaveStatesView
         fill = Ui.Frame(container, "Frame", 0, 0, W, H, Theme.Gold, Theme.Bg).transform;
         float iw = W - 2; // largeur intérieure
 
-        // --- Bandeau titre ---
-        Ui.Image(fill, "Banner", 0, 0, iw, BannerH, Theme.Crimson);
-        Ui.Image(fill, "BannerTop", 0, 0, iw, 2, Theme.GoldBright);
-        Ui.Image(fill, "BannerBottom", 0, BannerH - 2, iw, 2, Theme.GoldBright);
-        Ui.Text(fill, "Title", 0, 0, iw, BannerH, t, 30f, Theme.GoldText, TextAlignmentOptions.Center).text = "Savestates";
-        SmallDiamond(18, BannerH / 2f);
-        SmallDiamond(iw - 18, BannerH / 2f);
+        // --- Bandeau titre : ruban bordeaux du jeu (à défaut, bande bordeaux à filets dorés) ---
+        if (Skin.BannerSprite != null)
+        {
+            Ui.Image(fill, "BannerShade", 0, 0, iw, BannerH, Theme.Hex(0x0b0706, 0.6f));
+            Skin.Sliced(fill, "Banner", -6, -4, iw + 12, BannerH + 8, Skin.BannerSprite, Color.white, 4f);
+            Ui.Text(fill, "Title", 0, 0, iw, BannerH, t, 30f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = "Savestates";
+        }
+        else
+        {
+            Ui.Image(fill, "Banner", 0, 0, iw, BannerH, Theme.Crimson);
+            Ui.Image(fill, "BannerTop", 0, 0, iw, 2, Theme.GoldBright);
+            Ui.Image(fill, "BannerBottom", 0, BannerH - 2, iw, 2, Theme.GoldBright);
+            Ui.Text(fill, "Title", 0, 0, iw, BannerH, t, 30f, Theme.GoldText, TextAlignmentOptions.Center).text = "Savestates";
+            SmallDiamond(18, BannerH / 2f);
+            SmallDiamond(iw - 18, BannerH / 2f);
+        }
 
         // --- Quickslot ---
         float qy = BannerH + 12;
@@ -204,7 +230,7 @@ public class SaveStatesView
 
     UiButton Button(float x, float y, float w, float h, string text, TMP_FontAsset font, float size, Action onClick)
     {
-        var btn = UiButton.Create(fill, "Btn" + text, x, y, w, h, text, font, size, onClick);
+        var btn = UiButton.CreateSkinned(fill, "Btn" + text, x, y, w, h, text, font, size, onClick);
         buttons.Add((btn, x, y, w, h));
         return btn;
     }
@@ -213,8 +239,9 @@ public class SaveStatesView
     void KeyButton(float x, float y, float w, float h, string text, Bind bind, Action onClick)
     {
         var btn = Button(x, y, w, h, "", GameFonts.Title, 16f, onClick);
-        var label = Ui.Text(btn.Fill.transform, "Text", 10, 0, w - 60, h - 2, GameFonts.Title, 16f, Theme.KeyText);
+        var label = Ui.Text(btn.Fill.transform, "Text", 14, 0, w - 64, h, GameFonts.Title, 16f, btn.LabelColor, TextAlignmentOptions.MidlineLeft);
         label.text = text;
+        label.margin = new Vector4(0f, 2f, 0f, 0f); // la ligne de base des polices du jeu tombe bas
         string key = bind.ShortLabel;
         if (key.Length > 0)
         {
@@ -230,7 +257,8 @@ public class SaveStatesView
         if (string.IsNullOrEmpty(key)) key = "?";
         float kw = Mathf.Max(24f, 12f + 9f * key.Length);
         var btn = Button(x, y, kw, 22, key, GameFonts.Title, 14f, onClick);
-        Ui.SetBorder(btn.Fill, Theme.GoldBright);
+        if (btn.Skinned) { btn.OrnamentL = btn.OrnamentR = null; } // trop petite pour porter des volutes
+        else Ui.SetBorder(btn.Fill, Theme.GoldBright);
         // Chiffre centré sur sa forme, sans risque de disparaître
         btn.Label.alignment = TextAlignmentOptions.MidlineGeoAligned;
         btn.Label.overflowMode = TextOverflowModes.Overflow;
@@ -266,7 +294,7 @@ public class SaveStatesView
         quickName.color = q == null ? Theme.TextDim : Theme.Text;
 
         Ui.SetText(pageLabel, $"Page {p.CurrentPage + 1} / {SlotStore.PageCount}");
-        editBtn.BaseColor = edit ? Theme.Crimson : Theme.BgButton;
+        editBtn.BaseColor = edit ? Theme.Crimson : editBtn.Skinned ? Skin.ButtonIdle : Theme.BgButton;
         foreach (var b in new[] { addPage, removePage, movePageL, movePageR }) Ui.SetActive(b.Rt, edit && !pageConfirmActive);
         Ui.SetActive(pageConfirm, pageConfirmActive);
         Ui.SetActive(pageYes.Rt, pageConfirmActive);
@@ -310,8 +338,8 @@ public class SaveStatesView
             r.rename.Enabled = r.del.Enabled = s != null;
 
             // Opération en cours : les boutons concernés sont mis en avant
-            r.read.LabelColor = p.IsReadOperation ? Theme.Red : Theme.KeyText;
-            r.write.LabelColor = p.IsWriteOperation ? Theme.Red : Theme.KeyText;
+            r.read.LabelColor = p.IsReadOperation ? Theme.Red : r.read.Skinned ? Skin.ButtonText : Theme.KeyText;
+            r.write.LabelColor = p.IsWriteOperation ? Theme.Red : r.write.Skinned ? Skin.ButtonText : Theme.KeyText;
         }
 
         foreach (var h in hints) h.label.color = p.SelectOp == h.op ? Theme.Red : Theme.GoldLabel;
@@ -391,6 +419,8 @@ public class SaveStatesView
         if (GameFonts.Body != null) toastText.font = GameFonts.Body;
         Ui.SetText(toastText, msg);
         toastText.color = error ? Theme.Red : Theme.Text;
+        if (toastAccent != null) toastAccent.color = error ? Theme.Red : Theme.GoldBright;
+        if (toastFrame != null) toastFrame.color = error ? Theme.Hex(0xff9a8a) : Color.white;
         toastUntil = Time.unscaledTime + 3f;
     }
 
