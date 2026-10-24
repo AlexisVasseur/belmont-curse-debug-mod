@@ -194,6 +194,7 @@ public class LoadSequence
         FadeOverlay.Set(0f);
         Cheats.ResyncNoclip();
         SaveGuard.ReleaseSoon();
+        Bosses.LogTriggers("après chargement");
         Enter(Phase.Idle);
         Trace($"terminé en {Time.unscaledTime - sequenceStart:0.00}s");
         Plugin.Logger.LogInfo($"[Chargement] terminé en {Time.unscaledTime - sequenceStart:0.00}s");

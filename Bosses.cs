@@ -117,9 +117,35 @@ public static class Bosses
         if (p == null) return "Unavailable (load a game first)";
         if (b.Key == null) return $"{b.Name}: no defeat flag in the game data";
         bool defeated = p.HasProgressionKey(b.Key);
-        if (defeated) p.UnsetProgressionKey(b.Key); else p.SetProgressionKey(b.Key);
-        Plugin.Logger.LogInfo($"[Boss] {b.Name} : clé {b.Key.name} {(defeated ? "retirée" : "ajoutée")}, étape personnage {Step(b)}");
+        string before = Step(b);
+        if (defeated) Respawn(p, b); else { p.SetProgressionKey(b.Key); SetStep(b, CharacterProgressionStep.Absorbed); }
+        Plugin.Logger.LogInfo($"[Boss] {b.Name} : clé {b.Key.name} {(defeated ? "retirée" : "ajoutée")}, étape personnage {before} → {Step(b)}");
+        LogTriggers("après clic");
         return defeated ? $"{b.Name} will be back (re-enter the arena)" : $"{b.Name} marked as defeated";
+    }
+
+    /// <summary>
+    /// Retire la clé « vaincu » et l'absorption du boss (après le combat, le joueur absorbe son arcane :
+    /// un boss absorbé ne réapparaît pas non plus). Le combat la redonne à la fin.
+    /// </summary>
+    static void Respawn(ProgressionComponent p, Boss b)
+    {
+        p.UnsetProgressionKey(b.Key);
+        if (b.Data != null && b.Data.ignoreAbsorptionForSpawnCondition) return;
+        SetStep(b, CharacterProgressionStep.Found, onlyIfAbsorbed: true);
+    }
+
+    static void SetStep(Boss b, CharacterProgressionStep step, bool onlyIfAbsorbed = false)
+    {
+        try
+        {
+            if (!MainCharacterSingleton.TryGetEntity(out Entity e) || e == null) return;
+            var c = e.GetComponent<CharacterProgressionComponent>();
+            if (c == null) return;
+            if (onlyIfAbsorbed && c.GetProgressionStep(b.Id) != CharacterProgressionStep.Absorbed) return;
+            c.SetProgressionStep(b.Id, step, true, true);
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning($"[Boss] étape {b.Name} : {ex.Message}"); }
     }
 
     /// <summary>Fait réapparaître tous les boss vaincus.</summary>
@@ -129,9 +155,29 @@ public static class Bosses
         if (p == null) return "Unavailable (load a game first)";
         int n = 0;
         foreach (var b in All)
-            if (b.Key != null && p.HasProgressionKey(b.Key)) { p.UnsetProgressionKey(b.Key); n++; }
+            if (b.Key != null && p.HasProgressionKey(b.Key)) { Respawn(p, b); n++; }
         Plugin.Logger.LogInfo($"[Boss] {n} boss réapparaissent");
         return n == 0 ? "No defeated boss" : $"{n} boss{(n > 1 ? "es" : "")} will be back";
+    }
+
+    /// <summary>Diagnostic : tous les déclencheurs d'arène chargés (même inactifs) et ce qu'ils en pensent.</summary>
+    public static void LogTriggers(string when)
+    {
+        try
+        {
+            var found = UnityEngine.Resources.FindObjectsOfTypeAll(Il2CppInterop.Runtime.Il2CppType.Of<BossFightTrigger>());
+            var parts = new List<string>();
+            foreach (var o in found)
+            {
+                var t = o.TryCast<BossFightTrigger>();
+                if (t == null || !t.gameObject.scene.IsValid()) continue; // prefabs hors scène
+                string defeated;
+                try { defeated = t.IsBossDefeated().ToString(); } catch (Exception ex) { defeated = "? " + ex.Message; }
+                parts.Add($"'{t.name}' boss={t.bossData?.name ?? "?"} actif={t.gameObject.activeInHierarchy} vaincu={defeated} déclenché={t.encounterHasBeenTriggered}");
+            }
+            Plugin.Logger.LogInfo($"[Boss] déclencheurs ({when}) : {(parts.Count == 0 ? "aucun" : string.Join(" | ", parts))}");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Boss] déclencheurs : " + ex.Message); }
     }
 
     /// <summary>Étape de progression du personnage (diagnostic : « absorbé » peut aussi empêcher le combat).</summary>

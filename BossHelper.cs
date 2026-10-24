@@ -77,6 +77,7 @@ public static class BossHelper
                 var trig = bft._trigger;
                 bool inside = trig != null && trig.ContainsPoint(playerPos);
                 string info = $"'{bft.name}' vaincu={defeated} déclenché={bft.encounterHasBeenTriggered} rencontres={bft.encounterNumber} joueurDedans={inside}";
+                Plugin.Logger.LogInfo("[Boss] déclencheur " + info);
                 if (defeated || bft.encounterHasBeenTriggered || trig == null)
                 {
                     LoadSequence.Trace("[Boss] " + info + " → rien à faire");
