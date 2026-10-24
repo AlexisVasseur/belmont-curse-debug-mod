@@ -2,17 +2,18 @@ using System;
 using System.Text;
 using Il2CppInterop.Runtime;
 using MotherBase.EntityFramework;
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace BelmontPractice;
 
 /// <summary>
-/// Téléportation depuis la carte du niveau (première version, à valider en jeu) :
-/// carte ouverte, la touche Map teleport (T par défaut) ou le clic molette mémorise le point sous le curseur ;
-/// à la fermeture de la carte, le joueur y est téléporté (même mécanisme qu'une savestate, derrière le noir).
-/// La position carte → monde est déduite de la position du joueur sur la carte (décalage, échelle 1 supposée) ;
-/// tout est noté dans le journal pour vérifier la correspondance et lister les miroirs du niveau.
+/// Téléportation depuis la carte (la carte est à l'échelle du niveau) :
+/// 1er appui (Map teleport = T, clic molette ou Start à la manette) : fenêtre « Teleport to … ? » ;
+/// 2e appui : la carte se ferme et le joueur est téléporté (chargement de savestate, derrière le noir).
+/// Bouger le curseur, Échap / B ou fermer la carte annule. Près d'un miroir ou d'un passage, on s'y accroche.
+/// Un encadré rappelle les commandes tant que la carte est ouverte.
 /// </summary>
 public static class MapTeleport
 {
@@ -25,15 +26,30 @@ public static class MapTeleport
     public static LevelID PendingLevel { get; private set; }
     static bool mirrorsLogged;
 
-    /// <summary>Carte du niveau du joueur ouverte à l'écran.</summary>
+    // Fenêtre de confirmation en cours
+    static bool confirming;
+    static Vector3 askTarget;
+    static LevelID askLevel;
+    static Vector2 askCursor;
+
+    /// <summary>Carte ouverte à l'écran (n'importe quel niveau affiché).</summary>
     public static bool MapOpen
     {
         get
         {
-            try { return context != null && context.gameObject.activeInHierarchy; } // n'importe quel niveau affiché
+            try { return context != null && context.gameObject.activeInHierarchy; }
             catch { context = null; return false; }
         }
     }
+
+    static bool TeleportPressed(Keyboard kb) =>
+        (kb != null && Keybinds.MapTeleport.Pressed(kb))
+        || (Mouse.current != null && Mouse.current.middleButton.wasPressedThisFrame)
+        || (Gamepad.current != null && Gamepad.current.startButton.wasPressedThisFrame);
+
+    static bool CancelPressed(Keyboard kb) =>
+        (kb != null && kb.escapeKey.wasPressedThisFrame)
+        || (Gamepad.current != null && Gamepad.current.buttonEast.wasPressedThisFrame);
 
     /// <summary>Chaque frame, en jeu. Retourne une destination à charger quand la carte vient de se fermer.</summary>
     public static Vector3? Update(Keyboard kb)
@@ -49,10 +65,17 @@ public static class MapTeleport
             if (open)
             {
                 if (!mirrorsLogged) { mirrorsLogged = true; LogMirrors(); }
-                bool key = kb != null && Keybinds.MapTeleport.Pressed(kb);
-                bool middle = Mouse.current != null && Mouse.current.middleButton.wasPressedThisFrame;
-                if (key || middle) Pick();
+                if (confirming)
+                {
+                    if (TeleportPressed(kb)) Confirm();
+                    else if (CancelPressed(kb) || Vector2.Distance(context.currentCursorPosition, askCursor) > 1.5f) Cancel();
+                }
+                else if (TeleportPressed(kb)) Ask();
             }
+            else if (confirming) Cancel();
+
+            MapTeleportView.Update(open, confirming);
+
             if (mapWasOpen && !open && pending != null)
             {
                 var target = pending;
@@ -68,9 +91,11 @@ public static class MapTeleport
         return null;
     }
 
-    static void Pick()
+    /// <summary>1er appui : calcule la destination et ouvre la fenêtre de confirmation.</summary>
+    static void Ask()
     {
         if (!MainCharacterSingleton.TryGetEntity(out Entity e) || e == null) return;
+        string area = AreaName(context.level);
         // Autre niveau : seulement un niveau déjà visité, jamais une fin (charger « 12_MQBadEnding » faisait planter le jeu)
         if (!context.isCurrentMcLevel && !CanTravelTo(context.level, out string reason))
         {
@@ -79,27 +104,51 @@ public static class MapTeleport
             return;
         }
 
-        // La carte est à l'échelle du niveau (vérifié : position du joueur sur la carte = position dans le monde)
         Vector2 cursor = context.currentCursorPosition;
         var target = new Vector3(cursor.x, cursor.y, e.transform.position.z);
-        string what = "map point";
-        // Près d'un miroir (Mirror of Life = point de sauvegarde, miroir de voyage rapide) ou d'une transition
-        // vers un autre quartier : on se pose exactement dessus (viser à côté envoyait hors des salles)
+        string what = "this point";
+        // Près d'un miroir (Mirror of Life = point de sauvegarde, miroir de voyage rapide) ou d'un passage :
+        // on se pose exactement dessus (viser à côté envoyait hors des salles)
         var snap = NearestDestination(cursor, out string kind);
         if (snap != null)
         {
             var sp = snap.transform.position;
             target = new Vector3(sp.x, sp.y, target.z);
-            what = kind;
+            what = "the " + kind;
             Plugin.Logger.LogInfo($"[Carte] {kind} le plus proche : {snap.name} salle={snap.itemWorldRoomId} position={sp}");
         }
-        pending = target;
-        pendingLevel = context.level;
-        string lvl = context.level != null ? context.level.name : "?";
-        Plugin.Logger.LogInfo($"[Carte] {what} choisi : curseur={cursor} niveau carte={lvl} (niveau du joueur : {(context.isCurrentMcLevel ? "oui" : "non")}) → destination {target}");
-        Notify?.Invoke($"Teleport target set ({what}, {lvl}): close the map to go there", false);
+        confirming = true;
+        askTarget = target;
+        askLevel = context.level;
+        askCursor = cursor;
+        MapTeleportView.SetQuestion($"Teleport to {what}{(context.isCurrentMcLevel ? "" : " in " + area)}?");
+        Plugin.Logger.LogInfo($"[Carte] confirmation demandée : {what} niveau={(context.level != null ? context.level.name : "?")} destination={target}");
     }
 
+    /// <summary>2e appui : ferme la carte ; la téléportation part à sa fermeture.</summary>
+    static void Confirm()
+    {
+        confirming = false;
+        pending = askTarget;
+        pendingLevel = askLevel;
+        try
+        {
+            var menu = UnityEngine.Object.FindObjectOfType(Il2CppType.Of<GameMenuManager>())?.TryCast<GameMenuManager>();
+            if (menu != null) menu.Close();
+            else Notify?.Invoke("Close the map to teleport", false);
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Carte] fermeture du menu : " + ex.Message); Notify?.Invoke("Close the map to teleport", false); }
+    }
+
+    static void Cancel() => confirming = false;
+
+    /// <summary>« LevelID_03_Catacombs » → « Catacombs ».</summary>
+    static string AreaName(LevelID level)
+    {
+        if (level == null) return "?";
+        string n = System.Text.RegularExpressions.Regex.Replace(level.name, "^LevelID_\\d*_?", "");
+        return System.Text.RegularExpressions.Regex.Replace(n, "(?<=[a-z])(?=[A-Z])", " ").Replace("_", " ");
+    }
     const float SnapRadius = 12f;
 
     static bool CanTravelTo(LevelID level, out string reason)

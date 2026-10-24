@@ -134,7 +134,7 @@ public static class Keybinds
             "Noclip", "Turns noclip on or off.");
 
         MapTeleport = new Bind(c, "TeleportCarte", "T", "Carte ouverte : choisit le point sous le curseur comme destination de téléportation", U,
-            "Map teleport", "With the map open: marks the point under the cursor (or middle-click). Close the map to be teleported there.");
+            "Map teleport", "With the map open: asks to teleport to the point under the cursor (also middle-click or Start on a gamepad); press again to go.");
 
         NumpadDigits = c.Bind("Raccourcis", "ChiffresPaveNumerique", false,
             "Choix de l'emplacement (0-9) avec le pavé numérique au lieu des chiffres du haut du clavier");
