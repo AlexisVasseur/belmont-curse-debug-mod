@@ -134,8 +134,29 @@ public static class Bosses
     static void Respawn(ProgressionComponent p, Boss b)
     {
         p.UnsetProgressionKey(b.Key);
+        ResetGates(b);
         if (b.Data != null && b.Data.ignoreAbsorptionForSpawnCondition) return;
         SetStep(b, CharacterProgressionStep.Found, onlyIfAbsorbed: true);
+    }
+
+    /// <summary>
+    /// Efface l'état mémorisé des portes de l'arène (« ouvertes pour toujours » après la victoire) :
+    /// elles se referment au début du combat et se rouvrent à la fin, comme la première fois.
+    /// </summary>
+    static void ResetGates(Boss b)
+    {
+        try
+        {
+            var dict = CurrentBossGateState._bossGateState;
+            if (dict == null || b.Data == null) return;
+            var names = new HashSet<string> { b.Data.name };
+            if (b.Data.bossDataOverrideForBossGates != null) names.Add(b.Data.bossDataOverrideForBossGates.name);
+            var toRemove = new List<BossData>();
+            foreach (var k in dict.Keys) if (k != null && names.Contains(k.name)) toRemove.Add(k);
+            foreach (var k in toRemove) dict.Remove(k);
+            Plugin.Logger.LogInfo($"[Boss] {b.Name} : état des portes d'arène effacé ({toRemove.Count})");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning($"[Boss] portes {b.Name} : {ex.Message}"); }
     }
 
     static void SetStep(Boss b, CharacterProgressionStep step, bool onlyIfAbsorbed = false)

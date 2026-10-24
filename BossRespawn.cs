@@ -52,14 +52,23 @@ public static class BossRespawn
         searchUntil = 0f;
         if (activeBoss == null) return;
         bool beaten = Bosses.IsDefeated(activeBoss) == true;
-        if (beaten) { Pending.Remove(activeBoss.Id.name); Plugin.Logger.LogInfo($"[Respawn] {activeBoss.Name} battu : progression laissée au jeu"); }
-        else Revert();
+        if (beaten) Pending.Remove(activeBoss.Id.name);
+        Revert(); // rien à faire si déjà remis à la victoire
         applied.Clear();
         activeBoss = null;
     }
 
     public static void Update()
     {
+        // Boss battu : la progression modifiée pour forcer le combat (porte, clés…) est remise aussitôt,
+        // avant que le scénario ne reparte de son début (il retrouve ainsi l'état d'avant le combat).
+        if (activeBoss != null && applied.Count > 0 && Bosses.IsDefeated(activeBoss) == true)
+        {
+            Plugin.Logger.LogInfo($"[Respawn] {activeBoss.Name} battu : progression d'avant le combat remise");
+            Revert();
+            applied.Clear();
+            Pending.Remove(activeBoss.Id.name);
+        }
         if (searchUntil <= 0f || activeBoss == null) return;
         if (Time.unscaledTime > searchUntil)
         {
@@ -229,8 +238,8 @@ public static class BossRespawn
         }
         Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : scénario '{director.name}', {plan.Count} condition(s) sur le chemin, changé : "
             + (applied.Count == 0 ? "rien" : string.Join(", ", applied.Select(c => $"{c.cond.Id} → {!c.original}"))));
-        director.ForceReset();
-        BossDiag.DumpDirectors("après relance du scénario");
+        // Le jeu réévalue lui-même le scénario (ForceReset plantait et n'est pas nécessaire)
+        BossDiag.DumpDirectors("après changement des conditions");
     }
 
     static void Revert()
@@ -242,6 +251,7 @@ public static class BossRespawn
             try { Set(c.cond, c.original, c.cond.kind == Kind.Arcana ? c.originalStep : CharacterProgressionStep.Unknown); }
             catch (Exception ex) { Plugin.Logger.LogWarning("[Respawn] remise en état : " + ex.Message); }
         }
-        Plugin.Logger.LogInfo($"[Respawn] {activeBoss?.Name} pas battu : {applied.Count} changement(s) annulé(s) en sortant de l'arène");
+        Plugin.Logger.LogInfo($"[Respawn] {activeBoss?.Name} : {applied.Count} changement(s) annulé(s)");
+        applied.Clear();
     }
 }
