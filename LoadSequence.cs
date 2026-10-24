@@ -155,6 +155,7 @@ public class LoadSequence
         GameBridge.RestoreRoomTransitions();
         try
         {
+            GameBridge.SnapToGround(state); // téléportation : posé sur le sol s'il est juste en dessous
             GameBridge.FixPositionAfterRoomLoad(state);
             GameBridge.RestoreRoomObjects(state);
             GameBridge.ApplyLiveStats(state);

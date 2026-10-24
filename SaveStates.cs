@@ -43,6 +43,10 @@ public class SaveState
     [System.Text.Json.Serialization.JsonIgnore]
     public Vector3 Position => new(X, Y, Z);
 
+    /// <summary>Téléportation : poser le joueur sur le sol s'il est juste en dessous (jamais pour une vraie savestate).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool SnapToGround { get; set; }
+
     /// <summary>Copie indépendante (le quickslot et un emplacement ne partagent jamais le même objet).</summary>
     public SaveState Clone() => JsonSerializer.Deserialize<SaveState>(JsonSerializer.Serialize(this));
 
@@ -67,6 +71,44 @@ public static class GameBridge
         if (!MainCharacterSingleton.TryGetEntity(out Entity e) || e == null) { reason = "No player: load a game first"; return false; }
         reason = null;
         return true;
+    }
+
+    /// <summary>
+    /// Savestate de l'état actuel dont le point de départ est un autre endroit, éventuellement dans un autre niveau
+    /// (téléportation depuis la carte). Dans un autre niveau, le chargement passe par le rechargement complet.
+    /// </summary>
+    public static SaveState CaptureForTeleport(LevelID level, Vector3 pos)
+    {
+        var logic = SaveLogic.Get() ?? throw new Exception("SaveLogic introuvable");
+        if (!MainCharacterSingleton.TryGetEntity(out Entity entity) || entity == null)
+            throw new Exception("Joueur introuvable (es-tu en jeu ?)");
+        LevelID current = logic._currentLevelIdVariable?.CurrentValue;
+        if (level == null) level = current;
+        bool otherLevel = level != null && current != null && level.name != current.name;
+
+        logic.GeneratePlayerSaveWithPosition(entity, level, pos, SaveOrigin.DebugSpawn);
+        DedupeObjectives(logic._currentSave);
+        logic.SaveRoom(false);
+        var save = logic._currentSave ?? throw new Exception("_currentSave est null");
+        var rot = entity.transform.rotation;
+        var state = new SaveState
+        {
+            Name = "Teleport",
+            SnapToGround = true,
+            Level = level?.name ?? "",
+            Room = "(teleport)", // autre salle : le jeu charge celle qui contient la destination
+            X = pos.x, Y = pos.y, Z = pos.z,
+            HasRotation = true, RX = rot.x, RY = rot.y, RZ = rot.z, RW = rot.w,
+            Health = save.playerSave?.currentHealth ?? 0,
+            Mana = save.playerSave?.currentMana ?? 0,
+            Date = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+            GlobalSaveJson = JsonUtility.ToJson(save),
+            // L'état d'exécution du niveau actuel n'a pas de sens dans un autre niveau
+            RuntimeWorldSaveJson = !otherLevel && logic._runtimeWorldSave != null ? JsonUtility.ToJson(logic._runtimeWorldSave) : null,
+        };
+        CaptureLiveStats(entity, state);
+        Plugin.Logger.LogInfo($"[Téléportation] destination {pos} niveau '{state.Level}' ({(otherLevel ? "autre niveau : rechargement complet" : "même niveau")})");
+        return state;
     }
 
     public static SaveState Capture(string name)
@@ -464,6 +506,36 @@ public static class GameBridge
         else entity.transform.SetPositionAndRotation(state.Position, rot);
     }
 
+    const float GroundSnapDistance = 12f; // même portée que l'accroche aux miroirs
+
+    /// <summary>
+    /// Téléportation, salle chargée : cherche un sol jusqu'à GroundSnapDistance sous la destination (en ignorant
+    /// les colliders du joueur et les zones déclencheuses) et y abaisse la destination. Sinon, rien ne change.
+    /// </summary>
+    public static void SnapToGround(SaveState state)
+    {
+        if (!state.SnapToGround) return;
+        try
+        {
+            MainCharacterSingleton.TryGetEntity(out Entity player);
+            var origin = state.Position + Vector3.up * 0.5f;
+            var hits = Physics.RaycastAll(origin, Vector3.down, GroundSnapDistance + 0.5f, ~0, QueryTriggerInteraction.Ignore);
+            float best = float.MaxValue;
+            Vector3 point = default;
+            foreach (var h in hits)
+            {
+                var col = h.collider;
+                if (col == null) continue;
+                if (player != null && col.transform.IsChildOf(player.transform)) continue;
+                if (h.distance < best) { best = h.distance; point = h.point; }
+            }
+            if (best == float.MaxValue) { Plugin.Logger.LogInfo($"[Téléportation] pas de sol sous {state.Position} : position gardée"); return; }
+            Plugin.Logger.LogInfo($"[Téléportation] sol trouvé à {point.y:0.00} (destination {state.Y:0.00}) : joueur posé au sol");
+            state.Y = point.y;
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Téléportation] sol : " + ex.Message); }
+    }
+
     /// <summary>Une fois la salle chargée : replace le joueur si le changement de salle l'a déplacé.</summary>
     public static void FixPositionAfterRoomLoad(SaveState state)
     {
@@ -515,10 +587,42 @@ public static class GameBridge
         var afmObj = UnityEngine.Object.FindObjectOfType(Il2CppType.Of<ApplicationFlowManager>());
         if (afmObj == null) throw new Exception("ApplicationFlowManager introuvable");
         var afm = afmObj.Cast<ApplicationFlowManager>();
+        // Autre niveau : charger l'état de jeu de ce niveau (recharger l'état courant ramènerait au niveau actuel)
+        string current = SaveLogic.Get()?._currentLevelIdVariable?.CurrentValue?.name ?? "";
+        if (!string.IsNullOrEmpty(state.Level) && state.Level != current)
+        {
+            var levelState = FindLevelState(state.Level);
+            if (levelState == null) throw new Exception($"game state of level '{state.Level}' not found");
+            Plugin.Logger.LogInfo($"[Restore] chargement de l'état '{levelState.name}' (au lieu de '{afm.GetCurrentState()?.name}')");
+            afm.LoadState(levelState);
+            return;
+        }
         Plugin.Logger.LogInfo($"[Restore] rechargement de l'état '{afm.GetCurrentState()?.name}'");
         afm.ReloadCurrentState();
     }
 
+    /// <summary>
+    /// État de jeu (ApplicationState) d'un autre niveau : il porte le nom du niveau sans « LevelID_ »
+    /// (LevelID_03_Catacombs → 03_Catacombs). Null si c'est le niveau actuel ou s'il est introuvable.
+    /// (La table niveau → état du jeu passe par un paramètre de sortie structure qui faisait planter le jeu.)
+    /// </summary>
+    static MotherBase.ApplicationFlowManager.ApplicationState FindLevelState(string levelName)
+    {
+        try
+        {
+            string current = SaveLogic.Get()?._currentLevelIdVariable?.CurrentValue?.name ?? "";
+            if (string.IsNullOrEmpty(levelName) || levelName == current) return null;
+            string wanted = levelName.StartsWith("LevelID_") ? levelName.Substring("LevelID_".Length) : levelName;
+            foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<MotherBase.ApplicationFlowManager.ApplicationState>()))
+            {
+                var st = o.TryCast<MotherBase.ApplicationFlowManager.ApplicationState>();
+                if (st != null && st.name == wanted) return st;
+            }
+            Plugin.Logger.LogWarning($"[Restore] état de jeu '{wanted}' introuvable pour le niveau '{levelName}'");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Restore] état du niveau : " + ex.Message); }
+        return null;
+    }
     /// <summary>Une fois la salle chargée : remet les objets mobiles (scies, plateformes) où ils étaient.</summary>
     public static void RestoreRoomObjects(SaveState state)
     {

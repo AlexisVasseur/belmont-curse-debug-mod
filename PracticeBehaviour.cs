@@ -24,6 +24,7 @@ public class PracticeBehaviour : MonoBehaviour
         panel.CaptureState = Capture;
         panel.LoadState = Load;
         panel.Init();
+        MapTeleport.Notify = Notify;
     }
 
     void Update()
@@ -53,6 +54,15 @@ public class PracticeBehaviour : MonoBehaviour
             try { Cheats.Update(); Cheats.ApplyNoclip(); } catch (Exception ex) { Plugin.Logger.LogError("[Utilitaires] " + ex); }
         }
         if (inGame) { try { ItemLibrary.Update(); } catch (Exception ex) { Plugin.Logger.LogError("[Objets] " + ex); } }
+        if (inGame)
+        {
+            try
+            {
+                var target = MapTeleport.Update(Keyboard.current);
+                if (target != null && !sequence.Active) TeleportTo(target.Value);
+            }
+            catch (Exception ex) { Plugin.Logger.LogError("[Carte] " + ex); }
+        }
 
         var kb = Keyboard.current;
         if (kb != null && inGame)
@@ -131,6 +141,17 @@ public class PracticeBehaviour : MonoBehaviour
             return GameBridge.Capture(null);
         }
         catch (Exception ex) { Notify("Save failed: " + ex.Message, true); Plugin.Logger.LogError(ex); return null; }
+    }
+
+    /// <summary>Téléportation dans le niveau : une savestate de l'état actuel, déplacée à la destination.</summary>
+    void TeleportTo(Vector3 target)
+    {
+        try
+        {
+            if (!GameBridge.InGame(out string why)) { Notify(why, true); return; }
+            Load(GameBridge.CaptureForTeleport(MapTeleport.PendingLevel, target));
+        }
+        catch (Exception ex) { Notify("Teleport failed: " + ex.Message, true); Plugin.Logger.LogError(ex); }
     }
 
     void Load(SaveState state)
