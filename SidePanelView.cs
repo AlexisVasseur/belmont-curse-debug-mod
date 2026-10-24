@@ -408,6 +408,8 @@ public partial class SidePanelView
         public TextMeshProUGUI value, sub;
         public Image icon;
         public List<(Image img, float x, float y)> hearts = new();
+        // Couches de chaque cœur (fond, 4 pièces, cadre) : le cœur en cours n'affiche que ses pièces trouvées
+        public List<Image[]> layers = new();
     }
     readonly List<UpgradeUi> upgradeRows = new();
     bool wasVisible;
@@ -461,6 +463,16 @@ public partial class SidePanelView
                 var img = Ui.Image(fill, $"UpgHeart{kind}{i}", x, ly, HeartSize, HeartSize, new Color(1f, 1f, 1f, 1f));
                 img.preserveAspect = true;
                 r.hearts.Add((img, x, ly));
+                bool mana = kind == Upgrades.Kind.ManaFragments;
+                if (Skin.HeartBg != null && Skin.HeartFrame != null && Skin.HeartPiece(mana, 4) != null)
+                {
+                    img.gameObject.SetActive(false);
+                    var layers = new Image[6];
+                    layers[0] = Skin.Sprite(fill, $"UpgHeart{kind}{i}Bg", x, ly, HeartSize, HeartSize, Skin.HeartBg, Color.white);
+                    for (int k = 1; k <= 4; k++) layers[k] = Skin.Sprite(fill, $"UpgHeart{kind}{i}P{k}", x, ly, HeartSize, HeartSize, Skin.HeartPiece(mana, k), Color.white);
+                    layers[5] = Skin.Sprite(fill, $"UpgHeart{kind}{i}Frame", x, ly, HeartSize, HeartSize, Skin.HeartFrame, Color.white);
+                    r.layers.Add(layers);
+                }
             }
             float after = hx + Upgrades.MaxHearts * (HeartSize + HeartGap) + 6;
             Button(after, ly, 34, 30, "+", GameFonts.Title, 18f, () => ChangeUpgrade(kind, +1), kind.ToString());
@@ -496,6 +508,24 @@ public partial class SidePanelView
                 var (img, x, y) = r.hearts[i];
                 if (img.sprite == null) img.sprite = r.icon.sprite;
                 bool hover = hasMouse && mx >= x - HeartGap / 2f && mx < x + HeartSize + HeartGap / 2f && my >= y && my < y + HeartSize;
+                if (i < r.layers.Count)
+                {
+                    // Pièces affichées : 4 pour un cœur complet, celles trouvées pour le cœur en cours, aucune sinon
+                    var lay = r.layers[i];
+                    int pieces = i < full ? 4 : i == full ? frags : 0;
+                    float shell = pieces > 0 || hover ? 1f : 0.45f;
+                    lay[0].color = new Color(1f, 1f, 1f, shell);
+                    for (int k = 1; k <= 4; k++) Ui.SetActive(lay[k], k <= pieces);
+                    lay[5].color = hover ? Theme.Hex(0xffc890) : new Color(1f, 1f, 1f, shell);
+                    if (hover && click && !handled)
+                    {
+                        handled = true;
+                        int tgt = (i + 1) * Upgrades.FragmentsPerHeart;
+                        if (v == tgt) tgt = i * Upgrades.FragmentsPerHeart;
+                        ChangeUpgrade(r.kind, tgt - v);
+                    }
+                    continue;
+                }
                 // Plein, partiel (morceaux déjà trouvés) ou vide
                 float a = i < full ? 1f : i == full && frags > 0 ? 0.3f + 0.15f * frags : 0.18f;
                 float tint = i < full || hover ? 1f : 0.55f;
@@ -515,7 +545,8 @@ public partial class SidePanelView
 
     const float WeaponTile = 60f, WeaponGap = 8f, WeaponRowGap = 8f;
     // Armurerie : médaillon de famille, 4 armes espacées, lignes aérées ; reliques espacées
-    const float ArmTile = 58f, ArmGap = 14f, ArmRowGap = 18f, Medallion = 56f, RelicGap = 16f;
+    // Cases élargies pour occuper toute la largeur du panneau (jusqu'à la barre de défilement)
+    const float ArmTile = 74f, ArmGap = 21f, ArmRowGap = 20f, Medallion = 56f, RelicGap = 21f;
     const int GridCols = 4; // 4 par ligne, comme l'Armurerie
     int weaponsBuiltFor = -1, relicsBuiltFor = -1;
     class RelicUi { public Relics.Relic relic; public ItemTile tile; }
@@ -540,7 +571,7 @@ public partial class SidePanelView
         y += 6;
 
         // Une ligne par famille, comme l'Armurerie : médaillon rond à gauche, filet qui traverse, 4 armes
-        float tilesX = Pad + Medallion + 18;
+        float tilesX = Pad + Medallion + 16;
         for (int r = 0; r < Weapons.Families.Count; r++)
         {
             var fam = Weapons.Families[r];
@@ -563,8 +594,7 @@ public partial class SidePanelView
             }
         }
         y += Weapons.Families.Count * (ArmTile + ArmRowGap) + 4;
-        float gridW = GridCols * ArmTile + (GridCols - 1) * RelicGap;
-        float x0 = (iw - gridW) / 2f;
+        float x0 = tilesX; // reliques alignées sur les colonnes d'armes
 
         // --- Reliques : 3 emplacements équipables, toutes affichées, 4 par ligne ---
         relicsBuiltFor = Relics.All.Count;
@@ -828,7 +858,7 @@ public partial class SidePanelView
     {
         float iw = W - 1;
         // Ruban bordeaux du jeu ; à défaut, titre doré entre deux filets
-        if (Skin.BannerSprite != null) return Skin.Banner(fill, text, Pad - 10, y + 2, iw - Pad * 2 + 20, 60, GameFonts.Title) + 10;
+        if (Skin.BannerSprite != null) return Skin.Banner(fill, text, Pad, y + 6, iw - Pad * 2, 50, GameFonts.Title) + 14;
         var title = Ui.Text(fill, "Section" + text, Pad, y, iw - Pad * 2, TitleH, GameFonts.Title, 32f, Theme.GoldText, TextAlignmentOptions.Center);
         title.text = text;
         float tw = Mathf.Min(iw - Pad * 2 - 40, title.preferredWidth + 24);

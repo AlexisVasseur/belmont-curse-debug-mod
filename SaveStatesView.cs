@@ -120,7 +120,7 @@ public class SaveStatesView
         if (Skin.BannerSprite != null)
         {
             Ui.Image(fill, "BannerShade", 0, 0, iw, BannerH, Theme.Hex(0x0b0706, 0.6f));
-            Skin.Sliced(fill, "Banner", -6, -4, iw + 12, BannerH + 8, Skin.BannerSprite, Color.white, 4f);
+            Skin.Sprite(fill, "Banner", 0, 2, iw, BannerH - 4, Skin.BannerSprite, Color.white);
             Ui.Text(fill, "Title", 0, 0, iw, BannerH, t, 30f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = "Savestates";
         }
         else
@@ -252,9 +252,10 @@ public class SaveStatesView
         string key = bind.ShortLabel;
         if (key.Length > 0)
         {
-            float kw = Mathf.Max(24f, 12f + 9f * key.Length);
-            var kf = Ui.Frame(btn.Fill.transform, "Key", w - kw - 8, 4, kw, h - 10, Theme.GoldBright, Theme.Hex(0x1a1210));
-            Ui.Label(kf.transform, "KeyText", 0, 0, kw - 2, h - 12, GameFonts.Title, 14f, Theme.KeyText).text = key;
+            // Touche en simple texte doré à droite (sans pastille)
+            var k = Ui.Text(btn.Fill.transform, "Key", w - 70, 0, 56, h, GameFonts.Title, 15f, Theme.GoldText, TextAlignmentOptions.MidlineRight);
+            k.text = key;
+            k.margin = new Vector4(0f, 2f, 0f, 0f);
         }
     }
 
@@ -262,8 +263,8 @@ public class SaveStatesView
     float KeyBox(float x, float y, string key, Action onClick)
     {
         if (string.IsNullOrEmpty(key)) key = "?";
-        float kw = Mathf.Max(24f, 12f + 9f * key.Length);
-        var btn = Button(x, y, kw, 22, key, GameFonts.Title, 14f, onClick);
+        float kw = Mathf.Max(30f, 16f + 9f * key.Length);
+        var btn = Button(x, y - 3, kw, 28, key, GameFonts.Title, 15f, onClick);
         if (btn.Skinned) { btn.OrnamentL = btn.OrnamentR = null; } // trop petite pour porter des volutes
         else Ui.SetBorder(btn.Fill, Theme.GoldBright);
         // Chiffre centré sur sa forme, sans risque de disparaître

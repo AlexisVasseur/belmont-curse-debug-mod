@@ -190,16 +190,27 @@ public class UiButton
         var label = Ui.Text(fill.transform, "Label", 0, 0, w, h, font, fontSize, Skin.ButtonText, TextAlignmentOptions.Center);
         label.overflowMode = TextOverflowModes.Overflow;
         label.text = text;
+        // « - » et « + » : dessinés avec des barres au centre exact du bouton (les glyphes des polices du jeu tombent de travers)
+        Image barH = null, barV = null;
+        if (text == "-" || text == "+")
+        {
+            label.text = "";
+            float bw = Mathf.Round(Mathf.Min(w, h) * 0.38f), bt = 2f;
+            barH = Ui.Image(fill.transform, "SignH", (w - bw) / 2f, (h - bt) / 2f, bw, bt, Skin.ButtonText);
+            if (text == "+") barV = Ui.Image(fill.transform, "SignV", (w - bt) / 2f, (h - bw) / 2f, bt, bw, Skin.ButtonText);
+        }
         var (l, r) = Skin.Ornaments(rt, w, h);
         return new UiButton
         {
-            Rt = rt, Fill = fill, Label = label, OnClick = onClick, Skinned = true, OrnamentL = l, OrnamentR = r,
+            Rt = rt, Fill = fill, Label = label, OnClick = onClick, Skinned = true, OrnamentL = l, OrnamentR = r, SignH = barH, SignV = barV,
             BaseColor = Skin.ButtonIdle, LabelColor = Skin.ButtonText,
         };
     }
 
     public bool Skinned;
     string centeredFor;
+    static int logged;
+    Image SignH, SignV;
 
     /// <summary>
     /// Centre verticalement le texte sur la zone réellement occupée par ses caractères : la ligne de base
@@ -215,12 +226,14 @@ public class UiButton
             rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY);
             Label.ForceMeshUpdate();
             var b = Label.textBounds;
-            if (b.size.y <= 0.01f) return;
             float rectMidY = -rt.rect.height / 2f; // pivot en haut à gauche
-            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY + (rectMidY - b.center.y));
+            float dy = b.size.y > 0.01f ? rectMidY - b.center.y : 0f;
+            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY + dy);
+            if (logged++ < 12) Plugin.Logger.LogInfo($"[Centrage] '{Label.text}' rect h={rt.rect.height:0.#} pivot={rt.pivot} bornes centre={b.center} taille={b.size} → décalage {dy:0.#}");
+            if (b.size.y <= 0.01f) return; // texte pas encore construit : on réessaiera
             centeredFor = Label.text;
         }
-        catch { centeredFor = Label.text; }
+        catch (Exception ex) { centeredFor = Label.text; Plugin.Logger.LogWarning("[Centrage] " + ex.Message); }
     }
     /// <summary>Élément sélectionné (onglet actif) : volutes affichées en permanence.</summary>
     public bool Selected;
@@ -238,6 +251,11 @@ public class UiButton
         var tc = !Enabled ? Theme.TextDim : lit && Skinned ? Theme.GoldText : LabelColor;
         if (!Theme.Same(Label.color, tc)) Label.color = tc;
         CenterLabel();
+        if (SignH != null)
+        {
+            if (!Theme.Same(SignH.color, tc)) SignH.color = tc;
+            if (SignV != null && !Theme.Same(SignV.color, tc)) SignV.color = tc;
+        }
         bool orn = Skinned && (Selected || lit);
         if (OrnamentL != null && OrnamentL.activeSelf != orn) { OrnamentL.SetActive(orn); OrnamentR.SetActive(orn); }
     }

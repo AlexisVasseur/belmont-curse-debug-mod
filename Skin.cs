@@ -13,7 +13,7 @@ public static class Skin
 {
     public static Sprite Button => GameSprites.Icon("ui_button", new Vector4(25, 0, 25, 0));
     public static Sprite Ornament => GameSprites.Icon("ui_button_ornament");
-    public static Sprite BannerSprite => GameSprites.Icon("ui_banner", new Vector4(240, 0, 240, 0));
+    public static Sprite BannerSprite => GameSprites.Icon("ui_banner_plain"); // ruban seul, sans les ornements des extrémités
     public static Sprite Slot => GameSprites.Icon("ui_slot");
     public static Sprite Equipped => GameSprites.Icon("ui_equipped");
     public static Sprite Diamond => GameSprites.Icon("ui_diamond");
@@ -33,6 +33,10 @@ public static class Skin
     public static Sprite NotificationGold => GameSprites.Icon("ui_notification_gold");
     // Fioles du HUD : pleine, bonus, vide, et l'ornement qui sépare les normales des bonus
     public static Sprite Potion => GameSprites.Icon("ui_potion");
+    // Cœur du menu Progression en couches : fond, 4 pièces (vie ou mana), cadre
+    public static Sprite HeartBg => GameSprites.Icon("ui_heart_bg");
+    public static Sprite HeartFrame => GameSprites.Icon("ui_heart_frame");
+    public static Sprite HeartPiece(bool mana, int i) => GameSprites.Icon($"ui_heart_{(mana ? "mana" : "life")}_{i}");
     public static Sprite PotionBonus => GameSprites.Icon("ui_potion_bonus");
     public static Sprite PotionEmpty => GameSprites.Icon("ui_potion_empty");
     public static Sprite PotionSeparator => GameSprites.Icon("ui_potion_separator");
@@ -120,7 +124,7 @@ public static class Skin
     /// <summary>Titre de section posé sur le ruban bordeaux de l'Armurerie.</summary>
     public static float Banner(Transform parent, string text, float x, float y, float w, float h, TMP_FontAsset font)
     {
-        Sliced(parent, "Banner" + text, x, y, w, h, BannerSprite, Color.white, 4f);
+        Sprite(parent, "Banner" + text, x, y, w, h, BannerSprite, Color.white);
         var t = Ui.Text(parent, "BannerText" + text, x, y, w, h, font, 25f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned);
         t.text = text;
         return y + h;

@@ -56,6 +56,8 @@ public static class DevExport
         "Assets/_Object/UI/GameMenus/Equipment/Overlay_WeaponInventory/1_Textures/T_UI_Items_WeaponsFamily_Atlas.png",
         "Assets/_Object/UI/GameMenus/Equipment/Overlay_WeaponInventory/5_Prefabs/InventoryWeapon_ArchetypeWeaponLists.prefab",
         "Assets/_Object/UI/HUD/NotificationsHUD/1_Textures/T_UI_Notifications_Atlas.spriteatlasv2",
+        "Assets/_Object/UI/GameMenus/Progress/5_Prefabs/UpgradeElement_Health.prefab",
+        "Assets/_Object/UI/GameMenus/Progress/5_Prefabs/UpgradeElement_Mana.prefab",
     };
 
     static readonly Dictionary<string, AsyncOperationHandle<UnityEngine.Object>> handles = new();
