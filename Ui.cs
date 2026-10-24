@@ -186,8 +186,8 @@ public class UiButton
         var outline = fill.gameObject.AddComponent<Outline>();
         outline.effectColor = new Color(Theme.GoldBright.r, Theme.GoldBright.g, Theme.GoldBright.b, 0.7f);
         outline.effectDistance = new Vector2(1f, -1f);
-        // Centré sur la forme réelle des caractères (la ligne de base des polices du jeu tombe bas)
-        var label = Ui.Text(fill.transform, "Label", 0, 0, w, h, font, fontSize, Skin.ButtonText, TextAlignmentOptions.CenterGeoAligned);
+        // Centrage vertical recalé sur les caractères réellement dessinés (voir CenterLabel)
+        var label = Ui.Text(fill.transform, "Label", 0, 0, w, h, font, fontSize, Skin.ButtonText, TextAlignmentOptions.Center);
         label.overflowMode = TextOverflowModes.Overflow;
         label.text = text;
         var (l, r) = Skin.Ornaments(rt, w, h);
@@ -199,6 +199,29 @@ public class UiButton
     }
 
     public bool Skinned;
+    string centeredFor;
+
+    /// <summary>
+    /// Centre verticalement le texte sur la zone réellement occupée par ses caractères : la ligne de base
+    /// des polices du jeu tombe bas (« - », « + », chiffres). Refait quand le texte change.
+    /// </summary>
+    void CenterLabel()
+    {
+        if (!Skinned || Label == null || centeredFor == Label.text || !Label.gameObject.activeInHierarchy) return;
+        try
+        {
+            var rt = Label.rectTransform;
+            float baseY = 0f; // position d'origine (haut du bouton)
+            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY);
+            Label.ForceMeshUpdate();
+            var b = Label.textBounds;
+            if (b.size.y <= 0.01f) return;
+            float rectMidY = -rt.rect.height / 2f; // pivot en haut à gauche
+            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY + (rectMidY - b.center.y));
+            centeredFor = Label.text;
+        }
+        catch { centeredFor = Label.text; }
+    }
     /// <summary>Élément sélectionné (onglet actif) : volutes affichées en permanence.</summary>
     public bool Selected;
     public GameObject OrnamentL, OrnamentR;
@@ -214,6 +237,7 @@ public class UiButton
         if (!Theme.Same(Fill.color, c)) Fill.color = c;
         var tc = !Enabled ? Theme.TextDim : lit && Skinned ? Theme.GoldText : LabelColor;
         if (!Theme.Same(Label.color, tc)) Label.color = tc;
+        CenterLabel();
         bool orn = Skinned && (Selected || lit);
         if (OrnamentL != null && OrnamentL.activeSelf != orn) { OrnamentL.SetActive(orn); OrnamentR.SetActive(orn); }
     }
