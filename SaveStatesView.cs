@@ -14,7 +14,7 @@ namespace BelmontPractice;
 /// </summary>
 public class SaveStatesView
 {
-    const float W = 780f, Top = 40f, BannerH = 48f, RowH = 38f, Pad = 16f;
+    const float W = 780f, Top = 40f, BannerH = 64f, RowH = 38f, Pad = 16f;
     const int Rows = SlotStore.SlotsPerPage;
 
     readonly SaveStatesPanel p;
@@ -30,7 +30,7 @@ public class SaveStatesView
     UiButton editBtn, addPage, removePage, movePageL, movePageR, pageYes, pageNo;
     float toastUntil;
     const float ToastW = 640f, ToastH = 42f;
-    Image toastAccent, toastFrame;
+    Image toastAccent, toastFrame, toastBack;
     static readonly Color ToastTint = Theme.Hex(0x4a3628), ToastErrorTint = Theme.Hex(0x6a2220);
 
     class RowUi
@@ -72,20 +72,18 @@ public class SaveStatesView
         rt.anchoredPosition = new Vector2(44f, 28f);
         toast = rt.gameObject;
         toastAccent = Ui.Image(bg.transform, "Accent", 0f, 0f, 4f, ToastH - 2f, Theme.GoldBright);
-        if (Skin.Notification != null)
+        if (Skin.BarMana != null && Skin.BarLife != null)
         {
-            // Cadre des notifications du jeu (objet ramassé, tâche avancée) par-dessus le fond
+            // Contour des barres de vie / mana du HUD : liseré bleu pour les messages, rouge pour les erreurs
             Ui.SetBorder(bg, new Color(0f, 0f, 0f, 0f));
             bg.color = new Color(0f, 0f, 0f, 0f);
-            toastFrame = Skin.Sliced(bg.transform, "Frame", -4f, -8f, ToastW + 8f, ToastH + 14f, Skin.Notification, ToastTint, 2f);
-            toastFrame.transform.SetAsFirstSibling();
-            Ui.SetActive(toastAccent, false);
-            // Pièce dorée à gauche, comme les notifications de tâche du jeu
-            if (Skin.NotificationGold != null)
+            if (Skin.BarMask != null)
             {
-                var gold = Skin.Sprite(bg.transform, "Gold", -26f, -12f, 34f, ToastH + 22f, Skin.NotificationGold, Color.white);
-                gold.preserveAspect = true;
+                toastBack = Skin.Sliced(bg.transform, "Back", 2f, 6f, ToastW + 4f, ToastH - 12f, Skin.BarMask, Theme.Hex(0x120c0a, 0.92f), 1.6f);
+                toastBack.transform.SetAsFirstSibling();
             }
+            toastFrame = Skin.Sliced(bg.transform, "Frame", -6f, -6f, ToastW + 66f, ToastH + 12f, Skin.BarMana, Color.white, 1.4f);
+            Ui.SetActive(toastAccent, false);
         }
         toastText = Ui.Text(bg.transform, "Text", 18f, 0f, ToastW - 30f, ToastH - 2f, GameFonts.Body, 20f, Theme.Text);
         toast.SetActive(false);
@@ -110,8 +108,7 @@ public class SaveStatesView
         container.anchoredPosition = new Vector2(0f, -Top);
         panel = container.gameObject;
 
-        // Double cadre : filet extérieur sombre, cadre doré, fond brun-noir
-        Ui.Border(container, -5, -5, W + 10, H + 10, Theme.OuterLine);
+        // Un seul cadre doré autour du fond (le filet extérieur doublait le bord)
 
         fill = Ui.Frame(container, "Frame", 0, 0, W, H, Theme.Gold, Theme.Bg).transform;
         float iw = W - 2; // largeur intérieure
@@ -428,7 +425,7 @@ public class SaveStatesView
         Ui.SetText(toastText, msg);
         toastText.color = error ? Theme.Red : Theme.Text;
         if (toastAccent != null) toastAccent.color = error ? Theme.Red : Theme.GoldBright;
-        if (toastFrame != null) toastFrame.color = error ? ToastErrorTint : ToastTint;
+        if (toastFrame != null) { toastFrame.sprite = error ? Skin.BarLife : Skin.BarMana; toastFrame.color = Color.white; }
         toastUntil = Time.unscaledTime + 3f;
     }
 

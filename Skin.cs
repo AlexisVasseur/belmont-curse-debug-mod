@@ -31,6 +31,10 @@ public static class Skin
     /// <summary>Cadre des notifications du jeu (rempli après l'extraction des assets ; null tant qu'il manque).</summary>
     public static Sprite Notification => GameSprites.Icon("ui_notification", new Vector4(0, 60, 0, 60));
     public static Sprite NotificationGold => GameSprites.Icon("ui_notification_gold");
+    // Contour des barres de vie / mana du HUD (pointe ornée à droite) et forme de leur remplissage
+    public static Sprite BarLife => GameSprites.Icon("ui_bar_life", new Vector4(117, 0, 117, 0));
+    public static Sprite BarMana => GameSprites.Icon("ui_bar_mana", new Vector4(117, 0, 117, 0));
+    public static Sprite BarMask => GameSprites.Icon("ui_bar_mask", new Vector4(68, 0, 68, 0));
     // Fioles du HUD : pleine, bonus, vide, et l'ornement qui sépare les normales des bonus
     public static Sprite Potion => GameSprites.Icon("ui_potion");
     // Cœur du menu Progression en couches : fond, 4 pièces (vie ou mana), cadre

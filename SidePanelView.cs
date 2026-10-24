@@ -84,7 +84,7 @@ public partial class SidePanelView
             tabButtons[i] = UiButton.CreateSkinned(fill, "Tab" + TabNames[i], TabX(i), y, TabW, TabsH, TabNames[i], t, 18f, null);
 
         Ui.Image(fill, "TabsLine", Pad, y + TabsH + 4, iw - Pad * 2, 1, Theme.LineGold);
-        y += TabsH + 14;
+        y += TabsH + 8;
 
         // Zone défilante sous les onglets : masque + une page par onglet (mêmes coordonnées que le fond)
         var root = fill;
@@ -546,7 +546,8 @@ public partial class SidePanelView
     const float WeaponTile = 60f, WeaponGap = 8f, WeaponRowGap = 8f;
     // Armurerie : médaillon de famille, 4 armes espacées, lignes aérées ; reliques espacées
     // Cases élargies pour occuper toute la largeur du panneau (jusqu'à la barre de défilement)
-    const float ArmTile = 74f, ArmGap = 21f, ArmRowGap = 20f, Medallion = 56f, RelicGap = 21f;
+    const float ArmTile = 74f, ArmGap = 21f, ArmRowGap = 20f, Medallion = 56f, RelicTile = 66f, RelicGap = 22f;
+    const int RelicCols = 5;
     const int GridCols = 4; // 4 par ligne, comme l'Armurerie
     int weaponsBuiltFor = -1, relicsBuiltFor = -1;
     class RelicUi { public Relics.Relic relic; public ItemTile tile; }
@@ -594,7 +595,9 @@ public partial class SidePanelView
             }
         }
         y += Weapons.Families.Count * (ArmTile + ArmRowGap) + 4;
-        float x0 = tilesX; // reliques alignées sur les colonnes d'armes
+        // Reliques : 5 par ligne, centrées sur la largeur utile (barre de défilement exclue)
+        float gridW = RelicCols * RelicTile + (RelicCols - 1) * RelicGap;
+        float x0 = (iw - ScrollbarW - 6 - gridW) / 2f;
 
         // --- Reliques : 3 emplacements équipables, toutes affichées, 4 par ligne ---
         relicsBuiltFor = Relics.All.Count;
@@ -603,12 +606,12 @@ public partial class SidePanelView
         y += 16;
         for (int i = 0; i < Relics.All.Count; i++)
         {
-            float tx = x0 + (i % GridCols) * (ArmTile + RelicGap), ty = y + (i / GridCols) * (ArmTile + RelicGap);
-            relicTiles.Add(new RelicUi { relic = Relics.All[i], tile = ItemTile.Build(fill, $"R{i}", tx, ty, ArmTile) });
+            float tx = x0 + (i % RelicCols) * (RelicTile + RelicGap), ty = y + (i / RelicCols) * (RelicTile + RelicGap);
+            relicTiles.Add(new RelicUi { relic = Relics.All[i], tile = ItemTile.Build(fill, $"R{i}", tx, ty, RelicTile) });
         }
         if (Relics.All.Count == 0)
             Ui.Text(fill, "RelicsWaiting", Pad, y, iw - Pad * 2, 30, GameFonts.Body, 19f, Theme.TextDim, TextAlignmentOptions.Center).text = "Load a game to see the relics";
-        y += Math.Max(1, (Relics.All.Count + GridCols - 1) / GridCols) * (ArmTile + RelicGap) + 8;
+        y += Math.Max(1, (Relics.All.Count + RelicCols - 1) / RelicCols) * (RelicTile + RelicGap) + 8;
 
         contentH[(int)Tab.Weapons] = y + 8;
     }
@@ -858,7 +861,8 @@ public partial class SidePanelView
     {
         float iw = W - 1;
         // Ruban bordeaux du jeu ; à défaut, titre doré entre deux filets
-        if (Skin.BannerSprite != null) return Skin.Banner(fill, text, Pad, y + 6, iw - Pad * 2, 50, GameFonts.Title) + 14;
+        // Toute la largeur du panneau ; hauteur laissant ~10 px entre le titre et les filets dorés
+        if (Skin.BannerSprite != null) return Skin.Banner(fill, text, 0, y, iw, 70, GameFonts.Title) + 10;
         var title = Ui.Text(fill, "Section" + text, Pad, y, iw - Pad * 2, TitleH, GameFonts.Title, 32f, Theme.GoldText, TextAlignmentOptions.Center);
         title.text = text;
         float tw = Mathf.Min(iw - Pad * 2 - 40, title.preferredWidth + 24);
