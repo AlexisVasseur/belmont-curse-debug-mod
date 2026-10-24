@@ -151,7 +151,7 @@ public partial class SidePanelView
         y += rowsCount * (TileH + Gap) + 16;
 
         // --- Section Spells ---
-        y = SectionTitle("Spells", y);
+        y = SectionTitle("Arcanas", y);
         spellsTop = y;
         spellsBuiltFor = Arcana.Spells.Count;
         BuildSpells(y);
@@ -684,7 +684,7 @@ public partial class SidePanelView
 
     // ---------- Sorts ----------
 
-    const float SpellCellH = 60f, SpellIcon = 48f, TalentSize = 20f;
+    const float SpellCellH = 60f, SpellIcon = 48f, TalentSize = 20f, SpellNameW = 140f, SwitchW = 96f;
     float spellsTop;
     int spellsBuiltFor = -1;
 
@@ -693,6 +693,9 @@ public partial class SidePanelView
     {
         public Arcana.Spell spell;
         public Image highlight, icon, line, equipped, frame, glow, spikes;
+        public TextMeshProUGUI name;
+        public UiButton switchBtn; // Cursed Flame / Absolution : bascule entre les deux variantes
+        public float switchX = float.MaxValue;
         public GameObject iconRoot;
         public SpellItemData shownItem;
         public GameObject fallback;
@@ -734,7 +737,7 @@ public partial class SidePanelView
     {
         spellCells.Clear();
         float iw = W - 1;
-        float cellW = (iw - Pad * 2 - Gap) / 2f;
+        float cellW = iw - Pad * 2 - ScrollbarW - 6; // une arcane par ligne
         var spells = Arcana.Spells;
         if (spells.Count == 0)
         {
@@ -743,7 +746,7 @@ public partial class SidePanelView
         }
         for (int i = 0; i < spells.Count; i++)
         {
-            float cx = Pad + (i % 2) * (cellW + Gap), cy = y + (i / 2) * SpellCellH;
+            float cx = Pad, cy = y + i * SpellCellH;
             var c = new SpellUi { spell = spells[i], x = cx, y = cy, w = cellW };
             c.highlight = Ui.Image(fill, $"Spell{i}Hl", cx, cy, cellW, SpellCellH - 4, Theme.Hex(0x5e1418, 0.55f));
             c.highlight.gameObject.SetActive(false);
@@ -776,7 +779,17 @@ public partial class SidePanelView
             c.equipped.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
 
             // Ligne horizontale portant les 3 améliorations
-            float lineX = iconX + SpellIcon + 6, lineW = cx + cellW - 10 - lineX, midY = cy + (SpellCellH - 4) / 2f;
+            float midY = cy + (SpellCellH - 4) / 2f;
+            c.name = Ui.Text(fill, $"Spell{i}Name", iconX + SpellIcon + 10, cy, SpellNameW, SpellCellH - 4, GameFonts.Title, 17f, Theme.Text);
+            float lineEnd = cx + cellW - 8;
+            if (c.spell.Variants.Count > 1)
+            {
+                var spell = c.spell;
+                c.switchX = cx + cellW - SwitchW;
+                c.switchBtn = Button(c.switchX, midY - 15, SwitchW, 30, "Switch", GameFonts.Title, 14f, () => Notify?.Invoke(Arcana.SwitchVariant(spell), false), $"Spell{i}");
+                lineEnd = c.switchX - 10;
+            }
+            float lineX = iconX + SpellIcon + 10 + SpellNameW + 4, lineW = lineEnd - lineX;
             c.line = Ui.Image(fill, $"Spell{i}Line", lineX, midY, lineW, 1, Theme.Gold);
             int n = c.spell.Talents.Length;
             for (int k = 0; k < n; k++)
@@ -797,7 +810,7 @@ public partial class SidePanelView
             }
             spellCells.Add(c);
         }
-        y += (spells.Count + 1) / 2 * SpellCellH + 10;
+        y += spells.Count * SpellCellH + 10;
 
         // Zone de détail : nom et effet de l'élément survolé (comme le panneau de droite des arcanes du jeu)
         contentH[(int)Tab.Skills] = y + 8;
@@ -806,11 +819,19 @@ public partial class SidePanelView
     void UpdateSpells(bool hasMouse, float mx, float my, bool click, ref bool handled)
     {
         bool rightClick = hasMouse && UiCanvas.RightClicked;
-        string title = "Skills", text = "Hover a spell or an upgrade to see what it does. Click: unlock or remove. Right-click a spell row: switch variant.";
+        string title = "Arcanas", text = "Hover an arcana or an upgrade to see what it does. Click: unlock or remove. Right-click: equip or unequip.";
         foreach (var c in spellCells)
         {
             bool? owned = Arcana.IsOwned(c.spell);
-            bool inCell = hasMouse && mx >= c.x && mx < c.x + c.w && my >= c.y && my < c.y + SpellCellH - 4;
+            bool inCell = hasMouse && mx >= c.x && mx < Mathf.Min(c.x + c.w, c.switchX - 4) && my >= c.y && my < c.y + SpellCellH - 4;
+            // Nom de la variante affichée, et libellé du bouton vers l'autre variante
+            Ui.SetText(c.name, c.spell.Name);
+            c.name.color = owned == true ? Theme.Text : Theme.TextDim;
+            if (c.switchBtn != null)
+            {
+                var nv = c.spell.NextVariant();
+                if (nv != null) Ui.SetText(c.switchBtn.Label, Loc.Get(nv.itemDisplayName, nv.name)); // la flèche n'existe pas dans la police du jeu
+            }
             // Toute la ligne vaut pour le sort, sauf au-dessus d'une amélioration
             bool overTalent = false;
             foreach (var t in c.talents)
@@ -842,9 +863,10 @@ public partial class SidePanelView
                 title = c.spell.Name;
                 text = (owned == true ? (Arcana.IsEquipped(c.spell) ? "Owned · equipped. " : "Owned. ") : "Not owned. ") + c.spell.Description;
                 var next = c.spell.NextVariant();
-                if (next != null) text += $"  Right-click: switch to {Loc.Get(next.itemDisplayName, next.name)}.";
+                text += "  Click: unlock or remove. Right-click: equip or unequip.";
+                if (next != null) text += $"  The button on the right switches to {Loc.Get(next.itemDisplayName, next.name)} (only one of the two can be owned).";
                 if (click && !handled) { handled = true; Notify?.Invoke(Arcana.ToggleSpell(c.spell), false); }
-                if (rightClick && !handled && next != null) { handled = true; Notify?.Invoke(Arcana.SwitchVariant(c.spell), false); }
+                if (rightClick && !handled) { handled = true; Notify?.Invoke(Arcana.ToggleEquip(c.spell), false); }
             }
 
             foreach (var t in c.talents)

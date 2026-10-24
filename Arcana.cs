@@ -257,7 +257,9 @@ public static class Arcana
             {
                 bool wasEquipped = IsEquipped(s);
                 if (wasEquipped) inv.UnequipSpell();
-                inv.RemoveItemFromInventory(current.itemID);
+                // Les deux variantes ne doivent jamais être possédées en même temps
+                foreach (var v in s.Variants)
+                    if (v.itemID != next.itemID && InInventory(inv, v)) inv.RemoveItemFromInventory(v.itemID);
                 s.Item = next;
                 AddSpell(inv, s);
                 if (wasEquipped) inv.EquipSpellFromInventory(next);
@@ -267,6 +269,28 @@ public static class Arcana
             return $"{s.Name}: switched";
         }
         catch (Exception ex) { return "Switch failed: " + ex.Message; }
+    }
+
+    static bool InInventory(Inventory inv, SpellItemData v)
+    {
+        foreach (var it in inv._itemsInInventory) if (it != null && it.itemID == v.itemID) return true;
+        return false;
+    }
+
+    /// <summary>Clic droit : équipe l'arcane (débloquée au besoin) ou la retire de l'emplacement.</summary>
+    public static string ToggleEquip(Spell s)
+    {
+        var inv = Inventory();
+        if (inv == null || s.Item == null) return "Spell unavailable (load a game first)";
+        try
+        {
+            if (IsEquipped(s)) { inv.UnequipSpell(); return $"{s.Name}: unequipped"; }
+            if (IsOwned(s) != true) AddSpell(inv, s);
+            if (IsOwned(s) != true) return $"{s.Name}: could not be unlocked";
+            inv.EquipSpellFromInventory(s.Item);
+            return IsEquipped(s) ? $"{s.Name}: equipped" : $"{s.Name}: could not be equipped";
+        }
+        catch (Exception ex) { return "Equip failed: " + ex.Message; }
     }
 
     public static string ToggleTalent(Talent t)
