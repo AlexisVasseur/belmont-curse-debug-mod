@@ -69,6 +69,43 @@ public static class GameBridge
         return true;
     }
 
+    /// <summary>
+    /// Savestate de l'état actuel dont le point de départ est un autre endroit, éventuellement dans un autre niveau
+    /// (téléportation depuis la carte). Dans un autre niveau, le chargement passe par le rechargement complet.
+    /// </summary>
+    public static SaveState CaptureForTeleport(LevelID level, Vector3 pos)
+    {
+        var logic = SaveLogic.Get() ?? throw new Exception("SaveLogic introuvable");
+        if (!MainCharacterSingleton.TryGetEntity(out Entity entity) || entity == null)
+            throw new Exception("Joueur introuvable (es-tu en jeu ?)");
+        LevelID current = logic._currentLevelIdVariable?.CurrentValue;
+        if (level == null) level = current;
+        bool otherLevel = level != null && current != null && level.name != current.name;
+
+        logic.GeneratePlayerSaveWithPosition(entity, level, pos, SaveOrigin.DebugSpawn);
+        DedupeObjectives(logic._currentSave);
+        logic.SaveRoom(false);
+        var save = logic._currentSave ?? throw new Exception("_currentSave est null");
+        var rot = entity.transform.rotation;
+        var state = new SaveState
+        {
+            Name = "Teleport",
+            Level = level?.name ?? "",
+            Room = "(teleport)", // autre salle : le jeu charge celle qui contient la destination
+            X = pos.x, Y = pos.y, Z = pos.z,
+            HasRotation = true, RX = rot.x, RY = rot.y, RZ = rot.z, RW = rot.w,
+            Health = save.playerSave?.currentHealth ?? 0,
+            Mana = save.playerSave?.currentMana ?? 0,
+            Date = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+            GlobalSaveJson = JsonUtility.ToJson(save),
+            // L'état d'exécution du niveau actuel n'a pas de sens dans un autre niveau
+            RuntimeWorldSaveJson = !otherLevel && logic._runtimeWorldSave != null ? JsonUtility.ToJson(logic._runtimeWorldSave) : null,
+        };
+        CaptureLiveStats(entity, state);
+        Plugin.Logger.LogInfo($"[Téléportation] destination {pos} niveau '{state.Level}' ({(otherLevel ? "autre niveau : rechargement complet" : "même niveau")})");
+        return state;
+    }
+
     public static SaveState Capture(string name)
     {
         var logic = SaveLogic.Get() ?? throw new Exception("SaveLogic introuvable");

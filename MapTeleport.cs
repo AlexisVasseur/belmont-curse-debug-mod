@@ -20,6 +20,9 @@ public static class MapTeleport
     static float nextFind;
     static bool mapWasOpen;
     static Vector3? pending;
+    static LevelID pendingLevel;
+    /// <summary>Niveau de la destination choisie (celui affiché sur la carte).</summary>
+    public static LevelID PendingLevel { get; private set; }
     static bool mirrorsLogged;
 
     /// <summary>Carte du niveau du joueur ouverte à l'écran.</summary>
@@ -27,7 +30,7 @@ public static class MapTeleport
     {
         get
         {
-            try { return context != null && context.gameObject.activeInHierarchy && context.isCurrentMcLevel; }
+            try { return context != null && context.gameObject.activeInHierarchy; } // n'importe quel niveau affiché
             catch { context = null; return false; }
         }
     }
@@ -53,6 +56,7 @@ public static class MapTeleport
             if (mapWasOpen && !open && pending != null)
             {
                 var target = pending;
+                PendingLevel = pendingLevel;
                 pending = null;
                 mapWasOpen = false;
                 return target;
@@ -67,28 +71,37 @@ public static class MapTeleport
     static void Pick()
     {
         if (!MainCharacterSingleton.TryGetEntity(out Entity e) || e == null) return;
+        // La carte est à l'échelle du niveau (vérifié : position du joueur sur la carte = position dans le monde)
         Vector2 cursor = context.currentCursorPosition;
-        Vector3 mcMap = context.GetCurrentMcLevelMcMapPosition(false);
-        Vector3 player = e.transform.position;
-        // Hypothèse : la carte est à l'échelle du monde, à un décalage près (validé par le journal)
-        var target = new Vector3(player.x + (cursor.x - mcMap.x), player.y + (cursor.y - mcMap.y), player.z);
+        var target = new Vector3(cursor.x, cursor.y, e.transform.position.z);
+        string what = "map point";
+        // Curseur sur un miroir : destination = le miroir lui-même
+        var mirror = context.currentItemSelection?.TryCast<LevelMapMirrorItem>();
+        if (mirror != null)
+        {
+            var mp = mirror.transform.position;
+            target = new Vector3(mp.x, mp.y, target.z);
+            what = "mirror";
+        }
         pending = target;
-        Plugin.Logger.LogInfo($"[Carte] point choisi : curseur carte={cursor} joueur carte={mcMap} joueur monde={player} → destination {target}");
-        Notify?.Invoke($"Teleport target set ({target.x:0}, {target.y:0}): close the map to go there", false);
+        pendingLevel = context.level;
+        string lvl = context.level != null ? context.level.name : "?";
+        Plugin.Logger.LogInfo($"[Carte] {what} choisi : curseur={cursor} niveau carte={lvl} (niveau du joueur : {(context.isCurrentMcLevel ? "oui" : "non")}) → destination {target}");
+        Notify?.Invoke($"Teleport target set ({what}, {lvl}): close the map to go there", false);
     }
 
     static void LogMirrors()
     {
         try
         {
-            var sb = new StringBuilder("[Carte] miroirs du niveau :");
+            var sb = new StringBuilder("[Carte] miroirs connus :");
             int n = 0;
-            foreach (var it in context.staticLevelMapItems)
+            foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<LevelMapMirrorItem>()))
             {
-                var m = it?.TryCast<LevelMapMirrorItem>();
+                var m = o.TryCast<LevelMapMirrorItem>();
                 if (m == null) continue;
                 n++;
-                sb.Append($"\n  {m.name} salle={m.itemWorldRoomId} carte={m.transform.position} direction={m.direction}");
+                sb.Append($"\n  {m.name} salle={m.itemWorldRoomId} carte={m.transform.position} actif={m.gameObject.activeInHierarchy}");
             }
             sb.Append($"\n  ({n} miroir(s) ; joueur sur la carte = {context.GetCurrentMcLevelMcMapPosition(false)})");
             Plugin.Logger.LogInfo(sb.ToString());

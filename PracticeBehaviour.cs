@@ -146,14 +146,12 @@ public class PracticeBehaviour : MonoBehaviour
     /// <summary>Téléportation dans le niveau : une savestate de l'état actuel, déplacée à la destination.</summary>
     void TeleportTo(Vector3 target)
     {
-        var state = Capture();
-        if (state == null) return;
-        state.X = target.x; state.Y = target.y;
-        state.Room = "(teleport)"; // autre salle : le jeu charge celle qui contient la destination
-        state.Movers.Clear();
-        state.Name = "Teleport";
-        Plugin.Logger.LogInfo($"[Carte] téléportation vers {target}");
-        Load(state);
+        try
+        {
+            if (!GameBridge.InGame(out string why)) { Notify(why, true); return; }
+            Load(GameBridge.CaptureForTeleport(MapTeleport.PendingLevel, target));
+        }
+        catch (Exception ex) { Notify("Teleport failed: " + ex.Message, true); Plugin.Logger.LogError(ex); }
     }
 
     void Load(SaveState state)
