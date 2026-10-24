@@ -10,7 +10,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "fr.vasseur.belmontpractice";
     public const string Name = "Belmont Practice";
-    public const string Version = "0.20.0";
+    public const string Version = "0.20.1";
 
     internal static ManualLogSource Logger;
 
@@ -38,11 +38,11 @@ public class Plugin : BasePlugin
         FastLoad = Config.Bind("Chargement", "Rapide", true, "Dans le même niveau/biome : restaure sur place sans écran de chargement");
         ReloadRoom = Config.Bind("Chargement", "RechargerSalle", true, "Chargement rapide : force le rechargement de la salle (ennemis remis à zéro)");
         FadeToBlack = Config.Bind("Chargement", "FonduNoir", true, "Fondu au noir complet pendant tout le chargement (tous les cas)");
-        FadeInDuration = Config.Bind("Fondu", "EntreeSecondes", 0.25f, "Durée du fondu vers le noir");
-        BlackHoldDuration = Config.Bind("Fondu", "NoirMinimumSecondes", 0.25f, "Durée minimale d'écran noir, même si la salle se recharge plus vite");
-        SettleDuration = Config.Bind("Fondu", "CalmeRequisSecondes", 0.25f, "Le jeu doit être inactif (aucun chargement / transition / mouvement caméra) pendant cette durée avant de rendre l'image");
+        FadeInDuration = Config.Bind("Fondu", "EntreeSecondes", 0.05f, "Durée du fondu vers le noir");
+        BlackHoldDuration = Config.Bind("Fondu", "NoirMinimumSecondes", 0.1f, "Durée minimale d'écran noir, même si la salle se recharge plus vite");
+        SettleDuration = Config.Bind("Fondu", "CalmeRequisSecondes", 0.1f, "Le jeu doit être inactif (aucun chargement / transition / mouvement caméra) pendant cette durée avant de rendre l'image");
         PauseDuringFade = Config.Bind("Fondu", "PausependantFondu", true, "Met le jeu en pause pendant le passage au noir et le retour de l'image");
-        FadeOutDuration = Config.Bind("Fondu", "SortieSecondes", 0.35f, "Durée du retour depuis le noir");
+        FadeOutDuration = Config.Bind("Fondu", "SortieSecondes", 0.15f, "Durée du retour depuis le noir");
         ForceSpawnPosition = Config.Bind("Debug", "ForcerPosition", true, "Au chargement complet, force la position du joueur via MainCharacterSpawnLogic.SetForcePosition");
 
         // Pas de hooks Harmony : en IL2CPP, les méthodes au code identique (ex. méthodes vides) partagent
