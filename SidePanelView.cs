@@ -215,6 +215,9 @@ public partial class SidePanelView
         public float y;
     }
     readonly List<CheatUi> cheatRows = new();
+    // Aide de l'onglet General : zone verticale de chaque élément et son explication (zone du bas)
+    readonly List<(float y, float h, string title, string text)> generalHelp = new();
+    void Help(float y, float h, string title, string text) => generalHelp.Add((y, h, title, text));
     class GaugeUi { public TextMeshProUGUI value; public Image fill; public float x, y, w, h; }
     GaugeUi healthGauge, manaGauge;
     TextMeshProUGUI potionsValue;
@@ -294,6 +297,7 @@ public partial class SidePanelView
     float BuildUtilities(float y)
     {
         cheatRows.Clear();
+        generalHelp.Clear();
         potionPips.Clear();
         float iw = W - 1;
         y = SectionTitle("Utilities", y);
@@ -306,13 +310,14 @@ public partial class SidePanelView
             r.label.text = name;
             r.pill = UiButton.CreateSkinned(fill, "CheatPill" + name, iw - Pad - 76, y + (CheatRowH - 30) / 2f, 70, 30, "", GameFonts.Title, 15f, null);
             cheatRows.Add(r);
+            Help(y, CheatRowH, name, desc + ". Click the row to turn it on or off.");
             y += CheatRowH;
         }
-        Row("Infinite HP", "Health never drops: you can't die", () => Cheats.InfiniteHealth, v => Cheats.InfiniteHealth = v);
-        Row("Infinite mana", "Mana is always full", () => Cheats.InfiniteMana, v => Cheats.InfiniteMana = v);
-        Row("Infinite potions", "Healing potions are always refilled", () => Cheats.InfinitePotions, v => Cheats.InfinitePotions = v);
+        Row("Infinite HP", "Health never drops below 1 and is refilled at once: you can't die", () => Cheats.InfiniteHealth, v => Cheats.InfiniteHealth = v);
+        Row("Infinite mana", "Mana stays full: cast spells as often as you want", () => Cheats.InfiniteMana, v => Cheats.InfiniteMana = v);
+        Row("Infinite potions", "Healing potions are refilled right after you drink one", () => Cheats.InfinitePotions, v => Cheats.InfinitePotions = v);
         Row("Infinite jump", "Jump again in mid-air, as many times as you want", () => Cheats.InfiniteJump, v => Cheats.InfiniteJump = v);
-        Row("Noclip", "Fly through walls: WASD / arrows, Shift = faster", () => Cheats.Noclip, v => Cheats.Noclip = v);
+        Row("Noclip", "Fly through walls with WASD / arrows, the D-pad or the stick; hold Shift to go faster. Rooms change as you fly, and traps respawn you where you are", () => Cheats.Noclip, v => Cheats.Noclip = v);
 
         y += 6;
         // Vie et mana : nom, valeur et remplissage complet en haut ; jauge encadrée des boutons -50 -10 / +10 +50 en dessous
@@ -338,12 +343,15 @@ public partial class SidePanelView
             y += GaugeRowH;
             return g;
         }
+        Help(y, GaugeRowH, "Health", "Current / maximum health. -50, -10, +10, +50 change it (never below 1, so you can't die from it). Heal: back to full health. With Infinite HP on, health is refilled right away.");
         healthGauge = GaugeRow("Health", "Heal", Cheats.ChangeHealth, Theme.Hex(0xa3262b));
+        Help(y, GaugeRowH, "Mana", "Current / maximum mana. -50, -10, +10, +50 change it. Refill: back to full mana. With Infinite mana on, mana is refilled right away.");
         manaGauge = GaugeRow("Mana", "Refill", Cheats.ChangeMana, Theme.Hex(0x2f72b8));
 
         // Potions : « -  ◆◆◆◇◇◇  + » (rouge = normales, or = bonus, sombre = vide) ; clic sur un losange = ce nombre
         {
             float right = iw - Pad;
+            Help(y, GaugeRowH, "Potions", "Healing potions: red vials up to your maximum, then bonus vials dropped by enemies (after the small ornament), up to the game's limit. Click a vial to set how many you have, - / + remove or add one. Refill: fill the normal ones.");
             Ui.Text(fill, "PotionsName", Pad + 4, y, 160, 30, GameFonts.Title, 19f, Theme.Text).text = "Potions";
             Button(right - 70, y + 2, 70, 26, "Refill", GameFonts.Title, 14f, () => Notify?.Invoke(RefillPotions(), false), "Potions");
             potionsValue = Ui.Text(fill, "PotionsVal", right - 70 - 200, y, 190, 30, GameFonts.Numbers, 20f, Theme.GoldText, TextAlignmentOptions.Right);
@@ -445,6 +453,9 @@ public partial class SidePanelView
             Button(right - 34 - 6 - 56 - 6 - 34, by, 34, 28, "-", GameFonts.Title, 18f, () => ChangeUpgrade(kind, -1), kind.ToString());
             Ui.Image(fill, "UpgLine" + kind, 12, y + BookRowH - 1, iw - 24, 1, Theme.Line);
             upgradeRows.Add(r);
+            Help(y, BookRowH, Upgrades.Label(kind), kind == Upgrades.Kind.Attack
+                ? "Attack upgrades, given by the red Attack books found in the castle. - / + remove or add one."
+                : "Defense upgrades, given by the blue Defense books found in the castle. - / + remove or add one.");
             y += BookRowH;
         }
 
@@ -482,6 +493,8 @@ public partial class SidePanelView
             r.sub = Ui.Text(fill, "UpgSub" + kind, after + 42, ly, right - after - 42, 30, GameFonts.Body, 15f, Theme.GoldLabel, TextAlignmentOptions.Right);
             Ui.Image(fill, "UpgLine" + kind, 12, y + HeartRowH - 1, iw - 24, 1, Theme.Line);
             upgradeRows.Add(r);
+            string what = kind == Upgrades.Kind.LifeFragments ? "maximum health" : "maximum mana";
+            Help(y, HeartRowH, Upgrades.Label(kind), $"Each heart raises your {what}; it takes 4 pieces, and the game has {Upgrades.MaxHearts}. The heart being completed shows the pieces you have. - / + remove or add one piece; click a heart to fill up to it, click the last full heart to remove it.");
             y += HeartRowH;
         }
 
@@ -1003,8 +1016,13 @@ public partial class SidePanelView
         {
             UpdateUtilities(hasMouse, mx, my, click, ref handled);
             UpdateUpgrades(hasMouse, mx, my, click, ref handled);
-            Ui.SetText(detailTitle, "General");
-            Ui.SetText(detailText, "Click a utility to turn it on or off. Health, mana and potions: use the buttons or click a diamond. Hearts: click a heart to set how many you have.");
+            // Zone du bas : explication de l'élément survolé, sinon résumé de l'onglet
+            string helpTitle = "General", helpText = "Hover an element to see what it does. Utilities: click a row to turn it on or off. Health, mana, potions and upgrades: use the buttons, or click a vial or a heart.";
+            if (hasMouse && mx >= 0f)
+                foreach (var (hy, hh, ht, hx) in generalHelp)
+                    if (my >= hy && my < hy + hh) { helpTitle = ht; helpText = hx; break; }
+            Ui.SetText(detailTitle, helpTitle);
+            Ui.SetText(detailText, helpText);
             return;
         }
 
