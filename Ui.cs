@@ -173,15 +173,46 @@ public class UiButton
         return new UiButton { Rt = fill.transform.parent.Cast<RectTransform>(), Fill = fill, Label = label, OnClick = onClick };
     }
 
+    /// <summary>
+    /// Bouton habillé avec les assets du jeu (panneau latéral) : fond arrondi du jeu, fin contour doré,
+    /// volutes dorées sur les côtés au survol (ou en permanence si Selected). Retombe sur Create sans les assets.
+    /// </summary>
+    public static UiButton CreateSkinned(Transform parent, string name, float x, float y, float w, float h, string text, TMP_FontAsset font, float fontSize, Action onClick)
+    {
+        var sprite = Skin.Button;
+        if (sprite == null) return Create(parent, name, x, y, w, h, text, font, fontSize, onClick);
+        var rt = Ui.Rect(parent, name, x, y, w, h);
+        var fill = Skin.Sliced(rt, "Fill", 0, 0, w, h, sprite, Skin.ButtonIdle, 2f);
+        var outline = fill.gameObject.AddComponent<Outline>();
+        outline.effectColor = new Color(Theme.GoldBright.r, Theme.GoldBright.g, Theme.GoldBright.b, 0.7f);
+        outline.effectDistance = new Vector2(1f, -1f);
+        var label = Ui.Text(fill.transform, "Label", 0, 0, w, h, font, fontSize, Skin.ButtonText, TextAlignmentOptions.Center);
+        label.text = text;
+        var (l, r) = Skin.Ornaments(rt, w, h);
+        return new UiButton
+        {
+            Rt = rt, Fill = fill, Label = label, OnClick = onClick, Skinned = true, OrnamentL = l, OrnamentR = r,
+            BaseColor = Skin.ButtonIdle, LabelColor = Skin.ButtonText,
+        };
+    }
+
+    public bool Skinned;
+    /// <summary>Élément sélectionné (onglet actif) : volutes affichées en permanence.</summary>
+    public bool Selected;
+    public GameObject OrnamentL, OrnamentR;
+
     /// <summary>Couleurs « au repos », fixées par la vue (ex. Edit actif en bordeaux, Read en rouge pendant une opération).</summary>
     public Color BaseColor = Theme.BgButton;
     public Color LabelColor = Theme.KeyText;
 
     public void SetHover(bool hover)
     {
-        var c = Enabled && hover ? Theme.BgButtonHover : BaseColor;
+        bool lit = Enabled && hover;
+        var c = lit ? (Skinned ? Skin.ButtonHover : Theme.BgButtonHover) : BaseColor;
         if (!Theme.Same(Fill.color, c)) Fill.color = c;
-        var tc = Enabled ? LabelColor : Theme.TextDim;
+        var tc = !Enabled ? Theme.TextDim : lit && Skinned ? Theme.GoldText : LabelColor;
         if (!Theme.Same(Label.color, tc)) Label.color = tc;
+        bool orn = Skinned && (Selected || lit);
+        if (OrnamentL != null && OrnamentL.activeSelf != orn) { OrnamentL.SetActive(orn); OrnamentR.SetActive(orn); }
     }
 }

@@ -15,7 +15,10 @@ public static class GameSprites
 
     static readonly Dictionary<string, Sprite> cache = new();
 
-    public static Sprite Icon(string name)
+    public static Sprite Icon(string name) => Icon(name, Vector4.zero);
+
+    /// <summary>Icône avec bords fixes pour un affichage découpé en 9 (gauche, bas, droite, haut, en pixels).</summary>
+    public static Sprite Icon(string name, Vector4 border)
     {
         if (cache.TryGetValue(name, out var s)) return s;
         try
@@ -28,7 +31,7 @@ public static class GameSprites
                 ImageConversion.LoadImage(tex, File.ReadAllBytes(path));
                 tex.wrapMode = TextureWrapMode.Clamp;
                 tex.hideFlags = HideFlags.HideAndDontSave;
-                s = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+                s = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
                 s.hideFlags = HideFlags.HideAndDontSave;
             }
             else Plugin.Logger.LogWarning("[Icônes] introuvable : " + path);
