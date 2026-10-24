@@ -287,6 +287,29 @@ public static class GameBridge
         catch { brain = null; return false; }
     }
 
+    /// <summary>
+    /// Termine net la transition de caméra en cours (derrière le noir, elle ne sert à rien) :
+    /// sans ça, chaque rechargement repart d'une transition inachevée et l'attente s'allonge.
+    /// </summary>
+    public static void CutCameraBlend()
+    {
+        try
+        {
+            if (!CameraBlending()) return;
+            var frames = brain.mFrameStack;
+            var active = brain.ActiveBlend;
+            LoadSequence.Trace($"coupe caméra : {active?.Description?.Replace('\n', ' ')} durée={active?.Duration:0.00} écoulé={active?.TimeInBlend:0.00} couches={frames?.Count}");
+            if (frames != null)
+                for (int i = 0; i < frames.Count; i++)
+                {
+                    var b = frames[i]?.blend;
+                    if (b != null && b.CamA != null) b.Duration = 0f;
+                }
+            brain.ActiveBlend = null;
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Caméra] coupe : " + ex.Message); }
+    }
+
     /// <summary>Force toutes les caméras virtuelles à se recaler sans lissage à la prochaine mise à jour.</summary>
     public static void SnapCameras()
     {

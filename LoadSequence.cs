@@ -102,6 +102,14 @@ public class LoadSequence
             {
                 var reasons = GameBridge.BusyReasons();
                 reasons.RemoveAll(baseline.Contains);
+                // La salle est rechargée, il ne reste que la caméra qui glisse : on la pose directement.
+                if (reasons.Count == 1 && reasons[0] == "camera_transition")
+                {
+                    GameBridge.CutCameraBlend();
+                    GameBridge.SnapCameras();
+                    sawBusy = true;
+                    reasons.Clear();
+                }
                 string joined = string.Join(",", reasons);
                 if (joined != lastReasons)
                 {
@@ -127,6 +135,7 @@ public class LoadSequence
             case Phase.Settling:
             {
                 // Laisse la caméra rattraper la position finale, toujours derrière le noir.
+                GameBridge.CutCameraBlend();
                 bool cameraDone = !GameBridge.CameraBlending() || inPhase > 1f;
                 bool holdDone = Time.unscaledTime - blackSince >= Plugin.BlackHoldDuration.Value;
                 if (phaseFrames < 4 || !cameraDone || !holdDone) break;
