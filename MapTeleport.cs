@@ -74,7 +74,7 @@ public static class MapTeleport
             }
             else if (confirming) Cancel();
 
-            MapTeleportView.Update(open, confirming, open && confirming ? CursorCanvasPosition() : null);
+            MapTeleportView.Update(open, confirming, open ? CursorCanvasPosition() : null);
 
             if (mapWasOpen && !open && pending != null)
             {

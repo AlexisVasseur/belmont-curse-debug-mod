@@ -9,24 +9,25 @@ namespace BelmontPractice;
 
 /// <summary>
 /// Affichage de la téléportation par la carte, avec les icônes de touches du jeu :
-/// encadré de rappel en haut à droite (carte ouverte) et fenêtre « Teleport to … ? » à côté du viseur de la carte.
-/// Touche clavier : cadre de touche du jeu avec la lettre ; manette : icône Start du jeu trouvée en mémoire
-/// (à défaut, le mot « Start »).
+/// rappel des commandes au-dessus du viseur (carte ouverte) et fenêtre « Teleport to … ? » à côté du viseur.
+/// Touches clavier : cadre de touche du jeu avec le nom de la touche ; manette : icônes Start / B du jeu
+/// trouvées en mémoire (à défaut, le nom du bouton).
 /// </summary>
 public static class MapTeleportView
 {
     const float HintH = 46f, PopW = 430f, PopH = 104f, Glyph = 30f;
 
     static GameObject hint, popup;
-    static RectTransform popupRt;
+    static RectTransform popupRt, hintRt;
+    static float hintW = 300f;
     static TextMeshProUGUI question;
     static string builtForKey;
-    static bool builtWithGameFonts, builtWithStartSprite;
+    static bool builtWithGameFonts, builtWithPadSprites;
     static string pendingQuestion = "";
 
-    // Icône Start de la manette (sprite du jeu chargé en mémoire)
-    static Sprite startSprite;
-    static float nextStartSearch;
+    // Icônes manette du jeu (sprites chargés en mémoire)
+    static Sprite startSprite, eastSprite;
+    static float nextPadSearch;
     static bool glyphsLogged;
 
     public static void SetQuestion(string q)
@@ -45,9 +46,12 @@ public static class MapTeleportView
             if (!mapOpen && hint == null) return;
             UiCanvas.Ensure();
             if (!GameFonts.Resolved) GameFonts.Resolve();
-            if (mapOpen && startSprite == null && Time.unscaledTime >= nextStartSearch) { nextStartSearch = Time.unscaledTime + 2f; FindStartSprite(); }
-            if (hint == null || builtForKey != KeyLabel || (!builtWithGameFonts && GameFonts.Resolved) || (!builtWithStartSprite && startSprite != null)) Build();
-            if (hint.activeSelf != (mapOpen && !confirming)) hint.SetActive(mapOpen && !confirming);
+            if (mapOpen && (startSprite == null || eastSprite == null) && Time.unscaledTime >= nextPadSearch) { nextPadSearch = Time.unscaledTime + 2f; FindPadSprites(); }
+            bool padReady = startSprite != null && eastSprite != null;
+            if (hint == null || builtForKey != KeyLabel || (!builtWithGameFonts && GameFonts.Resolved) || (!builtWithPadSprites && padReady)) Build();
+            bool showHint = mapOpen && !confirming;
+            if (hint.activeSelf != showHint) hint.SetActive(showHint);
+            if (showHint) PlaceAboveCursor(cursorCanvas);
             bool showPop = mapOpen && confirming;
             if (popup.activeSelf != showPop) popup.SetActive(showPop);
             if (showPop) PlaceNearCursor(cursorCanvas);
@@ -67,14 +71,24 @@ public static class MapTeleportView
         popupRt.anchoredPosition = new Vector2(x, y);
     }
 
-    static void FindStartSprite()
+    /// <summary>Rappel centré juste au-dessus du viseur (en haut de l'écran si la position est inconnue).</summary>
+    static void PlaceAboveCursor(Vector2? cursor)
+    {
+        float W = UiCanvas.Width, H = UiCanvas.Height;
+        Vector2 p = cursor ?? new Vector2(W / 2f, H - 140f);
+        float x = Mathf.Clamp(p.x - hintW / 2f, 20f, W - hintW - 20f);
+        float y = Mathf.Clamp(p.y + 46f, 20f, H - HintH - 20f);
+        hintRt.anchoredPosition = new Vector2(x, y);
+    }
+
+    static void FindPadSprites()
     {
         try
         {
             var names = new List<string>();
-            Sprite best = null;
-            int bestRank = int.MaxValue;
-            string[] wanted = { "buttonmenu", "menu", "buttonstart", "start", "options" };
+            int startRank = int.MaxValue, eastRank = int.MaxValue;
+            string[] start = { "buttonmenu", "menu", "buttonstart", "start", "options" };
+            string[] east = { "buttoneast", "east" };
             foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<Sprite>()))
             {
                 var s = o.TryCast<Sprite>();
@@ -83,11 +97,14 @@ public static class MapTeleportView
                 if (!n.StartsWith("xbox_", StringComparison.OrdinalIgnoreCase)) continue;
                 names.Add(n);
                 string low = n.ToLowerInvariant();
-                for (int i = 0; i < wanted.Length && i < bestRank; i++)
-                    if (low.Contains(wanted[i])) { best = s; bestRank = i; break; }
+                for (int i = 0; i < start.Length && i < startRank; i++) if (low.Contains(start[i])) { startSprite = s; startRank = i; break; }
+                for (int i = 0; i < east.Length && i < eastRank; i++) if (low.Contains(east[i])) { eastSprite = s; eastRank = i; break; }
             }
-            if (!glyphsLogged && names.Count > 0) { glyphsLogged = true; Plugin.Logger.LogInfo("[Carte] icônes manette en mémoire : " + string.Join(", ", names)); }
-            if (best != null) { startSprite = best; Plugin.Logger.LogInfo("[Carte] icône Start : " + best.name); }
+            if (!glyphsLogged && names.Count > 0)
+            {
+                glyphsLogged = true;
+                Plugin.Logger.LogInfo($"[Carte] icônes manette en mémoire : {string.Join(", ", names)} → Start={startSprite?.name ?? "?"} B={eastSprite?.name ?? "?"}");
+            }
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Carte] icônes manette : " + ex.Message); }
     }
@@ -104,18 +121,16 @@ public static class MapTeleportView
         return w;
     }
 
-    /// <summary>Bouton Start de la manette : icône du jeu, sinon le mot. Retourne la largeur.</summary>
-    static float StartGlyph(Transform parent, float x, float y)
+    /// <summary>Bouton de manette : icône du jeu, sinon son nom dans un cadre de touche. Retourne la largeur.</summary>
+    static float PadGlyph(Transform parent, float x, float y, Sprite sprite, string fallback)
     {
-        if (startSprite != null)
+        if (sprite != null)
         {
-            var img = Skin.Sprite(parent, "StartIcon", x, y - 2, Glyph + 4, Glyph + 4, startSprite, Color.white);
+            var img = Skin.Sprite(parent, "Pad" + fallback, x, y - 2, Glyph + 4, Glyph + 4, sprite, Color.white);
             img.preserveAspect = true;
             return Glyph + 4;
         }
-        var t = Ui.Text(parent, "StartText", x, y, 60, Glyph, GameFonts.Title, 17f, Theme.GoldText, TextAlignmentOptions.MidlineLeft);
-        t.text = "Start";
-        return t.preferredWidth + 2;
+        return KeyGlyph(parent, x, y, fallback);
     }
 
     static float Txt(Transform parent, float x, float y, string s, Color c, float size = 16f)
@@ -125,13 +140,12 @@ public static class MapTeleportView
         return t.preferredWidth;
     }
 
-    /// <summary>« [T] / [Start] » ; retourne la largeur.</summary>
-    static float Inputs(Transform parent, float x, float y)
+    /// <summary>« [touche] / [bouton manette] » ; retourne la largeur.</summary>
+    static float Inputs(Transform parent, float x, float y, string key, Sprite pad, string padName)
     {
         float x0 = x;
-        string k = KeyLabel;
-        if (k.Length > 0) { x += KeyGlyph(parent, x, y, k) + 6; x += Txt(parent, x, y, "/", Theme.GoldLabel) + 6; }
-        x += StartGlyph(parent, x, y);
+        if (key.Length > 0) { x += KeyGlyph(parent, x, y, key) + 6; x += Txt(parent, x, y, "/", Theme.GoldLabel) + 6; }
+        x += PadGlyph(parent, x, y, pad, padName);
         return x - x0;
     }
 
@@ -149,18 +163,25 @@ public static class MapTeleportView
         if (popup != null) UnityEngine.Object.Destroy(popup);
         builtForKey = KeyLabel;
         builtWithGameFonts = GameFonts.Resolved;
-        builtWithStartSprite = startSprite != null;
+        builtWithPadSprites = startSprite != null && eastSprite != null;
         var root = UiCanvas.Root.transform;
 
-        // Rappel des commandes, en haut à droite de la carte : « [T] / [Start]  Teleport here »
-        float hintW = 330f;
-        var hf = Ui.Frame(root, "MapTeleportHint", 0, 0, hintW, HintH, Theme.Gold, Theme.Hex(0x140e0c, 0.92f));
-        var hrt = Anchor(hf, new Vector2(1f, 1f), new Vector2(1f, 1f));
-        hrt.anchoredPosition = new Vector2(-48f, -150f);
-        hint = hrt.gameObject;
-        Ui.Image(hf.transform, "Accent", 0, 0, 4, HintH - 2, Theme.Crimson);
-        float x = 16f + Inputs(hf.transform, 16f, (HintH - 2 - Glyph) / 2f) + 12f;
-        Txt(hf.transform, x, (HintH - 2 - Glyph) / 2f, "Teleport here", Theme.GoldText, 18f);
+        // Rappel des commandes au-dessus du viseur : « [T] / [Start]  Teleport here »
+        // Contenu d'abord (sa largeur fixe celle du cadre), puis fond, liseré et filet bordeaux dessous
+        hintRt = Ui.Rect(root, "MapTeleportHint", 0, 0, hintW, HintH);
+        hintRt.anchorMin = hintRt.anchorMax = Vector2.zero;
+        hintRt.pivot = Vector2.zero;
+        hint = hintRt.gameObject;
+        float gy = (HintH - Glyph) / 2f;
+        float x = 16f + Inputs(hintRt, 16f, gy, KeyLabel, startSprite, "Start") + 12f;
+        x += Txt(hintRt, x, gy, "Teleport here", Theme.GoldText, 18f) + 16f;
+        hintW = x;
+        hintRt.sizeDelta = new Vector2(hintW, HintH);
+        var bg = Ui.Image(hintRt, "Fill", 1, 1, hintW - 2, HintH - 2, Theme.Hex(0x140e0c, 0.92f));
+        var accent = Ui.Image(hintRt, "Accent", 1, 1, 4, HintH - 2, Theme.Crimson);
+        accent.transform.SetAsFirstSibling();
+        bg.transform.SetAsFirstSibling();
+        Ui.Border(hintRt, 0, 0, hintW, HintH, Theme.Gold);
         hint.SetActive(false);
 
         // Fenêtre de confirmation, à côté du viseur
@@ -172,9 +193,10 @@ public static class MapTeleportView
         question.enableWordWrapping = true;
         question.text = pendingQuestion;
         float ry = PopH - 2 - Glyph - 14;
-        float rx = 16f + Inputs(pf.transform, 16f, ry) + 8f;
-        rx += Txt(pf.transform, rx, ry, "Go", Theme.Text) + 26f;
-        rx += Txt(pf.transform, rx, ry, "Esc / B or move: cancel", Theme.GoldLabel, 15f);
+        float rx = 16f + Inputs(pf.transform, 16f, ry, KeyLabel, startSprite, "Start") + 8f;
+        rx += Txt(pf.transform, rx, ry, "Go", Theme.Text) + 30f;
+        rx += Inputs(pf.transform, rx, ry, "Esc", eastSprite, "B") + 8f;
+        Txt(pf.transform, rx, ry, "Cancel", Theme.Text);
         popup.SetActive(false);
     }
 }
