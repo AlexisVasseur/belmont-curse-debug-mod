@@ -28,6 +28,7 @@ public class PracticeBehaviour : MonoBehaviour
 
     void Update()
     {
+        try { DevExport.Update(); } catch (Exception ex) { Plugin.Logger.LogError("[Export] " + ex); }
         try { GameBridge.UpdateRoomReload(); }
         catch (Exception ex) { Plugin.Logger.LogError("[Salle] " + ex); }
         try { sequence.Update(); }
