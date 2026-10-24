@@ -148,6 +148,9 @@ public static class Arcana
                 spell.Talents = talents.ToArray();
                 Spells.Add(spell);
             }
+            // Comme dans le jeu : l'arcane à deux variantes (Cursed Flame / Absolution) en premier, les autres dans l'ordre
+            int dual = Spells.FindIndex(s => s.Variants.Count > 1);
+            if (dual > 0) { var d = Spells[dual]; Spells.RemoveAt(dual); Spells.Insert(0, d); }
             if (Spells.Count > 0)
                 Plugin.Logger.LogInfo($"[Sorts] {Spells.Count} arcanes trouvées ({items.Count} sorts en mémoire)");
         }
