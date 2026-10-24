@@ -31,7 +31,6 @@ public class SaveStatesView
     float toastUntil;
     const float ToastW = 640f, ToastH = 42f;
     Image toastAccent, toastFrame, toastBack;
-    static readonly Color ToastTint = Theme.Hex(0x4a3628), ToastErrorTint = Theme.Hex(0x6a2220);
 
     class RowUi
     {

@@ -15,22 +15,17 @@ public static class Skin
     public static Sprite Ornament => GameSprites.Icon("ui_button_ornament");
     public static Sprite BannerSprite => GameSprites.Icon("ui_banner_plain"); // ruban seul, sans les ornements des extrémités
     public static Sprite Slot => GameSprites.Icon("ui_slot");
-    public static Sprite Equipped => GameSprites.Icon("ui_equipped");
     public static Sprite Diamond => GameSprites.Icon("ui_diamond");
     public static Sprite DiamondHover => GameSprites.Icon("ui_diamond_hover");
     public static Sprite GemLocked => GameSprites.Icon("ui_gem_locked");
     public static Sprite GemUnlocked => GameSprites.Icon("ui_gem_unlocked");
     public static Sprite GemHover => GameSprites.Icon("ui_gem_hover");
-    public static Sprite Glow => GameSprites.Icon("ui_glow");
     // Lueurs qui épousent la forme (bord du carré / du losange à 24..104 sur 128 px), à teinter
     public static Sprite GlowSquare => GameSprites.Icon("ui_glow_square");
     public static Sprite GlowDiamond => GameSprites.Icon("ui_glow_diamond");
     public const float GlowScale = 128f / 80f;
     public static Sprite Circle => GameSprites.Icon("ui_circle");
     public static Sprite Disc => GameSprites.Icon("ui_disc");
-    /// <summary>Cadre des notifications du jeu (rempli après l'extraction des assets ; null tant qu'il manque).</summary>
-    public static Sprite Notification => GameSprites.Icon("ui_notification", new Vector4(0, 60, 0, 60));
-    public static Sprite NotificationGold => GameSprites.Icon("ui_notification_gold");
     // Contour des barres de vie / mana du HUD (pointe ornée à droite) et forme de leur remplissage
     public static Sprite BarLife => GameSprites.Icon("ui_bar_life", new Vector4(117, 0, 117, 0));
     public static Sprite BarMana => GameSprites.Icon("ui_bar_mana", new Vector4(117, 0, 117, 0));
@@ -61,7 +56,6 @@ public static class Skin
     public static readonly Color ButtonHover = Theme.Hex(0x050302);
     public static readonly Color TabIdle = Theme.Hex(0x241914);
     public static readonly Color ButtonText = Theme.Hex(0xf4dfa8);
-    public static readonly Color Flame = Theme.Hex(0xff7a1a);
     // États communs à toutes les cases : orange au survol, bleu quand l'objet est équipé
     public static readonly Color HoverGlow = Theme.Hex(0xff8a2a);
     public static readonly Color EquippedGlow = Theme.Hex(0x4aa8ff);

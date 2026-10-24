@@ -209,7 +209,6 @@ public class UiButton
 
     public bool Skinned;
     string centeredFor;
-    static int logged;
     Image SignH, SignV;
 
     /// <summary>
@@ -240,11 +239,11 @@ public class UiButton
             float rectMidY = -rt.rect.height / 2f; // pivot en haut à gauche
             float dy = rectMidY - (top + bottom) / 2f;
             rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY + dy);
-            if (logged++ < 12) Plugin.Logger.LogInfo($"[Centrage] '{Label.text}' rect h={rt.rect.height:0.#} caractères {bottom:0.#}..{top:0.#} → décalage {dy:0.#}");
             centeredFor = Label.text;
         }
-        catch (Exception ex) { centeredFor = Label.text; Plugin.Logger.LogWarning("[Centrage] " + ex.Message); }
+        catch (Exception ex) { centeredFor = Label.text; Plugin.Logger.LogWarning("[Interface] centrage : " + ex.Message); }
     }
+
     /// <summary>Élément sélectionné (onglet actif) : volutes affichées en permanence.</summary>
     public bool Selected;
     public GameObject OrnamentL, OrnamentR;
