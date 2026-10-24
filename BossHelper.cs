@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using MotherBase.ApplicationFlowManager;
 using MotherBase.EntityFramework;
 using UnityEngine;
 
@@ -24,11 +25,35 @@ public static class BossHelper
         try
         {
             var gsm = GameStateManager.GetInstance();
+            if (gsm != null && !gsm.IsGameplayState()) PopLeakedStates(gsm);
             if (gsm != null && !gsm.IsGameplayState())
-                return $"non-gameplay state (id {gsm.GetActiveStateId()})";
+                return $"non-gameplay state (id {gsm.GetActiveStateId()}, {gsm.activeState?.name})";
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[État] " + ex.Message); }
         return null;
+    }
+
+    /// <summary>
+    /// Dépile les états de jeu orphelins (dialogue, séquence…) : poussés par un objet de la salle détruit par
+    /// un rechargement rapide, ils ne sont plus jamais retirés et survivent même à un rechargement complet.
+    /// On garde l'état de chargement et le menu pause s'ils sont réellement en cours.
+    /// </summary>
+    static void PopLeakedStates(GameStateManager gsm)
+    {
+        for (int n = 0; n < 8 && !gsm.IsGameplayState(); n++)
+        {
+            var states = gsm._states;
+            if (states == null || states.Count <= 1) return;
+            var top = states.Peek();
+            var st = top.Item2;
+            if (st == null) return;
+            if (st == gsm.loadingState && ApplicationFlowManager.IsLoading) return;
+            if (st == gsm._commandMenuGameState && gsm._isCommandMenuOpen) return;
+            Plugin.Logger.LogInfo($"[État] état orphelin dépilé : '{st.name}' (id {top.Item1})");
+            LoadSequence.Trace($"état orphelin dépilé : '{st.name}' (id {top.Item1})");
+            gsm.PopState(top.Item1, gsm);
+            if (states.Count > 0 && states.Peek().Item1 == top.Item1) return; // refusé par le jeu
+        }
     }
 
     static IEnumerable<BossFightTrigger> TriggersInRoom(List<Transform> roots)
