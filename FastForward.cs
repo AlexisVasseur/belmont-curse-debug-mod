@@ -80,24 +80,41 @@ public static class FastForward
                 if (cm != null) for (int i = 1; i < Speed; i++) cm.UpdateDirectors(dt);
             }
             catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] scénarios : " + ex.Message); }
-            // Lignes de dialogue et vidéos : terminées aussitôt (elles attendent sinon une touche ou leur durée)
+            // Lignes de dialogue : comme la touche du joueur, texte affiché d'un coup puis ligne terminée (le scénario
+            // passe à la suivante). Les lignes attendent sinon une touche ou leur durée.
+            SkipDialogueLines();
             try
             {
                 var ui = CutsceneUIManager.Instance;
-                if (ui != null)
-                {
-                    ui.ForceEndDialogueBubble();
-                    ui.ForceEndDialogueFullScreen();
-                    ui.ForceEndDialogueBarks();
-                    if (ui.IsVideoPlaying()) ui.ForceStopVideo();
-                }
+                if (ui != null && ui.IsVideoPlaying()) ui.ForceStopVideo();
             }
-            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] dialogues : " + ex.Message); }
+            catch { }
         }
         else if (!playing && speeding)
         {
             if (Time.timeScale == Speed) Time.timeScale = 1f;
             speeding = false;
+        }
+    }
+
+    static float nextLineSkip;
+
+    /// <summary>Lignes de dialogue affichées (boîte plein écran, bulles) : terminées comme par la touche du joueur.</summary>
+    static void SkipDialogueLines()
+    {
+        // Un léger délai entre deux lignes, le temps que la suivante commence
+        if (Time.unscaledTime < nextLineSkip) return;
+        nextLineSkip = Time.unscaledTime + 0.05f;
+        foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppInterop.Runtime.Il2CppType.Of<CutsceneLineReader>()))
+        {
+            try
+            {
+                var r = o.TryCast<CutsceneLineReader>();
+                if (r == null || !r._isActive) continue;
+                if (r._isReading) r.EndReading();
+                r.End();
+            }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] ligne de dialogue : " + ex.Message); }
         }
     }
 

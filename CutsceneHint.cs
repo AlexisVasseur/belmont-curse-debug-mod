@@ -31,7 +31,11 @@ public static class CutsceneHint
             if (padY == null && Time.unscaledTime >= nextPadSearch) { nextPadSearch = Time.unscaledTime + 2f; FindPadSprite(); }
             string key = $"{KeyLabel}|{armed}|{padY != null}|{GameFonts.Resolved}";
             if (root == null || builtFor != key) Build(armed, key);
-            if (root.activeSelf != cutscene) root.SetActive(cutscene);
+            if (root.activeSelf != cutscene)
+            {
+                root.SetActive(cutscene);
+                Plugin.Logger.LogInfo($"[Cinématiques] indication {(cutscene ? $"affichée en {UiCanvas.Width - width - 30f:0},40 (canvas {UiCanvas.Width:0}×{UiCanvas.Height:0})" : "masquée")}");
+            }
             if (cutscene) rt.anchoredPosition = new Vector2(UiCanvas.Width - width - 30f, 40f);
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] indication : " + ex.Message); }
