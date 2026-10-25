@@ -65,10 +65,10 @@ public class PracticeBehaviour : MonoBehaviour
             try
             {
                 Arenas.Update(sequence.Active);
-                if (Arenas.TakeRequest(out var level, out var pos, out bool full, out var boss) && !sequence.Active)
+                if (Arenas.TakeRequest(out var level, out var pos, out bool full, out var boss, out string key) && !sequence.Active)
                 {
                     // Boss remis « Alive » : conditions du combat imposées avant de capturer la partie, puis écrites dans la copie rechargée
-                    bool armed = full && boss != null && BossRespawn.Arm(boss);
+                    if (full && boss != null) BossRespawn.Arm(boss, key);
                     var tp = GameBridge.CaptureForTeleport(level, pos, full);
                     if (full) BossRespawn.PatchSave(tp); // conditions (si connues) + mémoire temporaire du niveau vidée
                     Load(tp);

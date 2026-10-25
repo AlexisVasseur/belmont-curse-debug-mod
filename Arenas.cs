@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Il2CppInterop.Runtime;
@@ -9,9 +10,11 @@ using UnityEngine;
 namespace BelmontPractice;
 
 /// <summary>
-/// Devant chaque arène : quand le joueur passe d'une salle normale à une salle de boss, sa dernière position
-/// dans la salle d'avant (juste devant la porte, du bon côté) est retenue dans arenes.json.
-/// Le bouton TP de l'onglet Bosses y ramène le joueur.
+/// Arènes de boss, une par rencontre (certains boss se combattent deux fois, dans deux niveaux différents) :
+/// clé « CharacterID_X@salle de l'arène ». Quand le joueur passe d'une salle normale à l'arène, sa dernière position
+/// dans la salle d'avant (juste devant la porte, du bon côté) est retenue dans arenes.json. Arène inaccessible par sa
+/// porte (fermée par l'histoire) : à défaut, la position du joueur dans l'arène (arrivé par téléportation / noclip).
+/// Les boutons Fight et TP de l'onglet Bosses y ramènent le joueur.
 /// </summary>
 public static class Arenas
 {
@@ -23,18 +26,28 @@ public static class Arenas
         public float Y { get; set; }
         public float Z { get; set; }
         public string Date { get; set; } = "";
+        public string Boss { get; set; } = "";
+        public string ArenaRoom { get; set; } = "";
+        public string Area { get; set; } = "";
+        /// <summary>Position dans l'arène elle-même (porte inconnue).</summary>
+        public bool Inside { get; set; }
     }
 
     static Dictionary<string, Entry> entries;
     static string FilePath => Path.Combine(SlotStore.Folder, "..", "arenes.json");
 
+    /// <summary>Change à chaque arène apprise (l'onglet Bosses se reconstruit).</summary>
+    public static int Version { get; private set; }
+
     static string lastRoom;
-    static bool lastRoomIsArena;
+    static bool lastRoomIsArena, insideTried;
+    static BossData lastArenaData;
+    static string lastArenaArcana;
     static float lastRoomSince, lastLoad = -100f, dumpAt;
     static readonly Queue<(float t, Vector3 p)> trail = new();
 
     // Demande de téléportation venue de l'interface, traitée par PracticeBehaviour
-    static (LevelID level, Vector3 pos, bool fullReload, Bosses.Boss boss)? request;
+    static (LevelID level, Vector3 pos, bool fullReload, Bosses.Boss boss, string key)? request;
 
     static Dictionary<string, Entry> All()
     {
@@ -46,6 +59,8 @@ public static class Arenas
                 entries = JsonSerializer.Deserialize<Dictionary<string, Entry>>(File.ReadAllText(FilePath)) ?? entries;
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Arènes] lecture : " + ex.Message); }
+        // Ancien format : une entrée par boss, clé = CharacterID
+        foreach (var (k, e) in entries) if (string.IsNullOrEmpty(e.Boss)) e.Boss = k.Split('@')[0];
         return entries;
     }
 
@@ -55,7 +70,53 @@ public static class Arenas
         catch (Exception ex) { Plugin.Logger.LogWarning("[Arènes] écriture : " + ex.Message); }
     }
 
-    public static Entry Get(Bosses.Boss b) => b?.Id != null && All().TryGetValue(b.Id.name, out var e) ? e : null;
+    public static string KeyOf(Bosses.Boss b, string arenaRoom) => b.Id.name + "@" + arenaRoom;
+
+    public static Entry Get(string key) => key != null && All().TryGetValue(key, out var e) ? e : null;
+
+    public static int LevelNumber(string level) => int.TryParse(Regex.Match(level ?? "", @"LevelID_(\d+)").Groups[1].Value, out int n) ? n : 99;
+
+    /// <summary>Rencontres connues d'un boss, dans l'ordre du jeu (numéro de niveau).</summary>
+    public static List<(string key, Entry entry)> Encounters(Bosses.Boss b)
+    {
+        if (b?.Id == null) return new List<(string, Entry)>();
+        return All().Where(kv => kv.Value.Boss == b.Id.name)
+            .OrderBy(kv => LevelNumber(kv.Value.Level)).ThenBy(kv => kv.Value.Date)
+            .Select(kv => (kv.Key, kv.Value)).ToList();
+    }
+
+    // ---------- Nom de zone affiché ----------
+
+    static readonly Dictionary<string, string> areaCache = new();
+
+    static LevelID FindLevel(string name)
+    {
+        foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<LevelID>()))
+        {
+            var l = o.TryCast<LevelID>();
+            if (l != null && l.name == name) return l;
+        }
+        return null;
+    }
+
+    /// <summary>Nom du niveau dans la langue du jeu (Main Hall, Clock Tower…), sinon tiré de son identifiant.</summary>
+    public static string AreaLabel(string levelName)
+    {
+        if (string.IsNullOrEmpty(levelName)) return "";
+        if (areaCache.TryGetValue(levelName, out var cached)) return cached;
+        string label = null;
+        try
+        {
+            var ui = FindLevel(levelName)?.LoadLevelUIDisplayData();
+            if (ui != null) label = Loc.Get(ui.levelDisplayName);
+        }
+        catch { }
+        if (string.IsNullOrEmpty(label))
+            label = Regex.Replace(Regex.Replace(levelName, "^LevelID_\\d*_?", ""), "(?<=[a-z])(?=[A-Z])", " ").Replace("_", " ");
+        return areaCache[levelName] = label;
+    }
+
+    // ---------- Suivi du joueur ----------
 
     /// <summary>Chaque frame en jeu. loading : chargement du mod en cours (téléportation, savestate) → on n'apprend rien.</summary>
     public static void Update(bool loading)
@@ -73,21 +134,32 @@ public static class Arenas
 
         if (room != lastRoom)
         {
-            var boss = GameBridge.CurrentRoomBoss(out string arcana);
-            bool isArena = boss != null || arcana != null;
+            var data = GameBridge.CurrentRoomBoss(out string arcana);
+            bool isArena = data != null || arcana != null;
             if (lastRoomIsArena) BossRespawn.OnLeaveArena();
             // Seulement en marchant : salle d'avant occupée au moins 1 s, et pas juste après un chargement
             bool walkedIn = lastRoom != null && !lastRoomIsArena && now - lastRoomSince >= 1f && now - lastLoad >= 3f;
-            if (isArena && walkedIn) Learn(boss, arcana, lastRoom, BeforeDoor(now));
+            if (isArena && walkedIn) Learn(data, arcana, room, lastRoom, BeforeDoor(now), false);
             if (isArena)
             {
                 if (Plugin.BossDiagnostics.Value) dumpAt = now + 2f; // la salle finit de charger ses objets après le passage de la porte
-                BossRespawn.OnEnterArena(BossOf(boss, arcana));
+                var boss = BossOf(data, arcana);
+                BossRespawn.OnEnterArena(boss, boss?.Id != null ? KeyOf(boss, room) : null);
             }
             lastRoom = room;
             lastRoomSince = now;
             lastRoomIsArena = isArena;
+            lastArenaData = data;
+            lastArenaArcana = arcana;
+            insideTried = false;
             trail.Clear();
+        }
+        // Arène jamais entrée par sa porte (fermée par l'histoire…) : position dans l'arène après 2 s, faute de mieux
+        if (lastRoomIsArena && !insideTried && now - lastRoomSince >= 2f && now - lastLoad >= 2f)
+        {
+            insideTried = true;
+            var boss = BossOf(lastArenaData, lastArenaArcana);
+            if (boss?.Id != null && Get(KeyOf(boss, room)) == null) Learn(lastArenaData, lastArenaArcana, room, room, pos, true);
         }
         BossRespawn.Update();
         if (dumpAt > 0f && now >= dumpAt) { dumpAt = 0f; BossDiag.DumpDirectors("2 s après l'entrée dans l'arène"); }
@@ -114,12 +186,12 @@ public static class Arenas
         return null;
     }
 
-    static void Learn(BossData data, string arcana, string fromRoom, Vector3? pos)
+    static void Learn(BossData data, string arcana, string arenaRoom, string fromRoom, Vector3? pos, bool inside)
     {
         if (pos == null) return;
         var boss = BossOf(data, arcana);
-        string key = boss?.Id?.name ?? arcana ?? data?.name;
-        if (key == null) return;
+        if (boss?.Id == null) return;
+        string key = KeyOf(boss, arenaRoom);
         string level = GameBridge.CurrentLevelName();
         // La salle doit appartenir au niveau (« World_Biome_01_… » ↔ « LevelID_01_… »)
         string roomNum = Regex.Match(fromRoom ?? "", @"Biome_(\d+)").Groups[1].Value, levelNum = Regex.Match(level ?? "", @"LevelID_(\d+)").Groups[1].Value;
@@ -128,49 +200,50 @@ public static class Arenas
             Plugin.Logger.LogInfo($"[Arènes] entrée ignorée : salle '{fromRoom}' hors du niveau {level}");
             return;
         }
-        // Une seule entrée par boss : la première porte franchie (une autre entrée peut être normalement verrouillée)
-        if (All().TryGetValue(key, out var old) && old.Room != fromRoom)
+        var old = Get(key);
+        // Une porte par arène : la première franchie (une autre entrée peut être normalement verrouillée) ;
+        // une porte remplace toujours une position prise dans l'arène.
+        if (old != null && !old.Inside && (inside || old.Room != fromRoom))
         {
-            Plugin.Logger.LogInfo($"[Arènes] {boss?.Name ?? key} : autre entrée par '{fromRoom}', on garde '{old.Room}'");
+            if (!inside) Plugin.Logger.LogInfo($"[Arènes] {boss.Name} : autre entrée par '{fromRoom}', on garde '{old.Room}'");
             return;
         }
+        // Ancien format (une entrée par boss) passant par la même porte : remplacé par cette rencontre
+        if (!inside && All().TryGetValue(boss.Id.name, out var legacy) && legacy.Room == fromRoom) All().Remove(boss.Id.name);
         All()[key] = new Entry
         {
             Level = level ?? "", Room = fromRoom,
             X = pos.Value.x, Y = pos.Value.y, Z = pos.Value.z,
             Date = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+            Boss = boss.Id.name, ArenaRoom = arenaRoom, Area = AreaLabel(level), Inside = inside,
         };
         SaveFile();
-        Plugin.Logger.LogInfo($"[Arènes] entrée de l'arène de {boss?.Name ?? key} retenue : {pos.Value} dans '{fromRoom}' ({level})");
+        Version++;
+        Plugin.Logger.LogInfo($"[Arènes] {(inside ? "position dans l'arène" : "entrée de l'arène")} de {boss.Name} ({AreaLabel(level)}) retenue : {pos.Value} dans '{fromRoom}'");
     }
 
-    /// <summary>Demande une téléportation devant l'arène. Retourne le message à afficher.</summary>
-    public static string RequestTeleport(Bosses.Boss b)
+    // ---------- Téléportation ----------
+
+    /// <summary>Demande une téléportation devant l'arène d'une rencontre. Retourne le message à afficher.</summary>
+    public static string RequestTeleport(Bosses.Boss b, string key)
     {
-        var e = Get(b);
+        var e = Get(key);
         if (e == null) return $"{b.Name}: enter its arena once so the mod can remember the door";
-        LevelID level = null;
-        foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<LevelID>()))
-        {
-            var l = o.TryCast<LevelID>();
-            if (l != null && l.name == e.Level) { level = l; break; }
-        }
+        var level = FindLevel(e.Level);
         if (level == null) return $"{b.Name}: level '{e.Level}' not found";
-        // Boss remis « Alive » : niveau rechargé en entier, sinon le combat de l'arène reste marqué terminé
-        // Boss remis « Alive » : niveau rechargé en entier, pour que l'arène prépare le boss (elle ne le fait qu'au chargement,
-        // si le boss n'est ni vaincu ni absorbé à ce moment-là). La cinématique d'entrée est remise à « non vue » à l'entrée.
         // Boss remis « Alive » : ses conditions de combat sont imposées avant le TP et le niveau est rechargé en entier,
         // pour que l'arène se construise avec le boss (elle ne le prépare qu'à son chargement)
         bool full = b.Id != null && BossRespawn.Pending.Contains(b.Id.name);
-        request = (level, new Vector3(e.X, e.Y, e.Z), full, b);
-        return full ? $"Teleport: in front of {b.Name}'s arena (reloading the level to reset the fight)" : $"Teleport: in front of {b.Name}'s arena";
+        request = (level, new Vector3(e.X, e.Y, e.Z), full, b, key);
+        string where = string.IsNullOrEmpty(e.Area) ? $"{b.Name}'s arena" : $"{b.Name}'s arena ({e.Area})";
+        return full ? $"Teleport: in front of {where}, fight reset" : $"Teleport: in front of {where}";
     }
 
-    public static bool TakeRequest(out LevelID level, out Vector3 pos, out bool fullReload, out Bosses.Boss boss)
+    public static bool TakeRequest(out LevelID level, out Vector3 pos, out bool fullReload, out Bosses.Boss boss, out string key)
     {
-        level = null; pos = default; fullReload = false; boss = null;
+        level = null; pos = default; fullReload = false; boss = null; key = null;
         if (request == null) return false;
-        (level, pos, fullReload, boss) = request.Value;
+        (level, pos, fullReload, boss, key) = request.Value;
         request = null;
         return true;
     }

@@ -208,12 +208,12 @@ public static class Bosses
     /// Bouton Fight : remet le boss en vie et téléporte devant son arène (niveau rechargé, combat remis à zéro),
     /// soit Alive puis TP en un clic.
     /// </summary>
-    public static string Fight(Boss b)
+    public static string Fight(Boss b, string encounterKey)
     {
-        if (Arenas.Get(b) == null) return $"{b.Name}: enter its arena once so the mod can remember the door";
+        if (Arenas.Get(encounterKey) == null) return $"{b.Name}: enter its arena once so the mod can remember the door";
         string msg = SetDefeated(b, false);
         if (IsDefeated(b) != false) return msg; // échec (pas en jeu, clé introuvable…)
-        return Arenas.RequestTeleport(b);
+        return Arenas.RequestTeleport(b, encounterKey);
     }
 
     /// <summary>Fait réapparaître tous les boss vaincus.</summary>

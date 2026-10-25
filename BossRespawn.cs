@@ -51,6 +51,7 @@ public static class BossRespawn
     }
 
     static Bosses.Boss activeBoss, armedBoss;
+    static string activeKey, armedKey; // rencontre (CharacterID@salle de l'arène) : un boss peut avoir deux arènes
     static bool armedEntered;
     static float searchUntil;
     static readonly List<Change> applied = new();
@@ -89,7 +90,7 @@ public static class BossRespawn
                 _ => new PlanCond { Kind = "Cutscene", Guid = c.cutsceneId, Value = v },
             });
         }
-        Plans()[boss.Id.name] = list;
+        Plans()[activeKey ?? boss.Id.name] = list;
         try { File.WriteAllText(PlansPath, JsonSerializer.Serialize(plans, new JsonSerializerOptions { WriteIndented = true })); }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Respawn] écriture des scénarios : " + ex.Message); }
         Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : conditions du combat retenues : {string.Join(", ", list.Select(p => $"{p.Kind} {(p.Name.Length > 0 ? p.Name : p.Guid)}={p.Value}"))}");
@@ -106,18 +107,20 @@ public static class BossRespawn
     }
 
     /// <summary>Conditions retenues, en objets du jeu (null si le boss n'a pas encore été vu, ou si une clé est introuvable).</summary>
-    static List<(Cond cond, bool value)> LoadPlan(Bosses.Boss boss)
+    static List<(Cond cond, bool value)> LoadPlan(Bosses.Boss boss, string key)
     {
-        if (!Plans().TryGetValue(boss.Id.name, out var list) || list == null || list.Count == 0) return null;
+        // Conditions de cette rencontre ; à défaut, l'ancien format (une seule arène par boss)
+        if ((key == null || !Plans().TryGetValue(key, out var list) || list == null || list.Count == 0)
+            && (!Plans().TryGetValue(boss.Id.name, out list) || list == null || list.Count == 0)) return null;
         var res = new List<(Cond, bool)>();
         foreach (var p in list)
         {
             switch (p.Kind)
             {
                 case "Key":
-                    var key = FindLoaded<ProgressionKeyID>(k => (p.Guid.Length > 0 && k.guid == p.Guid) || k.name == p.Name);
-                    if (key == null) { Plugin.Logger.LogWarning($"[Respawn] {boss.Name} : clé '{p.Name}' introuvable"); return null; }
-                    res.Add((new Cond { kind = Kind.Key, key = key }, p.Value));
+                    var pkey = FindLoaded<ProgressionKeyID>(k => (p.Guid.Length > 0 && k.guid == p.Guid) || k.name == p.Name);
+                    if (pkey == null) { Plugin.Logger.LogWarning($"[Respawn] {boss.Name} : clé '{p.Name}' introuvable"); return null; }
+                    res.Add((new Cond { kind = Kind.Key, key = pkey }, p.Value));
                     break;
                 case "Arcana":
                     var ch = Bosses.All.FirstOrDefault(b => b.Id?.name == p.Name)?.Id
@@ -139,11 +142,12 @@ public static class BossRespawn
     /// Juste avant le TP vers un boss remis « Alive » : impose les conditions retenues (dans le jeu).
     /// Retourne false si elles ne sont pas encore connues (il faut être entré une fois dans l'arène).
     /// </summary>
-    public static bool Arm(Bosses.Boss boss)
+    public static bool Arm(Bosses.Boss boss, string key)
     {
         armedBoss = null;
+        armedKey = null;
         armedConds = null;
-        var conds = LoadPlan(boss);
+        var conds = LoadPlan(boss, key);
         if (conds == null) { Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : conditions du combat pas encore connues"); return false; }
         Revert(); // un éventuel forçage précédent
         saveCopy = SaveGuard.Take(); // le scénario peut sauvegarder la partie pendant le combat
@@ -155,9 +159,11 @@ public static class BossRespawn
             Set(c, v);
         }
         armedBoss = boss;
+        armedKey = key;
         armedEntered = false;
         armedConds = conds;
         activeBoss = boss;
+        activeKey = key;
         Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : prêt avant le TP, changé : "
             + (applied.Count == 0 ? "rien" : string.Join(", ", applied.Select(c => $"{c.cond.Id} → {!c.original}"))));
         return true;
@@ -238,12 +244,14 @@ public static class BossRespawn
 
     // ---------- Arène ----------
 
-    public static void OnEnterArena(Bosses.Boss boss)
+    /// <summary>Entrée dans l'arène d'une rencontre (key = CharacterID@salle de l'arène).</summary>
+    public static void OnEnterArena(Bosses.Boss boss, string key)
     {
         if (boss?.Id == null || !Pending.Contains(boss.Id.name)) return;
         if (Bosses.IsDefeated(boss) == true) { Pending.Remove(boss.Id.name); return; }
         if (armedBoss == boss) armedEntered = true;
         activeBoss = boss;
+        activeKey = key;
         // Le scénario n'existe qu'une fois la salle chargée : on le lit pour vérifier / apprendre les conditions
         searchUntil = Time.unscaledTime + 6f;
     }
@@ -257,7 +265,9 @@ public static class BossRespawn
         if (Bosses.IsDefeated(activeBoss) == true) Pending.Remove(activeBoss.Id.name);
         Revert();
         activeBoss = null;
+        activeKey = null;
         armedBoss = null;
+        armedKey = null;
         armedConds = null;
     }
 
