@@ -9,8 +9,8 @@ namespace BelmontPractice;
 /// suivent (fin de combat, absorption, suite de l'histoire…) :
 ///  - jouées avec les personnages du jeu (scénario, dialogues) : accélérées (×10 par défaut, réglable), lignes de
 ///    dialogue terminées et passages sautables sautés ;
-///  - vidéos : passées avec la touche Passer du jeu dès qu'elle le permet, sans aucune accélération pendant la vidéo
-///    ni juste après (le scénario y attend la fin de la vidéo et refait son fondu : accéléré, l'écran restait noir).
+///  - vidéos (hors moteur du jeu) : jouées en entier à vitesse normale, ainsi que juste après. Ni accélérées ni passées :
+///    passées (même avec la touche du jeu), elles laissent l'écran noir après la scène de Trevor (Death I).
 /// Le gameplay n'est jamais accéléré. S'arrête à une nouvelle pression, à un chargement, ou après 20 s sans cinématique.
 /// </summary>
 public static class FastForward
@@ -74,15 +74,8 @@ public static class FastForward
         else if (now - lastCutscene > DisarmAfter) { Disarm(); return; }
         if (!playing) { RestoreSpeed(); return; }
 
-        // Vraie cinématique (vidéo) : seulement la touche Passer, à vitesse normale
-        if (VideoPlaying()) lastVideo = now;
-        if (now - lastVideo < AfterVideo)
-        {
-            RestoreSpeed();
-            try { SkipVideo(); }
-            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] vidéo : " + ex.Message); }
-            return;
-        }
+        // Vidéo : laissée telle quelle, à vitesse normale
+        if (InVideo) { RestoreSpeed(); return; }
 
         // Cinématique jouée avec les personnages du jeu : temps du jeu accéléré (pause du jeu, timeScale 0 : on n'y touche pas)
         float speed = Speed;
@@ -103,6 +96,17 @@ public static class FastForward
         SkipDialogueLines();
         try { SkipSkippableSegments(); }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] passages sautables : " + ex.Message); }
+    }
+
+    /// <summary>Vidéo en cours, ou terminée depuis moins de 1,5 s (le scénario refait alors son fondu).</summary>
+    public static bool InVideo
+    {
+        get
+        {
+            float now = Time.unscaledTime;
+            try { if (VideoPlaying()) lastVideo = now; } catch { }
+            return now - lastVideo < AfterVideo;
+        }
     }
 
     static bool VideoPlaying()
@@ -375,15 +379,6 @@ public static class FastForward
                 }
             }
         }
-    }
-
-    /// <summary>Vidéo en cours : passée comme par la touche du joueur, une fois que le jeu l'autorise.</summary>
-    static void SkipVideo()
-    {
-        var vc = CutsceneUIManager.Instance?._videoController;
-        if (vc == null || !vc.IsPlayingVideo || !vc.isReadyToSkip) return;
-        vc.TrySkipVideo();
-        Plugin.Logger.LogInfo($"[Cinématiques] vidéo passée (encore en cours : {vc.IsPlayingVideo})");
     }
 
     static float nextLineSkip;

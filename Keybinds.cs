@@ -136,8 +136,8 @@ public static class Keybinds
         MapTeleport = new Bind(c, "TeleportCarte", "T", "Carte ouverte : choisit le point sous le curseur comme destination de téléportation", U,
             "Map teleport", "With the map open: asks to teleport to the point under the cursor (also middle-click or Start on a gamepad); press again to go.");
 
-        FastForward = new Bind(c, "AccelererCinematiques", "F7", "Pendant une cinématique : l'accélère (vitesse réglable, Utilitaires/VitesseCinematiques), ainsi que les suivantes ; les vidéos sont passées", U,
-            "Fast-forward cutscenes", "During a cutscene: plays it 10× faster (adjustable in the config), and the cutscenes that follow too (boss outro, absorption…). Videos are skipped with the game's skip button instead. Gameplay always runs at normal speed. Press again to stop. Gamepad: Y.");
+        FastForward = new Bind(c, "AccelererCinematiques", "F7", "Pendant une cinématique : l'accélère (vitesse réglable, Utilitaires/VitesseCinematiques), ainsi que les suivantes ; les vidéos se jouent normalement", U,
+            "Fast-forward cutscenes", "During a cutscene: plays it 10× faster (adjustable in the config), and the cutscenes that follow too (boss outro, absorption…). Videos play normally. Gameplay always runs at normal speed. Press again to stop. Gamepad: Y.");
 
         NumpadDigits = c.Bind("Raccourcis", "ChiffresPaveNumerique", false,
             "Choix de l'emplacement (0-9) avec le pavé numérique au lieu des chiffres du haut du clavier");

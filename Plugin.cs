@@ -10,7 +10,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "fr.vasseur.belmontpractice";
     public const string Name = "Belmont Practice";
-    public const string Version = "0.35.1";
+    public const string Version = "0.36.0";
 
     internal static ManualLogSource Logger;
 
@@ -37,8 +37,8 @@ public class Plugin : BasePlugin
         Keybinds.Init(Config);
         UiScale = Config.Bind("Interface", "Echelle", 0.85f, "Taille de l'interface du mod (1 = grande, 0.5 = moitié)");
         NoclipSpeed = Config.Bind("Utilitaires", "VitesseNoclip", 18f, "Vitesse du noclip (Maj = x3)");
-        CutsceneFastForward = Config.Bind("Utilitaires", "AccelerationCinematiques", false, "Raccourci d'accélération / passage des cinématiques (F7 / Y). Désactivé : écran noir après la scène de Trevor (Death I), en cours d'analyse");
-        CutsceneSpeed = Config.Bind("Utilitaires", "VitesseCinematiques", 10f, "Accélération des cinématiques jouées avec les personnages du jeu (2 à 20). Les vidéos sont passées, jamais accélérées");
+        CutsceneFastForward = Config.Bind("Utilitaires", "AccelerationCinematiques", true, "Raccourci d'accélération des cinématiques (F7 / Y)");
+        CutsceneSpeed = Config.Bind("Utilitaires", "VitesseCinematiques", 10f, "Accélération des cinématiques jouées avec les personnages du jeu (2 à 20). Les vidéos se jouent normalement");
         PanelOpacity = Config.Bind("Interface", "Opacite", 0.85f, "Opacité du fond des fenêtres du mod (1 = opaque, 0.5 = très transparent)");
         FastLoad = Config.Bind("Chargement", "Rapide", true, "Dans le même niveau/biome : restaure sur place sans écran de chargement");
         ReloadRoom = Config.Bind("Chargement", "RechargerSalle", true, "Chargement rapide : force le rechargement de la salle (ennemis remis à zéro)");
