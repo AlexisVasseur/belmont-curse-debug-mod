@@ -62,6 +62,19 @@ public class PracticeBehaviour : MonoBehaviour
                 if (target != null && !sequence.Active) TeleportTo(target.Value);
             }
             catch (Exception ex) { Plugin.Logger.LogError("[Carte] " + ex); }
+            try
+            {
+                Arenas.Update(sequence.Active);
+                if (Arenas.TakeRequest(out var level, out var pos, out bool full, out var boss) && !sequence.Active)
+                {
+                    // Boss remis « Alive » : conditions du combat imposées avant de capturer la partie, puis écrites dans la copie rechargée
+                    bool armed = full && boss != null && BossRespawn.Arm(boss);
+                    var tp = GameBridge.CaptureForTeleport(level, pos, full);
+                    if (armed) BossRespawn.PatchSave(tp);
+                    Load(tp);
+                }
+            }
+            catch (Exception ex) { Plugin.Logger.LogError("[Arènes] " + ex); }
         }
 
         var kb = Keyboard.current;

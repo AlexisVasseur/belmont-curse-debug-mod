@@ -47,6 +47,9 @@ public class SaveState
     [System.Text.Json.Serialization.JsonIgnore]
     public bool SnapToGround { get; set; }
 
+    /// <summary>Rechargement complet du niveau même dans le niveau courant (combat de boss remis à zéro).</summary>
+    public bool ForceFullReload { get; set; }
+
     /// <summary>Copie indépendante (le quickslot et un emplacement ne partagent jamais le même objet).</summary>
     public SaveState Clone() => JsonSerializer.Deserialize<SaveState>(JsonSerializer.Serialize(this));
 
@@ -77,7 +80,7 @@ public static class GameBridge
     /// Savestate de l'état actuel dont le point de départ est un autre endroit, éventuellement dans un autre niveau
     /// (téléportation depuis la carte). Dans un autre niveau, le chargement passe par le rechargement complet.
     /// </summary>
-    public static SaveState CaptureForTeleport(LevelID level, Vector3 pos)
+    public static SaveState CaptureForTeleport(LevelID level, Vector3 pos, bool fullReload = false)
     {
         var logic = SaveLogic.Get() ?? throw new Exception("SaveLogic introuvable");
         if (!MainCharacterSingleton.TryGetEntity(out Entity entity) || entity == null)
@@ -95,6 +98,7 @@ public static class GameBridge
         {
             Name = "Teleport",
             SnapToGround = true,
+            ForceFullReload = fullReload,
             Level = level?.name ?? "",
             Room = "(teleport)", // autre salle : le jeu charge celle qui contient la destination
             X = pos.x, Y = pos.y, Z = pos.z,
@@ -399,7 +403,7 @@ public static class GameBridge
         string currentLevel = logic._currentLevelIdVariable?.CurrentValue?.name ?? "";
         // Combat de boss / cinématique en cours : leurs états globaux ne sont remis à zéro que par
         // un rechargement complet (comme le « Réessayer » du jeu après une mort contre un boss).
-        string unsafeReason = BossHelper.UnsafeForFastLoad();
+        string unsafeReason = state.ForceFullReload ? "boss reset (whole level reloaded)" : BossHelper.UnsafeForFastLoad();
         if (unsafeReason != null)
         {
             Plugin.Logger.LogInfo($"[Restore] chargement complet forcé : {unsafeReason}");
@@ -463,6 +467,25 @@ public static class GameBridge
     }
 
     static RoomStreamingHandle CurrentRoomHandle() => GetWorld()?.roomManager?._currentRoomHandle;
+
+    public static string CurrentLevelName() => SaveLogic.Get()?._currentLevelIdVariable?.CurrentValue?.name;
+
+    /// <summary>Boss de la salle courante si c'est une arène (sinon null) ; arcana : personnage boss contenu, en repli.</summary>
+    public static BossData CurrentRoomBoss(out string arcana)
+    {
+        arcana = null;
+        try
+        {
+            var cfg = CurrentRoomHandle()?.worldRoomData?.roomData?.configuration?.TryCast<RedWineRoomConfiguration>();
+            if (cfg == null || !cfg.isBossRoom) return null;
+            var data = cfg.bossData ?? cfg.bossDataRef?.Asset?.TryCast<BossData>();
+            var list = cfg.containedBossArcana;
+            if (list != null && list.Count > 0) arcana = list[0]?.name;
+            if (data == null && arcana == null) arcana = "?" + CurrentRoomName(); // arène sans boss identifiable
+            return data;
+        }
+        catch { return null; }
+    }
 
     static string CurrentRoomName()
     {
