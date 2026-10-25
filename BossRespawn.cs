@@ -205,6 +205,24 @@ public static class BossRespawn
             Plugin.Logger.LogInfo("[Respawn] partie rechargée : " + (changes.Count == 0 ? "déjà conforme" : string.Join(", ", changes)));
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Respawn] partie rechargée : " + ex.Message); }
+
+        // Mémoire temporaire du niveau (ennemis tués, spawners déjà vidés… : ce qu'un repos au miroir efface).
+        // Après une victoire, le spawner du boss y est noté comme vidé : il ne recrée plus le boss. On la vide,
+        // comme un passage au miroir (les ennemis du niveau réapparaissent).
+        try
+        {
+            if (string.IsNullOrEmpty(state.RuntimeWorldSaveJson)) return;
+            var rw = JsonNode.Parse(state.RuntimeWorldSaveJson);
+            var ses = rw?["savableEntityStates"];
+            var keys = ses?["m_keys"] as JsonArray;
+            var vals = ses?["m_values"] as JsonArray;
+            int n = keys?.Count ?? 0;
+            keys?.Clear();
+            vals?.Clear();
+            state.RuntimeWorldSaveJson = rw?.ToJsonString();
+            Plugin.Logger.LogInfo($"[Respawn] mémoire temporaire du niveau vidée ({n} état(s)), comme au miroir");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Respawn] mémoire temporaire du niveau : " + ex.Message); }
     }
 
     /// <summary>Présence (v=true) ou absence (v=false) d'une valeur dans un tableau JSON. Retourne true si modifié.</summary>
