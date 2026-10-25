@@ -71,6 +71,46 @@ public static class BossDiag
     static string Ints(Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<int> a) =>
         a == null || a.Length == 0 ? "-" : string.Join(",", a.ToArray());
 
+    /// <summary>
+    /// Déroulé réel du scénario : chaque nœud d'exécution atteint (démarré ou non) et son journal interne,
+    /// y compris les sous-scénarios (BossIntro…).
+    /// </summary>
+    public static void DumpRun(CutsceneDirector d, string when)
+    {
+        try
+        {
+            var sb = new StringBuilder();
+            var seen = new HashSet<IntPtr>();
+            void Walk(ResolverNodeBase n, string indent, int depth)
+            {
+                if (n == null || depth > 6 || !seen.Add(n.Pointer)) return;
+                var real = Real(n);
+                string type = real.GetType().Name;
+                var logs = new List<string>();
+                try { var l = n.Logs; if (l != null) for (int i = 0; i < l.Count; i++) logs.Add($"{l[i].Severity}:{l[i].Message}"); } catch { }
+                sb.AppendLine($"{indent}[{n.Index}] {type} commencé={n.HasBegun}" + (logs.Count > 0 ? " journal: " + string.Join(" | ", logs) : ""));
+                // Sous-scénario
+                try
+                {
+                    var sub = real.GetType().GetProperty("_resolver")?.GetValue(real) as CutsceneResolver;
+                    if (sub != null) { var sn = sub._startNodes; if (sn != null) for (int i = 0; i < sn.Count; i++) Walk(sn[i], indent + "    ", depth + 1); }
+                }
+                catch { }
+                var nexts = new List<ResolverNodeBase>();
+                try { var a = n._nextNodes; if (a != null) foreach (var x in a) nexts.Add(x); } catch { }
+                try { if (real.GetType().GetProperty("_elseNodes")?.GetValue(real) is Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<ResolverNodeBase> e) foreach (var x in e) nexts.Add(x); } catch { }
+                foreach (var x in nexts) Walk(x, indent, depth);
+            }
+            var r = d._resolver;
+            var starts = r?._startNodes;
+            if (starts != null) for (int i = 0; i < starts.Count; i++) Walk(starts[i], "    ", 0);
+            var cur = new List<int>();
+            try { var cn = r?._currentNodes; if (cn != null) for (int i = 0; i < cn.Count; i++) cur.Add(cn[i].Index); } catch { }
+            Plugin.Logger.LogInfo($"[Boss] déroulé de '{d.name}' ({when}), en cours=[{string.Join(",", cur)}]\n{sb}");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Boss] déroulé : " + ex); }
+    }
+
     public static void DumpDirectors(string when)
     {
         try

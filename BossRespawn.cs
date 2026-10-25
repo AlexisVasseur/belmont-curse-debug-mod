@@ -60,6 +60,7 @@ public static class BossRespawn
 
     public static void Update()
     {
+        try { UpdateTrace(); } catch (Exception ex) { traced = null; Plugin.Logger.LogWarning("[Respawn] relevé : " + ex.Message); }
         // Boss battu : la progression modifiée pour forcer le combat (porte, clés…) est remise aussitôt,
         // avant que le scénario ne reparte de son début (il retrouve ainsi l'état d'avant le combat).
         if (activeBoss != null && applied.Count > 0 && Bosses.IsDefeated(activeBoss) == true)
@@ -245,6 +246,22 @@ public static class BossRespawn
         try { director.ForceReset(); }
         catch (Exception ex) { Plugin.Logger.LogInfo("[Respawn] ForceReset : " + ex.Message.Split('\n')[0]); }
         BossDiag.DumpDirectors("après relance du scénario");
+        BossDiag.DumpRun(director, "juste après la relance");
+        traced = director;
+        traceTimes.Clear();
+        foreach (float s in new[] { 1f, 3f, 6f }) traceTimes.Enqueue(Time.unscaledTime + s);
+    }
+
+    static CutsceneDirector traced;
+    static readonly Queue<float> traceTimes = new();
+
+    /// <summary>Relevés du déroulé quelques secondes après la relance (diagnostic).</summary>
+    public static void UpdateTrace()
+    {
+        if (traced == null || traceTimes.Count == 0 || Time.unscaledTime < traceTimes.Peek()) return;
+        traceTimes.Dequeue();
+        BossDiag.DumpRun(traced, $"{traceTimes.Count switch { 2 => "1", 1 => "3", _ => "6" }} s après la relance");
+        if (traceTimes.Count == 0) traced = null;
     }
 
     static Dictionary<string, byte[]> saveCopy;
