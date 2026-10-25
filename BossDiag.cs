@@ -299,7 +299,7 @@ public static class BossDiag
         return n;
     }
 
-    public static void DumpDirectors(string when)
+    public static void DumpDirectors(string when, bool all = false)
     {
         try
         {
@@ -315,7 +315,7 @@ public static class BossDiag
                 bool boss = false;
                 foreach (var n in nodes) { string tn = n?.GetIl2CppType().Name ?? ""; if (tn.Contains("Boss")) { boss = true; break; } }
                 count++;
-                if (!boss)
+                if (!boss && !all)
                 {
                     sb.AppendLine($"  director '{d.name}' actif={d.isActiveAndEnabled} données='{data.name}' {nodes.Length} nœuds (aucun nœud de boss)");
                     continue;

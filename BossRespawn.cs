@@ -271,9 +271,23 @@ public static class BossRespawn
         armedConds = null;
     }
 
+    /// <summary>
+    /// Fin de la rencontre : marque « vaincu » du boss, ou marque propre à la rencontre parmi les conditions imposées
+    /// (Death I : DeathCatacombs_Defeated_ID, que le combat repose à la fin).
+    /// </summary>
+    static bool EncounterDone()
+    {
+        if (Bosses.IsDefeated(activeBoss) == true) return true;
+        foreach (var c in applied)
+            if (c.cond.kind == Kind.Key && c.original && c.cond.key != null
+                && c.cond.key.name.IndexOf("Defeated", StringComparison.OrdinalIgnoreCase) >= 0 && Evaluate(c.cond))
+                return true;
+        return false;
+    }
+
     // ---------- Après le combat ----------
 
-    static float watchUntil, lockSince = -1f;
+    static float watchUntil, lockSince = -1f, dumpAfterAt;
     static int lockId = -1;
 
     /// <summary>
@@ -301,6 +315,8 @@ public static class BossRespawn
             }
         }
         else lockId = -1;
+        // Diagnostic : scénarios chargés après le combat (la suite de l'histoire, ex. sauvetage par Trevor après Death I)
+        if (dumpAfterAt > 0f && now >= dumpAfterAt) { dumpAfterAt = 0f; BossDiag.DumpDirectors("après le combat", all: true); }
         if (now > watchUntil)
         {
             watchUntil = 0f;
@@ -316,10 +332,11 @@ public static class BossRespawn
         try { UpdateTrace(); } catch (Exception ex) { traced = null; Plugin.Logger.LogWarning("[Respawn] relevé : " + ex.Message); }
         // Boss battu : la progression modifiée (porte, clés…) est remise aussitôt, avant que le scénario
         // ne reparte de son début (il retrouve ainsi l'état d'avant le combat).
-        if (activeBoss != null && applied.Count > 0 && (armedBoss == null || armedEntered) && Bosses.IsDefeated(activeBoss) == true)
+        if (activeBoss != null && applied.Count > 0 && (armedBoss == null || armedEntered) && EncounterDone())
         {
             Plugin.Logger.LogInfo($"[Respawn] {activeBoss.Name} battu : progression d'avant le combat remise");
             watchUntil = Time.unscaledTime + 30f;
+            dumpAfterAt = Time.unscaledTime + 8f; // après la cinématique de fin et le changement de salle éventuel
             Revert();
             Pending.Remove(activeBoss.Id.name);
             armedBoss = null;
