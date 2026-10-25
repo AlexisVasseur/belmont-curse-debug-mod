@@ -149,6 +149,55 @@ public static class BossDiag
         }
     }
 
+    /// <summary>Registre des acteurs de cinématique (CutsceneManager), acteurs présents dans la scène et boss en cours.</summary>
+    public static void DumpActors(string when, string characterFilter = null)
+    {
+        try
+        {
+            var sb = new StringBuilder();
+            var dict = CutsceneManager.Instance?._cutsceneActors;
+            if (dict != null)
+                foreach (var kv in dict)
+                {
+                    string key = kv.Key?.name ?? "null";
+                    if (characterFilter != null && key.IndexOf(characterFilter, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    var a = kv.Value;
+                    bool alive = a != null && a.Cast<UnityEngine.Object>() != null;
+                    sb.AppendLine($"  registre '{key}' → {(alive ? $"'{a.name}' actif={a.gameObject.activeInHierarchy}" : "DÉTRUIT")}");
+                }
+            foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<CutsceneActor>()))
+            {
+                var a = o.TryCast<CutsceneActor>();
+                if (a == null || !a.gameObject.scene.IsValid()) continue;
+                string cd = a._characterData?.name ?? "?";
+                if (characterFilter != null && cd.IndexOf(characterFilter, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                sb.AppendLine($"  scène '{a.name}' perso={cd} actif={a.gameObject.activeInHierarchy} pos={a.transform.position}");
+            }
+            string boss = "?";
+            try { boss = BossManager.Get()?.currentBossVariable?.CurrentValue?.name ?? "aucun"; } catch { }
+            Plugin.Logger.LogInfo($"[Boss] acteurs ({when}) : boss en cours={boss}\n{sb}");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Boss] acteurs : " + ex.Message); }
+    }
+
+    /// <summary>Retire du registre des acteurs les entrées dont l'objet a été détruit (combat précédent).</summary>
+    public static int PurgeDeadActors()
+    {
+        int n = 0;
+        try
+        {
+            var dict = CutsceneManager.Instance?._cutsceneActors;
+            if (dict == null) return 0;
+            var dead = new List<CharacterData>();
+            foreach (var kv in dict)
+                if (kv.Value == null || kv.Value.Cast<UnityEngine.Object>() == null) dead.Add(kv.Key);
+            foreach (var k in dead) { dict.Remove(k); n++; }
+            if (n > 0) Plugin.Logger.LogInfo($"[Boss] {n} acteur(s) détruit(s) retiré(s) du registre des cinématiques : {string.Join(", ", dead.ConvertAll(k => k?.name ?? "null"))}");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Boss] registre des acteurs : " + ex.Message); }
+        return n;
+    }
+
     public static void DumpDirectors(string when)
     {
         try

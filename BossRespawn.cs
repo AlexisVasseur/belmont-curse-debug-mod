@@ -253,6 +253,9 @@ public static class BossRespawn
         var plan = Solve(director._resolverData);
         if (plan == null) { Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : aucun chemin vers le combat dans '{director.name}'"); return; }
         applied.Clear();
+        string shortName = boss.Id.name.Replace("CharacterID_", "");
+        BossDiag.DumpActors("avant forçage", shortName);
+        BossDiag.PurgeDeadActors();
         // Le scénario peut sauvegarder la partie pendant le combat forcé : copie des fichiers, remise au retour à la normale
         saveCopy = SaveGuard.Take();
         var done = new HashSet<string>();
@@ -298,7 +301,9 @@ public static class BossRespawn
     {
         if (traced == null || traceTimes.Count == 0 || Time.unscaledTime < traceTimes.Peek()) return;
         traceTimes.Dequeue();
-        BossDiag.DumpRun(traced, $"{traceTimes.Count switch { 2 => "1", 1 => "3", _ => "6" }} s après la relance");
+        string when = $"{traceTimes.Count switch { 2 => "1", 1 => "3", _ => "6" }} s après la relance";
+        BossDiag.DumpRun(traced, when);
+        BossDiag.DumpActors(when, activeBoss?.Id?.name.Replace("CharacterID_", ""));
         if (traceTimes.Count == 0) traced = null;
     }
 
