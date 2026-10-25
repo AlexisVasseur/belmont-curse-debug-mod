@@ -56,6 +56,7 @@ public static class BossRespawn
     static float searchUntil;
     static readonly List<Change> applied = new();
     static List<(Cond cond, bool value)> armedConds;
+    static List<string> armedPost = new();
     static Dictionary<string, byte[]> saveCopy;
 
     // ---------- Conditions retenues par boss ----------
@@ -90,10 +91,32 @@ public static class BossRespawn
                 _ => new PlanCond { Kind = "Cutscene", Guid = c.cutsceneId, Value = v },
             });
         }
-        Plans()[activeKey ?? boss.Id.name] = list;
+        string key = activeKey ?? boss.Id.name;
+        // Les cinématiques de la suite (apprises après le combat) sont conservées
+        if (Plans().TryGetValue(key, out var old) && old != null) list.AddRange(old.Where(p => p.Kind == "PostCutscene"));
+        Plans()[key] = list;
+        SavePlans();
+        Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : conditions du combat retenues : {string.Join(", ", list.Select(p => $"{p.Kind} {(p.Name.Length > 0 ? p.Name : p.Guid)}={p.Value}"))}");
+    }
+
+    static void SavePlans()
+    {
         try { File.WriteAllText(PlansPath, JsonSerializer.Serialize(plans, new JsonSerializerOptions { WriteIndented = true })); }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Respawn] écriture des scénarios : " + ex.Message); }
-        Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : conditions du combat retenues : {string.Join(", ", list.Select(p => $"{p.Kind} {(p.Name.Length > 0 ? p.Name : p.Guid)}={p.Value}"))}");
+    }
+
+    /// <summary>Cinématiques de la suite du combat (à rejouer : remises à « non vues » dès la fin du combat).</summary>
+    static List<string> PostCutscenes(string key) =>
+        key != null && Plans().TryGetValue(key, out var list) && list != null
+            ? list.Where(p => p.Kind == "PostCutscene").Select(p => p.Guid).ToList() : new List<string>();
+
+    static void AddPostCutscene(string key, string cutsceneId, string label)
+    {
+        if (key == null || string.IsNullOrEmpty(cutsceneId) || PostCutscenes(key).Contains(cutsceneId)) return;
+        if (!Plans().TryGetValue(key, out var list) || list == null) Plans()[key] = list = new List<PlanCond>();
+        list.Add(new PlanCond { Kind = "PostCutscene", Name = label ?? "", Guid = cutsceneId, Value = false });
+        SavePlans();
+        Plugin.Logger.LogInfo($"[Respawn] suite du combat retenue pour {key} : cinématique '{label}' ({cutsceneId}) à rejouer");
     }
 
     static T FindLoaded<T>(Func<T, bool> match) where T : UnityEngine.Object
@@ -128,6 +151,8 @@ public static class BossRespawn
                     if (ch == null) { Plugin.Logger.LogWarning($"[Respawn] {boss.Name} : personnage '{p.Name}' introuvable"); return null; }
                     res.Add((new Cond { kind = Kind.Arcana, character = ch, step = (CharacterProgressionStep)p.Step }, p.Value));
                     break;
+                case "PostCutscene":
+                    break; // appliquée à la fin du combat, pas avant
                 default:
                     res.Add((new Cond { kind = Kind.Cutscene, cutsceneId = p.Guid }, p.Value));
                     break;
@@ -157,6 +182,16 @@ public static class BossRespawn
             if (!done.Add(c.Id) || Evaluate(c) == v) continue;
             applied.Add(new Change { cond = c, original = !v, originalStep = c.kind == Kind.Arcana ? Step(c.character) : default });
             Set(c, v);
+        }
+        // Suite du combat (autre salle) : sa cinématique doit se rejouer (Death I → sauvetage par Trevor, qui rend aussi
+        // l'apparence du personnage). Remise à « non vue » dès maintenant ; le jeu la notera vue en la jouant.
+        armedPost = PostCutscenes(key);
+        foreach (var id in armedPost)
+        {
+            var c = new Cond { kind = Kind.Cutscene, cutsceneId = id };
+            if (!Evaluate(c)) continue;
+            Set(c, false);
+            postApplied.Add(id);
         }
         armedBoss = boss;
         armedKey = key;
@@ -207,6 +242,8 @@ public static class BossRespawn
                         break;
                 }
             }
+            foreach (var id in armedPost)
+                if (SetInArray(ps["watchedCutscenes"] as JsonArray, id, false)) changes.Add($"suite {id}=non vue");
             state.GlobalSaveJson = root.ToJsonString();
             Plugin.Logger.LogInfo("[Respawn] partie rechargée : " + (changes.Count == 0 ? "déjà conforme" : string.Join(", ", changes)));
         }
@@ -288,7 +325,9 @@ public static class BossRespawn
     // ---------- Après le combat ----------
 
     static float watchUntil, lockSince = -1f, dumpAfterAt;
-    static string watchRoom;
+    static string watchRoom, watchKey;
+    // Cinématiques de la suite remises à « non vues » par Fight (à remettre « vues » si on ressort sans combattre)
+    static readonly List<string> postApplied = new();
     static int lockId = -1;
 
     /// <summary>
@@ -320,13 +359,60 @@ public static class BossRespawn
         // 3 s après chaque changement de salle
         string room = GameBridge.CurrentRoomId();
         if (room != watchRoom) { watchRoom = room; dumpAfterAt = now + 3f; }
-        if (dumpAfterAt > 0f && now >= dumpAfterAt) { dumpAfterAt = 0f; BossDiag.DumpDirectors("après le combat", all: true); }
+        if (dumpAfterAt > 0f && now >= dumpAfterAt)
+        {
+            dumpAfterAt = 0f;
+            LearnFollowUps();
+            if (Plugin.BossDiagnostics.Value) BossDiag.DumpDirectors("après le combat", all: true);
+        }
         if (now > watchUntil)
         {
             watchUntil = 0f;
             var names = new List<string>();
             foreach (var t in states.ToArray()) names.Add($"{t?.Item2?.name}#{t?.Item1}");
             Plugin.Logger.LogInfo("[Respawn] après le combat, états du jeu : " + string.Join(" > ", names));
+        }
+    }
+
+    /// <summary>
+    /// Suite du combat dans une autre salle (Death I → sauvetage par Trevor, « Rose_Post_ThronesBones ») : scénario qui
+    /// commence par « cinématique déjà vue ? » et dont la branche « non vue » déverrouille les menus verrouillés par la
+    /// fin du combat. Sa cinématique est retenue pour la rencontre : remise à « non vue » au prochain Fight.
+    /// </summary>
+    static void LearnFollowUps()
+    {
+        if (watchKey == null) return;
+        foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<CutsceneDirector>()))
+        {
+            try
+            {
+                var d = o.TryCast<CutsceneDirector>();
+                var data = d?._resolverData;
+                var nodes = data?.Nodes;
+                if (d == null || !d.gameObject.scene.IsValid() || nodes == null || data.StartIndexes == null || data.StartIndexes.Length == 0) continue;
+                // Départ → première condition
+                int i = data.StartIndexes[0];
+                if (i < 0 || i >= nodes.Length) continue;
+                var n = nodes[i];
+                if (n?.TryCast<ResolverConditionNodeDataBase>() == null && n?.NextNodes != null && n.NextNodes.Length == 1) n = nodes[n.NextNodes[0]];
+                var wc = n?.TryCast<ResolverConditionHasWatchedCutsceneNodeData>();
+                var cs = wc?.CutsceneData != null && !wc.CutsceneData.UseRef ? wc.CutsceneData.Value : null;
+                if (cs == null) continue;
+                // La branche « non vue » déverrouille-t-elle les menus ?
+                var queue = new Queue<int>(wc.ElseNodes ?? new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<int>(0));
+                var seen = new HashSet<int>();
+                bool popsLock = false;
+                while (queue.Count > 0 && !popsLock && seen.Count < 60)
+                {
+                    int j = queue.Dequeue();
+                    if (j < 0 || j >= nodes.Length || !seen.Add(j)) continue;
+                    var gs = nodes[j]?.TryCast<ResolverGameStateNodeData>();
+                    if (gs != null && gs.Action.ToString() == "Pop" && gs.TargetState?.name == "GameplayLockMenuState") popsLock = true;
+                    if (nodes[j]?.NextNodes != null) foreach (int k in nodes[j].NextNodes) queue.Enqueue(k);
+                }
+                if (popsLock) AddPostCutscene(watchKey, cs.ID, cs.name);
+            }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Respawn] suite du combat : " + ex.Message); }
         }
     }
 
@@ -341,7 +427,16 @@ public static class BossRespawn
             Plugin.Logger.LogInfo($"[Respawn] {activeBoss.Name} battu : progression d'avant le combat remise");
             watchUntil = Time.unscaledTime + 120f; // la cinématique de fin et le changement de salle peuvent être longs
             dumpAfterAt = Time.unscaledTime + 8f; // après la cinématique de fin et le changement de salle éventuel
+            watchKey = activeKey;
+            postApplied.Clear(); // cinématiques de la suite : laissées « non vues », le jeu les joue maintenant
             Revert();
+            // Suite du combat déjà chargée (salle voisine) : apprise et remise à « non vue » avant que le joueur y arrive
+            LearnFollowUps();
+            foreach (var id in PostCutscenes(watchKey))
+            {
+                var c = new Cond { kind = Kind.Cutscene, cutsceneId = id };
+                if (Evaluate(c)) { Set(c, false); Plugin.Logger.LogInfo($"[Respawn] suite du combat : cinématique {id} remise à « non vue »"); }
+            }
             Pending.Remove(activeBoss.Id.name);
             armedBoss = null;
             armedConds = null;
@@ -713,6 +808,9 @@ public static class BossRespawn
     {
         SaveGuard.RestoreIfChanged(saveCopy, "pendant le combat forcé");
         saveCopy = null;
+        // Ressorti sans combattre : la suite ne doit pas se rejouer hors contexte
+        foreach (var id in postApplied) { try { Set(new Cond { kind = Kind.Cutscene, cutsceneId = id }, true); } catch { } }
+        postApplied.Clear();
         if (applied.Count == 0) return;
         for (int i = applied.Count - 1; i >= 0; i--)
         {
