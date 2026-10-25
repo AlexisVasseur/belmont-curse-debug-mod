@@ -34,7 +34,7 @@ public static class Arenas
     static readonly Queue<(float t, Vector3 p)> trail = new();
 
     // Demande de téléportation venue de l'interface, traitée par PracticeBehaviour
-    static (LevelID level, Vector3 pos, bool fullReload)? request;
+    static (LevelID level, Vector3 pos, bool fullReload, Bosses.Boss boss)? request;
 
     static Dictionary<string, Entry> All()
     {
@@ -155,16 +155,18 @@ public static class Arenas
         // Boss remis « Alive » : niveau rechargé en entier, sinon le combat de l'arène reste marqué terminé
         // Boss remis « Alive » : niveau rechargé en entier, pour que l'arène prépare le boss (elle ne le fait qu'au chargement,
         // si le boss n'est ni vaincu ni absorbé à ce moment-là). La cinématique d'entrée est remise à « non vue » à l'entrée.
-        bool full = false; // l'arène est rechargée à l'entrée (BossRespawn), plus besoin de recharger tout le niveau
-        request = (level, new Vector3(e.X, e.Y, e.Z), full);
+        // Boss remis « Alive » : ses conditions de combat sont imposées avant le TP et le niveau est rechargé en entier,
+        // pour que l'arène se construise avec le boss (elle ne le prépare qu'à son chargement)
+        bool full = b.Id != null && BossRespawn.Pending.Contains(b.Id.name);
+        request = (level, new Vector3(e.X, e.Y, e.Z), full, b);
         return full ? $"Teleport: in front of {b.Name}'s arena (reloading the level to reset the fight)" : $"Teleport: in front of {b.Name}'s arena";
     }
 
-    public static bool TakeRequest(out LevelID level, out Vector3 pos, out bool fullReload)
+    public static bool TakeRequest(out LevelID level, out Vector3 pos, out bool fullReload, out Bosses.Boss boss)
     {
-        level = null; pos = default; fullReload = false;
+        level = null; pos = default; fullReload = false; boss = null;
         if (request == null) return false;
-        (level, pos, fullReload) = request.Value;
+        (level, pos, fullReload, boss) = request.Value;
         request = null;
         return true;
     }
