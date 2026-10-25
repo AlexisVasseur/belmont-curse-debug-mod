@@ -15,7 +15,7 @@ namespace BelmontPractice;
 /// </summary>
 public static class MapTeleportView
 {
-    const float HintH = 46f, PopW = 430f, PopH = 104f, Glyph = 30f;
+    internal const float HintH = 46f, PopW = 430f, PopH = 104f, Glyph = 30f;
 
     static GameObject hint, popup;
     static RectTransform popupRt, hintRt;
@@ -110,7 +110,7 @@ public static class MapTeleportView
     }
 
     /// <summary>Touche clavier : cadre de touche du jeu avec la lettre dedans. Retourne la largeur.</summary>
-    static float KeyGlyph(Transform parent, float x, float y, string key)
+    internal static float KeyGlyph(Transform parent, float x, float y, string key)
     {
         float w = Mathf.Max(Glyph, 14f + 11f * key.Length);
         var frame = GameSprites.Icon("ui_key_frame", new Vector4(40, 40, 40, 40));
@@ -122,7 +122,7 @@ public static class MapTeleportView
     }
 
     /// <summary>Bouton de manette : icône du jeu, sinon son nom dans un cadre de touche. Retourne la largeur.</summary>
-    static float PadGlyph(Transform parent, float x, float y, Sprite sprite, string fallback)
+    internal static float PadGlyph(Transform parent, float x, float y, Sprite sprite, string fallback)
     {
         if (sprite != null)
         {
@@ -133,7 +133,7 @@ public static class MapTeleportView
         return KeyGlyph(parent, x, y, fallback);
     }
 
-    static float Txt(Transform parent, float x, float y, string s, Color c, float size = 16f)
+    internal static float Txt(Transform parent, float x, float y, string s, Color c, float size = 16f)
     {
         var t = Ui.Text(parent, "T" + s, x, y, 300, Glyph, GameFonts.Title, size, c, TextAlignmentOptions.MidlineLeft);
         t.text = s;

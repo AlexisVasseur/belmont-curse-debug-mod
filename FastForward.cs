@@ -21,6 +21,7 @@ public static class FastForward
     };
 
     static bool armed, speeding;
+    public static bool Armed => armed;
     static float lastCutscene;
 
     public static bool CutscenePlaying()

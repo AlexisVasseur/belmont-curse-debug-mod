@@ -41,6 +41,7 @@ public class PracticeBehaviour : MonoBehaviour
             bool ff = (kbd != null && Keybinds.Capturing == null && Keybinds.FastForward.Pressed(kbd))
                 || (UnityEngine.InputSystem.Gamepad.current?.buttonNorth.wasPressedThisFrame ?? false);
             FastForward.Update(ff, sequence.Active, (m, e) => Notify(m, e));
+            CutsceneHint.Update(!sequence.Active && IsInGame() && FastForward.CutscenePlaying(), FastForward.Armed);
         }
         catch (Exception ex) { Plugin.Logger.LogError("[Cinématiques] " + ex); }
         try { UpdateDeferredLoad(); } catch (Exception ex) { deferredLoad = null; Plugin.Logger.LogError("[Chargement] " + ex); }
