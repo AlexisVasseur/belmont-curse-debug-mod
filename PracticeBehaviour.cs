@@ -70,7 +70,7 @@ public class PracticeBehaviour : MonoBehaviour
                     // Boss remis « Alive » : conditions du combat imposées avant de capturer la partie, puis écrites dans la copie rechargée
                     bool armed = full && boss != null && BossRespawn.Arm(boss);
                     var tp = GameBridge.CaptureForTeleport(level, pos, full);
-                    if (armed) BossRespawn.PatchSave(tp);
+                    if (full) BossRespawn.PatchSave(tp); // conditions (si connues) + mémoire temporaire du niveau vidée
                     Load(tp);
                 }
             }

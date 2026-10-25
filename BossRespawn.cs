@@ -169,8 +169,8 @@ public static class BossRespawn
     /// </summary>
     public static void PatchSave(SaveState state)
     {
-        if (armedConds == null || state?.GlobalSaveJson == null) return;
-        try
+        if (state == null) return;
+        if (armedConds != null && state.GlobalSaveJson != null) try
         {
             var root = JsonNode.Parse(state.GlobalSaveJson);
             var ps = root?["playerSave"];

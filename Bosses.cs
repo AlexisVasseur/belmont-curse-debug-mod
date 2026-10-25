@@ -204,6 +204,18 @@ public static class Bosses
         catch (Exception ex) { Plugin.Logger.LogWarning($"[Boss] étape {b.Name} : {ex.Message}"); }
     }
 
+    /// <summary>
+    /// Bouton Fight : remet le boss en vie et téléporte devant son arène (niveau rechargé, combat remis à zéro),
+    /// soit Alive puis TP en un clic.
+    /// </summary>
+    public static string Fight(Boss b)
+    {
+        if (Arenas.Get(b) == null) return $"{b.Name}: enter its arena once so the mod can remember the door";
+        string msg = SetDefeated(b, false);
+        if (IsDefeated(b) != false) return msg; // échec (pas en jeu, clé introuvable…)
+        return Arenas.RequestTeleport(b);
+    }
+
     /// <summary>Fait réapparaître tous les boss vaincus.</summary>
     public static string RespawnAll()
     {
