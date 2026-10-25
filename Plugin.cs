@@ -10,7 +10,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "fr.vasseur.belmontpractice";
     public const string Name = "Belmont Practice";
-    public const string Version = "0.27.2";
+    public const string Version = "0.27.3";
 
     internal static ManualLogSource Logger;
 

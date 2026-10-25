@@ -519,11 +519,12 @@ public static class BossRespawn
     /// Toutes les conditions qui mènent au combat : le chemin du scénario principal, plus « cinématique d'entrée
     /// non vue » dans les sous-scénarios (déjà vue, le combat démarre sans la cinématique qui fait apparaître le boss).
     /// </summary>
-    static List<(Cond cond, bool value)> Conditions(CutsceneDirector director)
+    static List<(Cond cond, bool value)> Conditions(CutsceneDirector director, Bosses.Boss boss)
     {
         var plan = Solve(director._resolverData);
         if (plan == null) return null;
         var all = new List<(Cond, bool)>(plan);
+        all.AddRange(SpawnerConditions(boss));
         foreach (var n in director._resolverData.Nodes)
         {
             var play = n?.TryCast<ResolverPlaySubResolverNodeData>();
@@ -540,13 +541,59 @@ public static class BossRespawn
     }
 
     /// <summary>
+    /// Spawners qui créent le boss (Isaac I : « IsaacIntro_BossData » avec Carmilla) : leur condition d'apparition
+    /// (clé de progression à avoir / ne pas avoir, éventuellement inversée). Elle est évaluée au chargement de la salle,
+    /// d'où son imposition avant le TP.
+    /// </summary>
+    static List<(Cond cond, bool value)> SpawnerConditions(Bosses.Boss boss)
+    {
+        var res = new List<(Cond, bool)>();
+        string shortName = boss.Id.name.Replace("CharacterID_", "");
+        foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<MobsSpawner>()))
+        {
+            try
+            {
+                var s = o.TryCast<MobsSpawner>();
+                if (s == null || !s.gameObject.scene.IsValid() || s.spawnCondition == null) continue;
+                bool spawnsBoss = false;
+                var mobs = s.mobsToSpawn;
+                if (mobs != null)
+                    for (int i = 0; i < mobs.Count; i++)
+                        if ((mobs[i].mobData?.name ?? "").IndexOf(shortName, StringComparison.OrdinalIgnoreCase) >= 0) spawnsBoss = true;
+                if (!spawnsBoss) continue;
+                // Condition éventuellement inversée (EntityConditionNot)
+                EntityConditionAbstract c = s.spawnCondition;
+                bool invert = false;
+                for (int depth = 0; depth < 4; depth++)
+                {
+                    var not = c?.TryCast<EntityConditionNot>();
+                    if (not == null) break;
+                    invert = !invert;
+                    c = not.condition;
+                }
+                var pk = c?.TryCast<EntityConditionCheckProgressKey>();
+                if (pk?.progressionKeyToCheck == null)
+                {
+                    Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : spawner '{s.name}', condition non gérée ({c?.GetIl2CppType().Name ?? "?"})");
+                    continue;
+                }
+                bool want = pk.shouldHave != invert;
+                res.Add((new Cond { kind = Kind.Key, key = pk.progressionKeyToCheck }, want));
+                Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : spawner '{s.name}' demande la clé {pk.progressionKeyToCheck.name}={want}");
+            }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Respawn] spawner : " + ex.Message); }
+        }
+        return res;
+    }
+
+    /// <summary>
     /// Dans l'arène : lit le scénario, retient ses conditions pour les prochains TP, et vérifie qu'elles sont en place.
     /// Si elles ne l'étaient pas (entrée sans TP, conditions encore inconnues), on les impose maintenant : cela ne
     /// suffit que si l'arène n'avait pas encore été chargée — le TP suivant, lui, fonctionnera.
     /// </summary>
     static void Check(CutsceneDirector director, Bosses.Boss boss)
     {
-        var conds = Conditions(director);
+        var conds = Conditions(director, boss);
         if (conds == null) { Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : aucun chemin vers le combat dans '{director.name}'"); return; }
         StorePlan(boss, conds);
         var missing = conds.Where(c => Evaluate(c.cond) != c.value).ToList();
