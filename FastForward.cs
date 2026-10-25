@@ -87,6 +87,8 @@ public static class FastForward
             // Lignes de dialogue : comme la touche du joueur, texte affiché d'un coup puis ligne terminée (le scénario
             // passe à la suivante). Les lignes attendent sinon une touche ou leur durée.
             SkipDialogueLines();
+            try { SkipSkippableSegments(); }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] passages sautables : " + ex.Message); }
             try
             {
                 var ui = CutsceneUIManager.Instance;
@@ -328,6 +330,36 @@ public static class FastForward
         Each<CollectibleAcquisitionController>(c => c.CloseAcquisition());
         Each<MainObjectiveDeckAcquisitionManager>(c => c.CloseDeckAcquisition());
         return any;
+    }
+
+    /// <summary>
+    /// Passages que le jeu laisse sauter (touche A) : piste InputSkipTrack des timelines. En cours de lecture,
+    /// on saute à la fin du passage, comme la touche du jeu.
+    /// </summary>
+    static void SkipSkippableSegments()
+    {
+        foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppInterop.Runtime.Il2CppType.Of<UnityEngine.Playables.PlayableDirector>()))
+        {
+            var d = o.TryCast<UnityEngine.Playables.PlayableDirector>();
+            if (d == null || d.state != UnityEngine.Playables.PlayState.Playing) continue;
+            var tl = d.playableAsset?.TryCast<UnityEngine.Timeline.TimelineAsset>();
+            if (tl == null) continue;
+            double t = d.time;
+            for (int i = 0; i < tl.outputTrackCount; i++)
+            {
+                var track = tl.GetOutputTrack(i);
+                if (track?.TryCast<InputSkipTrack>() == null) continue;
+                var clips = track.clips;
+                for (int c = 0; clips != null && c < clips.Length; c++)
+                {
+                    var clip = clips[c];
+                    if (clip == null || t < clip.start || t >= clip.end) continue;
+                    d.time = clip.end;
+                    Plugin.Logger.LogInfo($"[Cinématiques] passage sauté dans '{tl.name}' : {t:0.0} s → {clip.end:0.0} s");
+                    t = clip.end;
+                }
+            }
+        }
     }
 
     static float nextLineSkip;
