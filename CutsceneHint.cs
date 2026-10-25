@@ -5,8 +5,8 @@ using UnityEngine;
 namespace BelmontPractice;
 
 /// <summary>
-/// Pendant une cinématique, en bas à droite : « [F7] / [Y] Auto-skip » (icônes de touches du jeu),
-/// puis « Auto-skip on » une fois le passage automatique lancé.
+/// Pendant une cinématique, en bas à droite : « [F7] / [Y] Fast-forward » (icônes de touches du jeu),
+/// puis « Fast-forward ×10 » une fois l'accélération lancée.
 /// </summary>
 public static class CutsceneHint
 {
@@ -29,7 +29,7 @@ public static class CutsceneHint
             UiCanvas.Ensure();
             if (!GameFonts.Resolved) GameFonts.Resolve();
             if (padY == null && Time.unscaledTime >= nextPadSearch) { nextPadSearch = Time.unscaledTime + 2f; FindPadSprite(); }
-            string key = $"{KeyLabel}|{armed}|{padY != null}|{GameFonts.Resolved}";
+            string key = $"{KeyLabel}|{armed}|{FastForward.Speed}|{padY != null}|{GameFonts.Resolved}";
             if (root == null || builtFor != key) Build(armed, key);
             if (root.activeSelf != cutscene)
             {
@@ -68,7 +68,7 @@ public static class CutsceneHint
             }
             x += MapTeleportView.PadGlyph(rt, x, gy, padY, "Y") + 12;
         }
-        x += MapTeleportView.Txt(rt, x, gy, armed ? "Auto-skip on" : "Auto-skip", Theme.GoldText, 18f) + 16f;
+        x += MapTeleportView.Txt(rt, x, gy, armed ? $"Fast-forward ×{FastForward.Speed:0}" : "Fast-forward", Theme.GoldText, 18f) + 16f;
         width = x;
         rt.sizeDelta = new Vector2(width, H);
         var bg = Ui.Image(rt, "Fill", 1, 1, width - 2, H - 2, Theme.Hex(0x140e0c, 0.92f));

@@ -10,7 +10,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "fr.vasseur.belmontpractice";
     public const string Name = "Belmont Practice";
-    public const string Version = "0.34.0";
+    public const string Version = "0.35.0";
 
     internal static ManualLogSource Logger;
 
@@ -18,6 +18,7 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<float> UiScale;
     internal static ConfigEntry<float> PanelOpacity;
     internal static ConfigEntry<float> NoclipSpeed;
+    internal static ConfigEntry<float> CutsceneSpeed;
     internal static ConfigEntry<bool> FastLoad;
     internal static ConfigEntry<bool> ReloadRoom;
     internal static ConfigEntry<bool> FadeToBlack;
@@ -35,6 +36,7 @@ public class Plugin : BasePlugin
         Keybinds.Init(Config);
         UiScale = Config.Bind("Interface", "Echelle", 0.85f, "Taille de l'interface du mod (1 = grande, 0.5 = moitié)");
         NoclipSpeed = Config.Bind("Utilitaires", "VitesseNoclip", 18f, "Vitesse du noclip (Maj = x3)");
+        CutsceneSpeed = Config.Bind("Utilitaires", "VitesseCinematiques", 10f, "Accélération des cinématiques jouées avec les personnages du jeu (2 à 20). Les vidéos sont passées, jamais accélérées");
         PanelOpacity = Config.Bind("Interface", "Opacite", 0.85f, "Opacité du fond des fenêtres du mod (1 = opaque, 0.5 = très transparent)");
         FastLoad = Config.Bind("Chargement", "Rapide", true, "Dans le même niveau/biome : restaure sur place sans écran de chargement");
         ReloadRoom = Config.Bind("Chargement", "RechargerSalle", true, "Chargement rapide : force le rechargement de la salle (ennemis remis à zéro)");

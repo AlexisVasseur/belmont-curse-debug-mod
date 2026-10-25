@@ -5,31 +5,35 @@ using UnityEngine;
 namespace BelmontPractice;
 
 /// <summary>
-/// Passage automatique des cinématiques (raccourci, F7 / Y à la manette par défaut), comme si le joueur restait appuyé
-/// sur la touche de passage du jeu (A) : lignes de dialogue terminées, passages sautables sautés, vidéos passées dès
-/// que le jeu le permet. Le reste se joue à vitesse normale. Vaut pour la cinématique en cours et celles qui suivent
-/// (fin de combat, absorption, suite de l'histoire…). S'arrête à une nouvelle pression, à un chargement, ou après
-/// 20 s sans cinématique.
+/// Cinématiques en accéléré (raccourci, F7 / Y à la manette par défaut), pour la cinématique en cours et celles qui
+/// suivent (fin de combat, absorption, suite de l'histoire…) :
+///  - jouées avec les personnages du jeu (scénario, dialogues) : accélérées (×10 par défaut, réglable), lignes de
+///    dialogue terminées et passages sautables sautés ;
+///  - vidéos : passées avec la touche Passer du jeu dès qu'elle le permet, sans aucune accélération pendant la vidéo
+///    ni juste après (le scénario y attend la fin de la vidéo et refait son fondu : accéléré, l'écran restait noir).
+/// Le gameplay n'est jamais accéléré. S'arrête à une nouvelle pression, à un chargement, ou après 20 s sans cinématique.
 /// </summary>
 public static class FastForward
 {
-    const float DisarmAfter = 20f;
+    const float DisarmAfter = 20f, AfterVideo = 1.5f;
 
     // États de jeu posés pendant une cinématique (pas le verrou des menus, qui peut rester en plein gameplay)
     static readonly HashSet<string> CutsceneStates = new()
     {
-        "DialogueState", "GameplayAbsorptionState", "SequenceState", "TimelineLockInputState",
+        "DialogueState", "GameplayAbsorptionState", "SequenceState", "TimelineLockInputState", "CinematicState",
     };
 
     static bool armed;
     public static bool Armed => armed;
-    static float lastCutscene;
+    static float lastCutscene, lastVideo = -100f, appliedSpeed;
+
+    public static float Speed => Mathf.Clamp(Plugin.CutsceneSpeed?.Value ?? 10f, 2f, 20f);
 
     public static bool CutscenePlaying()
     {
         try
         {
-            // Cinématique qui a pris les commandes (celles qui les laissent au joueur ne sont pas passées : ce serait du gameplay)
+            // Cinématique qui a pris les commandes (celles qui les laissent au joueur ne sont pas accélérées : ce serait du gameplay)
             var ui = CutsceneUIManager.Instance;
             if (ui != null && ui.IsPlayingCutscene && ui._controlCount > 0) return true;
             var states = GameStateManager.GetInstance()?._states;
@@ -50,15 +54,15 @@ public static class FastForward
 
         if (pressed)
         {
-            if (armed) { Disarm(); notify?.Invoke("Cutscenes: auto-skip off", false); }
+            if (armed) { Disarm(); notify?.Invoke("Cutscenes: normal speed", false); }
             else if (playing)
             {
                 armed = true;
                 lastCutscene = now;
-                notify?.Invoke("Cutscenes: auto-skip", false);
-                Plugin.Logger.LogInfo($"[Cinématiques] passage automatique : cinématique={CutsceneUIManager.Instance?.IsPlayingCutscene}, scénarios={CutsceneManager.Instance?._directors?.Count}");
+                notify?.Invoke($"Cutscenes: fast-forward ×{Speed:0}", false);
+                Plugin.Logger.LogInfo($"[Cinématiques] accélération ×{Speed:0} : cinématique={CutsceneUIManager.Instance?.IsPlayingCutscene}, scénarios={CutsceneManager.Instance?._directors?.Count}");
             }
-            else notify?.Invoke("No cutscene to skip", false);
+            else notify?.Invoke("No cutscene to fast-forward", false);
         }
         if (!armed) return;
 
@@ -68,14 +72,50 @@ public static class FastForward
 
         if (playing) lastCutscene = now;
         else if (now - lastCutscene > DisarmAfter) { Disarm(); return; }
-        if (!playing) return;
+        if (!playing) { RestoreSpeed(); return; }
 
-        // Ce que fait la touche de passage du jeu
+        // Vraie cinématique (vidéo) : seulement la touche Passer, à vitesse normale
+        if (VideoPlaying()) lastVideo = now;
+        if (now - lastVideo < AfterVideo)
+        {
+            RestoreSpeed();
+            try { SkipVideo(); }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] vidéo : " + ex.Message); }
+            return;
+        }
+
+        // Cinématique jouée avec les personnages du jeu : temps du jeu accéléré (pause du jeu, timeScale 0 : on n'y touche pas)
+        float speed = Speed;
+        if (Time.timeScale > 0f && Time.timeScale != speed)
+        {
+            Time.timeScale = speed;
+            appliedSpeed = speed;
+        }
+        // Les scénarios avancent sur leur propre horloge : passes supplémentaires à chaque image
+        try
+        {
+            var cm = CutsceneManager.Instance;
+            float dt = Time.unscaledDeltaTime;
+            if (cm != null) for (int i = 1; i < speed; i++) cm.UpdateDirectors(dt);
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] scénarios : " + ex.Message); }
+        // Ce que fait la touche du joueur : lignes de dialogue terminées, passages sautables sautés
         SkipDialogueLines();
         try { SkipSkippableSegments(); }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] passages sautables : " + ex.Message); }
-        try { SkipVideo(); }
-        catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] vidéo : " + ex.Message); }
+    }
+
+    static bool VideoPlaying()
+    {
+        if (HasState("CinematicState")) return true;
+        var vc = CutsceneUIManager.Instance?._videoController;
+        return vc != null && (vc.IsPlayingVideo || vc.IsPreparingVideo);
+    }
+
+    static void RestoreSpeed()
+    {
+        if (appliedSpeed > 0f && Time.timeScale == appliedSpeed) Time.timeScale = 1f;
+        appliedSpeed = 0f;
     }
 
     static float acquisitionSince = -1f;
@@ -369,6 +409,7 @@ public static class FastForward
 
     static void Disarm()
     {
+        RestoreSpeed();
         armed = false;
         EndAbsorb();
     }
