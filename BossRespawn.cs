@@ -118,17 +118,40 @@ public static class BossRespawn
         return count == 1 ? any : null;
     }
 
-    static Cond ReadCond(NodeDataBase n)
+    /// <summary>Valeur d'une variable de scénario (sous-scénarios génériques : la valeur vient du scénario parent).</summary>
+    static T RefValue<T>(VariableRef r, VariablesContainer vars) where T : Il2CppSystem.Object
+    {
+        try
+        {
+            if (r == null || vars == null) return null;
+            var v = vars.GetVariable(r.Guid);
+            if (v == null) return null;
+            var real = BossDiag.Real(v);
+            return (real.GetType().GetProperty("Value")?.GetValue(real) as Il2CppSystem.Object)?.TryCast<T>();
+        }
+        catch { return null; }
+    }
+
+    static Cond ReadCond(NodeDataBase n, VariablesContainer vars = null)
     {
         var pk = n.TryCast<ResolverConditionProgressionKeyNodeData>();
-        if (pk != null) return pk.ProgressionKey == null || pk.ProgressionKey.UseRef || pk.ProgressionKey.Value == null ? null
-            : new Cond { kind = Kind.Key, key = pk.ProgressionKey.Value };
+        if (pk != null)
+        {
+            var key = pk.ProgressionKey == null ? null : pk.ProgressionKey.UseRef ? RefValue<ProgressionKeyID>(pk.ProgressionKey.ValueRef, vars) : pk.ProgressionKey.Value;
+            return key == null ? null : new Cond { kind = Kind.Key, key = key };
+        }
         var ar = n.TryCast<ResolverConditionArcanaStateNodeData>();
-        if (ar != null) return ar.Character == null || ar.Character.UseRef || ar.Character.Value == null ? null
-            : new Cond { kind = Kind.Arcana, character = ar.Character.Value, step = ar.ArcanaState };
+        if (ar != null)
+        {
+            var ch = ar.Character == null ? null : ar.Character.UseRef ? RefValue<CharacterID>(ar.Character.ValueRef, vars) : ar.Character.Value;
+            return ch == null ? null : new Cond { kind = Kind.Arcana, character = ch, step = ar.ArcanaState };
+        }
         var wc = n.TryCast<ResolverConditionHasWatchedCutsceneNodeData>();
-        if (wc != null) return wc.CutsceneData == null || wc.CutsceneData.UseRef || wc.CutsceneData.Value == null ? null
-            : new Cond { kind = Kind.Cutscene, cutsceneId = wc.CutsceneData.Value.ID };
+        if (wc != null)
+        {
+            var cs = wc.CutsceneData == null ? null : wc.CutsceneData.UseRef ? RefValue<CutsceneData>(wc.CutsceneData.ValueRef, vars) : wc.CutsceneData.Value;
+            return cs == null ? null : new Cond { kind = Kind.Cutscene, cutsceneId = cs.ID };
+        }
         return null;
     }
 
@@ -244,13 +267,16 @@ public static class BossRespawn
         var nodes = director._resolverData.Nodes;
         foreach (var n in nodes)
         {
-            var sub = n?.TryCast<ResolverPlaySubResolverNodeData>()?.SubResolverData?.Nodes;
+            var play = n?.TryCast<ResolverPlaySubResolverNodeData>();
+            var sub = play?.SubResolverData?.Nodes;
             if (sub == null) continue;
             foreach (var sn in sub)
             {
                 if (sn?.TryCast<ResolverConditionHasWatchedCutsceneNodeData>() == null) continue;
-                var cond = ReadCond(sn);
-                if (cond == null || !done.Add(cond.Id) || !Evaluate(cond)) continue;
+                var cond = ReadCond(sn, play.VariablesContainer);
+                bool watched = cond != null && Evaluate(cond);
+                Plugin.Logger.LogInfo($"[Respawn] sous-scénario '{play.SubResolverData.name}' : {cond?.Id ?? "cinématique illisible"} vue={watched}");
+                if (cond == null || !watched || !done.Add(cond.Id)) continue;
                 applied.Add(new Change { cond = cond, original = true });
                 Set(cond, false);
             }

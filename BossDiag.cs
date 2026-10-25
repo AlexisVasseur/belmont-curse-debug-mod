@@ -19,7 +19,7 @@ public static class BossDiag
     static readonly MethodInfo tryCast = typeof(Il2CppObjectBase).GetMethod("TryCast");
 
     /// <summary>Objet Il2Cpp converti vers son vrai type managé (sinon tel quel).</summary>
-    static object Real(Il2CppObjectBase o)
+    public static object Real(Il2CppObjectBase o)
     {
         try
         {
@@ -111,6 +111,44 @@ public static class BossDiag
         catch (Exception ex) { Plugin.Logger.LogWarning("[Boss] déroulé : " + ex); }
     }
 
+    /// <summary>Nœuds d'un graphe (et, pour les sous-scénarios, leurs variables et leurs propres nœuds).</summary>
+    static void DumpNodes(StringBuilder sb, Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<NodeDataBase> nodes, string indent, int depth)
+    {
+        for (int i = 0; i < nodes.Length; i++)
+        {
+            var n = nodes[i];
+            if (n == null) continue;
+            var real = Real(n);
+            var t = real.GetType();
+            var fields = new List<string>();
+            for (var tt = t; tt != null && tt.Name != "ResolverNodeDataBase" && tt.Name != "NodeDataBase" && tt != typeof(object); tt = tt.BaseType)
+                foreach (var p in tt.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                {
+                    if (p.GetIndexParameters().Length > 0 || p.Name == "ElseNodes" || p.Name == "IsUniquePerBranch" || p.Name == "VariablesContainer") continue;
+                    try { fields.Add(p.Name + "=" + Short(p.GetValue(real))); } catch { }
+                }
+            string els = "";
+            try { if (real.GetType().GetProperty("ElseNodes")?.GetValue(real) is Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<int> e) els = " sinon→" + Ints(e); } catch { }
+            sb.AppendLine($"{indent}[{i}] {t.Name.Replace("NodeData", "")} {string.Join(" ", fields)} →{Ints(n.NextNodes)}{els}");
+
+            var play = n.TryCast<ResolverPlaySubResolverNodeData>();
+            if (play == null || depth > 2) continue;
+            try
+            {
+                var vars = play.VariablesContainer?._variables;
+                if (vars != null)
+                    for (int v = 0; v < vars.Count; v++)
+                    {
+                        var rv = Real(vars[v]);
+                        sb.AppendLine($"{indent}      var {vars[v].Guid} {rv.GetType().Name} = {Short(rv.GetType().GetProperty("Value")?.GetValue(rv))}");
+                    }
+                var subNodes = play.SubResolverData?.Nodes;
+                if (subNodes != null) DumpNodes(sb, subNodes, indent + "      ", depth + 1);
+            }
+            catch (Exception ex) { sb.AppendLine($"{indent}      (sous-scénario illisible : {ex.Message})"); }
+        }
+    }
+
     public static void DumpDirectors(string when)
     {
         try
@@ -135,23 +173,7 @@ public static class BossDiag
                 var cur = new List<int>();
                 try { var cn = d._resolver?._currentNodes; if (cn != null) for (int i = 0; i < cn.Count; i++) cur.Add(cn[i].Index); } catch { }
                 sb.AppendLine($"  director '{d.name}' actif={d.isActiveAndEnabled} données='{data.name}' départ={Ints(data.StartIndexes)} en cours=[{string.Join(",", cur)}]");
-                for (int i = 0; i < nodes.Length; i++)
-                {
-                    var n = nodes[i];
-                    if (n == null) continue;
-                    var real = Real(n);
-                    var t = real.GetType();
-                    var fields = new List<string>();
-                    for (var tt = t; tt != null && tt.Name != "ResolverNodeDataBase" && tt.Name != "NodeDataBase" && tt != typeof(object); tt = tt.BaseType)
-                        foreach (var p in tt.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-                        {
-                            if (p.GetIndexParameters().Length > 0 || p.Name == "ElseNodes" || p.Name == "IsUniquePerBranch") continue;
-                            try { fields.Add(p.Name + "=" + Short(p.GetValue(real))); } catch { }
-                        }
-                    string els = "";
-                    try { if (real.GetType().GetProperty("ElseNodes")?.GetValue(real) is Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<int> e) els = " sinon→" + Ints(e); } catch { }
-                    sb.AppendLine($"    [{i}] {t.Name.Replace("NodeData", "")} {string.Join(" ", fields)} →{Ints(n.NextNodes)}{els}");
-                }
+                DumpNodes(sb, nodes, "    ", 0);
             }
             foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<BossFight>()))
             {
