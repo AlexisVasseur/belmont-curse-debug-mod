@@ -135,29 +135,49 @@ public static class FastForward
         if (vc == null || !vc.IsPlayingVideo || !vc.isReadyToSkip) return;
         var clip = vc._currentVideoClipData;
         if (clip == null || clip == skippedVideo) return;
+        // Entrées « touche → effet » des menus (couche de menu de la vidéo) et des objets de la scène
+        var sources = new List<(string owner, Il2CppSystem.Collections.Generic.List<InputActionsToUnityEvent> actions)>();
+        foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppInterop.Runtime.Il2CppType.Of<MenuStackLayerInputs>()))
+        {
+            var c = o.TryCast<MenuStackLayerInputs>();
+            if (c != null && c.isActiveAndEnabled && c.allActions != null) sources.Add((c.gameObject.name, c.allActions));
+        }
         foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppInterop.Runtime.Il2CppType.Of<InputActionsToUnityEvents>()))
         {
             var c = o.TryCast<InputActionsToUnityEvents>();
-            var all = c?.allActions;
-            if (all == null || !c.isActiveAndEnabled) continue;
+            if (c != null && c.isActiveAndEnabled && c.allActions != null) sources.Add((c.gameObject.name, c.allActions));
+        }
+
+        var seen = new List<string>();
+        foreach (var (owner, all) in sources)
+        {
             for (int i = 0; i < all.Count; i++)
             {
                 var a = all[i];
-                var cond = a?.longPressCondition?.TryCast<VideoReadyToSkipBooleanProvider>();
-                if (cond == null || !cond.GetValue()) continue;
-                skippedVideo = clip;
+                if (a == null) continue;
                 var ev = a.inputEffect;
                 var targets = new List<string>();
+                bool targetsVideo = false;
                 for (int k = 0; ev != null && k < ev.GetPersistentEventCount(); k++)
-                    targets.Add($"{ev.GetPersistentTarget(k)?.name}.{ev.GetPersistentMethodName(k)}");
+                {
+                    var t = ev.GetPersistentTarget(k);
+                    targets.Add($"{t?.name}.{ev.GetPersistentMethodName(k)}");
+                    if (t != null && (t.GetInstanceID() == vc.GetInstanceID() || t.GetInstanceID() == vc.gameObject.GetInstanceID())) targetsVideo = true;
+                }
+                var cond = a.longPressCondition;
+                bool videoCond = cond?.TryCast<VideoReadyToSkipBooleanProvider>() != null;
+                seen.Add($"'{owner}' [{a.inputMode}, condition {cond?.GetIl2CppType()?.Name ?? "aucune"}] → {string.Join(", ", targets)}");
+                if (!videoCond && !targetsVideo) continue;
+                if (cond != null && !cond.GetValue()) return; // pas encore prête : on réessaie à l'image suivante
+                skippedVideo = clip;
                 a.onLongPressStart?.Invoke();
                 ev?.Invoke();
-                Plugin.Logger.LogInfo($"[Cinématiques] vidéo '{clip.name}' passée par la touche du jeu ('{c.gameObject.name}' → {string.Join(", ", targets)})");
+                Plugin.Logger.LogInfo($"[Cinématiques] vidéo '{clip.name}' passée par la touche du jeu ('{owner}' → {string.Join(", ", targets)})");
                 return;
             }
         }
         skippedVideo = clip;
-        Plugin.Logger.LogWarning($"[Cinématiques] vidéo '{clip.name}' : touche Passer du jeu introuvable, vidéo laissée");
+        Plugin.Logger.LogWarning($"[Cinématiques] vidéo '{clip.name}' : touche Passer du jeu introuvable, vidéo laissée. Entrées actives : {(seen.Count == 0 ? "aucune" : string.Join(" | ", seen))}");
     }
 
     static void RestoreSpeed()
