@@ -271,14 +271,55 @@ public static class BossRespawn
         armedConds = null;
     }
 
+    // ---------- Après le combat ----------
+
+    static float watchUntil, lockSince = -1f;
+    static int lockId = -1;
+
+    /// <summary>
+    /// Après un combat forcé, la suite de l'histoire peut ne plus se jouer (Death I : le sauvetage par Trevor est déjà
+    /// passé) et laisser les menus verrouillés (GameplayLockMenuState) sans rien par-dessus. Ce verrou orphelin est
+    /// retiré s'il reste seul au sommet 6 s d'affilée.
+    /// </summary>
+    static void WatchAfterFight()
+    {
+        if (watchUntil <= 0f) return;
+        float now = Time.unscaledTime;
+        var gsm = GameStateManager.GetInstance();
+        var states = gsm?._states;
+        if (states == null || states.Count == 0) { watchUntil = 0f; return; }
+        var top = states.Peek();
+        string name = top?.Item2?.name ?? "";
+        if (name == "GameplayLockMenuState")
+        {
+            if (lockId != top.Item1) { lockId = top.Item1; lockSince = now; }
+            else if (now - lockSince >= 6f)
+            {
+                gsm.PopState(top.Item1, gsm);
+                Plugin.Logger.LogInfo($"[Respawn] après le combat : verrou des menus orphelin retiré (id {top.Item1})");
+                lockId = -1;
+            }
+        }
+        else lockId = -1;
+        if (now > watchUntil)
+        {
+            watchUntil = 0f;
+            var names = new List<string>();
+            foreach (var t in states.ToArray()) names.Add($"{t?.Item2?.name}#{t?.Item1}");
+            Plugin.Logger.LogInfo("[Respawn] après le combat, états du jeu : " + string.Join(" > ", names));
+        }
+    }
+
     public static void Update()
     {
+        try { WatchAfterFight(); } catch (Exception ex) { watchUntil = 0f; Plugin.Logger.LogWarning("[Respawn] après le combat : " + ex.Message); }
         try { UpdateTrace(); } catch (Exception ex) { traced = null; Plugin.Logger.LogWarning("[Respawn] relevé : " + ex.Message); }
         // Boss battu : la progression modifiée (porte, clés…) est remise aussitôt, avant que le scénario
         // ne reparte de son début (il retrouve ainsi l'état d'avant le combat).
         if (activeBoss != null && applied.Count > 0 && (armedBoss == null || armedEntered) && Bosses.IsDefeated(activeBoss) == true)
         {
             Plugin.Logger.LogInfo($"[Respawn] {activeBoss.Name} battu : progression d'avant le combat remise");
+            watchUntil = Time.unscaledTime + 30f;
             Revert();
             Pending.Remove(activeBoss.Id.name);
             armedBoss = null;
