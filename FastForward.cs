@@ -141,111 +141,120 @@ public static class FastForward
         return waiting;
     }
 
-    // Absorption en cours : moment où l'interaction a été lancée, repli déjà fait, conditions d'entrée suspendues
+    // Absorption en cours : début du maintien simulé de RB, repli déjà fait, états de touche tenus
     static float absorbStartedAt = -1f;
     static bool absorbFallbackDone;
-    static readonly List<(AStartConditionFeature f, bool stop, bool ignore)> relaxed = new();
+    static MotherBase.ActionFramework.PlayerInput heldInput;
+    static readonly List<int> heldStates = new();
 
     /// <summary>
-    /// L'orbe s'absorbe en maintenant RB : l'action d'interaction longue du personnage ne dure que tant que la touche est
-    /// tenue, et valide l'absorption à sa fin. On la lance nous-mêmes, sa condition « touche tenue » suspendue : le jeu
-    /// fait alors toute la suite (animation, orbe absorbée, évènement attendu par le scénario).
-    /// Repli au bout de 3 s si le scénario attend toujours : évènement déclenché et orbe rendue inactive.
+    /// L'orbe s'absorbe en maintenant RB pendant l'action d'absorption du personnage. On tient RB à la place du joueur,
+    /// dans l'état des touches que lit le jeu : il fait alors toute la suite (animation, orbe absorbée, évènement
+    /// attendu par le scénario). Repli au bout de 4 s si le scénario attend toujours : évènement déclenché et orbe désactivée.
     /// </summary>
     static void Absorb()
     {
         var pending = PendingEvents();
-        if (pending.Count == 0) return; // orbe pas encore prête, ou absorption déjà faite
+        if (pending.Count == 0) { ReleaseHeld(); return; } // orbe pas encore prête, ou absorption faite
         float now = Time.unscaledTime;
-        if (absorbStartedAt < 0f)
+        bool first = absorbStartedAt < 0f;
+        if (first)
         {
             absorbStartedAt = now;
             StartAbsorption();
-            return;
         }
-        if (absorbFallbackDone || now - absorbStartedAt < 3f) return;
+        HoldStates(first);
+        if (absorbFallbackDone || now - absorbStartedAt < 4f) return;
         absorbFallbackDone = true;
+        ReleaseHeld();
         foreach (var ev in pending) ev.OnEventTriggered();
         foreach (var it in OrbInteractibles()) it.DisableInteractible();
-        Plugin.Logger.LogWarning("[Cinématiques] absorption : interaction sans effet, évènement déclenché et orbe désactivée (repli)");
+        Plugin.Logger.LogWarning("[Cinématiques] absorption : RB simulé sans effet, évènement déclenché et orbe désactivée (repli)");
     }
 
     static void StartAbsorption()
     {
         if (!MainCharacterSingleton.TryGetEntity(out MotherBase.EntityFramework.Entity player) || player == null) return;
         var actor = player.GetComponentInChildren<MotherBase.ActionFramework.Actor>(true);
-        if (actor == null) { Plugin.Logger.LogWarning("[Cinématiques] absorption : personnage sans Actor"); return; }
-
-        // Actions candidates : celle que l'orbe fait jouer au personnage, et celles des touches du joueur.
-        // La bonne est celle qui valide une interaction longue.
-        var candidates = new List<MotherBase.ActionFramework.ActionTrigger>();
-        foreach (var it in OrbInteractibles())
-        {
-            Plugin.Logger.LogInfo($"[Cinématiques] absorption : orbe '{it.gameObject.name}', personnage → '{it.interactorInteractionAction?.name}', orbe → '{it.selfInteractionAction?.name}', actif={it.enabled}");
-            if (it.interactorInteractionAction != null) candidates.Add(it.interactorInteractionAction);
-        }
         var input = player.GetComponentInChildren<MotherBase.ActionFramework.PlayerInput>(true);
-        var binds = input?.data?.inputBindings;
-        if (binds != null) foreach (var b in binds) if (b?.action != null) candidates.Add(b.action);
+        if (actor == null || input?.data == null) { Plugin.Logger.LogWarning("[Cinématiques] absorption : personnage sans Actor / PlayerInput"); return; }
+        Plugin.Logger.LogInfo($"[Cinématiques] absorption : actions en cours [{ActiveActionNames(actor)}]");
+        foreach (var it in OrbInteractibles())
+            Plugin.Logger.LogInfo($"[Cinématiques] absorption : orbe '{it.gameObject.name}', personnage → '{it.interactorInteractionAction?.name}', orbe → '{it.selfInteractionAction?.name}', actif={it.enabled}");
 
-        MotherBase.ActionFramework.ActionTrigger trigger = null;
-        MotherBase.ActionFramework.ActionData data = null;
-        foreach (var t in candidates)
+        // États de touche tenus (lus par les actions) liés à RB
+        var states = input.data.inputStates;
+        for (int i = 0; states != null && i < states.Length; i++)
         {
-            MotherBase.ActionFramework.ActionData d = null;
-            try { d = t.GetActionData(player); } catch { }
-            if (d != null && Feature<LongInteractValidationFeature>(d) != null) { trigger = t; data = d; break; }
+            var b = states[i];
+            string paths = BindingPaths(b?.input?.action);
+            bool rb = paths.IndexOf("rightShoulder", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (rb) heldStates.Add(i);
+            if (rb || Plugin.BossDiagnostics.Value) Plugin.Logger.LogInfo($"[Cinématiques] absorption : état {i} '{b?.state?.name}' ← '{b?.input?.action?.name}' [{paths}]{(rb ? " tenu" : "")}");
         }
-        Plugin.Logger.LogInfo($"[Cinématiques] absorption : actions en cours [{ActiveActionNames(actor)}], interaction longue '{data?.name}'");
-        if (data == null) return;
+        heldInput = input;
 
-        // Condition « touche tenue » suspendue le temps de l'absorption (rétablie à la sortie de l'état d'absorption)
-        var features = data.actionFeatures;
-        for (int i = 0; features != null && i < features.Count; i++)
+        // Évènements de touche (début d'appui) liés à RB : envoyés comme à l'appui réel
+        var binds = input.data.inputBindings;
+        for (int i = 0; binds != null && i < binds.Length; i++)
         {
-            var sc = features[i]?.TryCast<AStartConditionFeature>();
-            if (sc == null || sc.TryCast<InputConditionFeature>() == null) continue;
-            relaxed.Add((sc, sc.stopActionIfConditionNoLongerValid, sc.ignoreConditionForCanStart));
-            sc.stopActionIfConditionNoLongerValid = false;
-            sc.ignoreConditionForCanStart = true;
-        }
-
-        bool ok = actor.TryStartAction(player, trigger);
-        if (!ok)
-        {
-            // Action d'attente en cours qui refuse d'être enchaînée : on l'interrompt avec l'interaction
-            var active = actor.activeActions;
-            for (int i = 0; !ok && active != null && i < active.Count; i++)
+            var b = binds[i];
+            if (b == null || b.inputPhase == UnityEngine.InputSystem.InputActionPhase.Canceled) continue;
+            string paths = BindingPaths(b.input?.action);
+            if (paths.IndexOf("rightShoulder", StringComparison.OrdinalIgnoreCase) < 0) continue;
+            bool ok = false;
+            try
             {
-                var a = active[i];
-                if ((a?.data?.name ?? "").IndexOf("WaitForInput", StringComparison.OrdinalIgnoreCase) >= 0)
-                    ok = actor.TryInterruptActionWith(player, a, trigger);
+                if (b.signal != null) ok = actor.TryProcessSignal(player, b.signal);
+                else if (b.action != null) ok = actor.TryStartAction(player, b.action);
             }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] absorption : " + ex.Message); }
+            Plugin.Logger.LogInfo($"[Cinématiques] absorption : appui '{b.input?.action?.name}' ({b.inputPhase}) → signal '{b.signal?.name}' / action '{b.action?.name}' : {(ok ? "accepté" : "refusé")}");
         }
-        Plugin.Logger.LogInfo($"[Cinématiques] absorption : interaction longue {(ok ? "lancée" : "refusée")}, actions [{ActiveActionNames(actor)}]");
+        Plugin.Logger.LogInfo($"[Cinématiques] absorption : RB tenu ({heldStates.Count} état(s) sur {input.inputActionStates?.Length}), actions [{ActiveActionNames(actor)}]");
+    }
+
+    static void HoldStates(bool first)
+    {
+        var arr = heldInput?.inputActionStates;
+        if (arr == null) return;
+        foreach (int i in heldStates)
+            if (i < arr.Length) arr[i] = new MotherBase.ActionFramework.PlayerInput.InputState { pressed = first, released = false, isDown = true };
+    }
+
+    static void ReleaseHeld()
+    {
+        try
+        {
+            var arr = heldInput?.inputActionStates;
+            if (arr != null)
+                foreach (int i in heldStates)
+                    if (i < arr.Length) arr[i] = new MotherBase.ActionFramework.PlayerInput.InputState { pressed = false, released = true, isDown = false };
+        }
+        catch { }
+        heldStates.Clear();
+        heldInput = null;
     }
 
     static void EndAbsorb()
     {
-        foreach (var (f, stop, ignore) in relaxed)
-        {
-            try { if (f != null) { f.stopActionIfConditionNoLongerValid = stop; f.ignoreConditionForCanStart = ignore; } }
-            catch { }
-        }
-        relaxed.Clear();
+        ReleaseHeld();
         absorbStartedAt = -1f;
         absorbFallbackDone = false;
     }
 
-    static T Feature<T>(MotherBase.ActionFramework.ActionData d) where T : MotherBase.ActionFramework.ActionFeature
+    /// <summary>Chemins des touches d'une action de saisie (ex. "&lt;Gamepad&gt;/rightShoulder").</summary>
+    static string BindingPaths(UnityEngine.InputSystem.InputAction action)
     {
-        var features = d.actionFeatures;
-        for (int i = 0; features != null && i < features.Count; i++)
+        if (action == null) return "";
+        var paths = new List<string>();
+        try
         {
-            var f = features[i]?.TryCast<T>();
-            if (f != null) return f;
+            var bindings = action.bindings;
+            for (int i = 0; i < bindings.Count; i++) paths.Add(bindings[i].effectivePath);
         }
-        return null;
+        catch { }
+        return string.Join(", ", paths);
     }
 
     static string ActiveActionNames(MotherBase.ActionFramework.Actor actor)
