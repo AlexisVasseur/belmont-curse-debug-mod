@@ -74,7 +74,12 @@ public static class FastForward
         else if (now - lastCutscene > DisarmAfter) { Disarm(); return; }
         if (!playing)
         {
-            if (videoSkippedInCutscene) { videoSkippedInCutscene = false; LogScreenState("fin de la cinématique après vidéo passée"); }
+            if (videoSkippedInCutscene)
+            {
+                videoSkippedInCutscene = false;
+                LogScreenState("fin de la cinématique après vidéo passée");
+                CloseLeftoverVideoScreen();
+            }
             RestoreSpeed();
             return;
         }
@@ -139,6 +144,20 @@ public static class FastForward
     static UnityEngine.Object skippedVideo;
     static bool videoSkippedInCutscene;
 
+    /// <summary>Écran de la vidéo resté affiché (noir) alors qu'aucune vidéo ne joue : refermé.</summary>
+    static void CloseLeftoverVideoScreen()
+    {
+        try
+        {
+            var vc = CutsceneUIManager.Instance?._videoController;
+            if (vc == null || vc.IsPlayingVideo || vc.IsPreparingVideo || vc.videoImageCanvas == null || !vc.videoImageCanvas.enabled) return;
+            vc.CloseVideo();
+            if (vc.videoImageCanvas.enabled) vc.videoImageCanvas.enabled = false;
+            Plugin.Logger.LogInfo($"[Cinématiques] écran vidéo resté affiché sans vidéo : refermé (écran vidéo {vc.videoImageCanvas.enabled}/{vc._videoPresenter?.isActiveAndEnabled})");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] écran vidéo : " + ex.Message); }
+    }
+
     /// <summary>Relevé de ce qui peut rester affiché en noir (fondu des cinématiques, écran de la vidéo).</summary>
     static void LogScreenState(string when)
     {
@@ -162,6 +181,9 @@ public static class FastForward
     {
         var vc = CutsceneUIManager.Instance?._videoController;
         if (vc == null || !vc.IsPlayingVideo || !vc.isReadyToSkip) return;
+        // L'image de la vidéo s'affiche avec un délai (videoShowDelay) : passée avant, l'affichage s'allume ensuite sur une
+        // vidéo fermée et reste noir. On attend qu'elle soit à l'écran, comme le joueur qui appuie en la voyant.
+        if (vc.videoImageCanvas == null || !vc.videoImageCanvas.enabled || vc._timeSinceVideoStarted < vc.videoShowDelay + 0.3f) return;
         var clip = vc._currentVideoClipData;
         if (clip == null || clip == skippedVideo) return;
         // Entrées « touche → effet » des menus (couche de menu de la vidéo) et des objets de la scène
