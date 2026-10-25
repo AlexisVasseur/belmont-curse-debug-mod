@@ -9,8 +9,8 @@ namespace BelmontPractice;
 /// suivent (fin de combat, absorption, suite de l'histoire…) :
 ///  - jouées avec les personnages du jeu (scénario, dialogues) : accélérées (×10 par défaut, réglable), lignes de
 ///    dialogue terminées et passages sautables sautés ;
-///  - vidéos (hors moteur du jeu) : jouées en entier à vitesse normale, ainsi que juste après. Ni accélérées ni passées :
-///    passées (même avec la touche du jeu), elles laissent l'écran noir après la scène de Trevor (Death I).
+///  - vidéos (hors moteur du jeu) : jamais accélérées (ni juste après), passées comme par l'appui long du joueur sur la
+///    touche Passer.
 /// Le gameplay n'est jamais accéléré. S'arrête à une nouvelle pression, à un chargement, ou après 20 s sans cinématique.
 /// </summary>
 public static class FastForward
@@ -74,8 +74,14 @@ public static class FastForward
         else if (now - lastCutscene > DisarmAfter) { Disarm(); return; }
         if (!playing) { RestoreSpeed(); return; }
 
-        // Vidéo : laissée telle quelle, à vitesse normale
-        if (InVideo) { RestoreSpeed(); return; }
+        // Vidéo : à vitesse normale, passée comme par l'appui long du joueur sur la touche Passer
+        if (InVideo)
+        {
+            RestoreSpeed();
+            try { PressVideoSkip(); }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] vidéo : " + ex.Message); }
+            return;
+        }
 
         // Cinématique jouée avec les personnages du jeu : temps du jeu accéléré (pause du jeu, timeScale 0 : on n'y touche pas)
         float speed = Speed;
@@ -114,6 +120,44 @@ public static class FastForward
         if (HasState("CinematicState")) return true;
         var vc = CutsceneUIManager.Instance?._videoController;
         return vc != null && (vc.IsPlayingVideo || vc.IsPreparingVideo);
+    }
+
+    static UnityEngine.Object skippedVideo;
+
+    /// <summary>
+    /// Passe la vidéo en cours comme le joueur : la touche Passer est un appui long (InputActionsToUnityEvents, condition
+    /// « vidéo prête à passer ») dont l'effet est déclenché ici, une fois par vidéo. L'appel direct de
+    /// VideoController.TrySkipVideo laissait l'écran noir après la scène de Trevor (Death I).
+    /// </summary>
+    static void PressVideoSkip()
+    {
+        var vc = CutsceneUIManager.Instance?._videoController;
+        if (vc == null || !vc.IsPlayingVideo || !vc.isReadyToSkip) return;
+        var clip = vc._currentVideoClipData;
+        if (clip == null || clip == skippedVideo) return;
+        foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppInterop.Runtime.Il2CppType.Of<InputActionsToUnityEvents>()))
+        {
+            var c = o.TryCast<InputActionsToUnityEvents>();
+            var all = c?.allActions;
+            if (all == null || !c.isActiveAndEnabled) continue;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var a = all[i];
+                var cond = a?.longPressCondition?.TryCast<VideoReadyToSkipBooleanProvider>();
+                if (cond == null || !cond.GetValue()) continue;
+                skippedVideo = clip;
+                var ev = a.inputEffect;
+                var targets = new List<string>();
+                for (int k = 0; ev != null && k < ev.GetPersistentEventCount(); k++)
+                    targets.Add($"{ev.GetPersistentTarget(k)?.name}.{ev.GetPersistentMethodName(k)}");
+                a.onLongPressStart?.Invoke();
+                ev?.Invoke();
+                Plugin.Logger.LogInfo($"[Cinématiques] vidéo '{clip.name}' passée par la touche du jeu ('{c.gameObject.name}' → {string.Join(", ", targets)})");
+                return;
+            }
+        }
+        skippedVideo = clip;
+        Plugin.Logger.LogWarning($"[Cinématiques] vidéo '{clip.name}' : touche Passer du jeu introuvable, vidéo laissée");
     }
 
     static void RestoreSpeed()
