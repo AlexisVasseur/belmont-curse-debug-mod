@@ -44,12 +44,29 @@ public static class BossRespawn
         if (boss?.Id == null || !Pending.Contains(boss.Id.name)) return;
         if (Bosses.IsDefeated(boss) == true) { Pending.Remove(boss.Id.name); return; }
         activeBoss = boss;
-        searchUntil = Time.unscaledTime + 6f; // le scénario n'existe qu'une fois la salle chargée
+        float now = Time.unscaledTime;
+        // L'arène ne prépare le boss qu'à son chargement, et seulement s'il n'est pas vaincu à ce moment-là.
+        // Elle a souvent été chargée avant le passage à « Alive » (salle voisine, partie lancée dans l'arène) :
+        // on la recharge une fois à l'entrée, derrière le noir, puis on force le combat.
+        if (now - reloadedAt > 15f) { reloadAt = now + 0.6f; searchUntil = 0f; }
+        else searchUntil = now + 6f; // le scénario n'existe qu'une fois la salle chargée
+    }
+
+    static float reloadAt, reloadedAt = -100f;
+    static bool reloadRequested;
+
+    /// <summary>Demande de rechargement de l'arène (traitée par PracticeBehaviour, comme une savestate de l'instant).</summary>
+    public static bool TakeRoomReload()
+    {
+        if (!reloadRequested) return false;
+        reloadRequested = false;
+        return true;
     }
 
     public static void OnLeaveArena()
     {
         searchUntil = 0f;
+        reloadAt = 0f;
         if (activeBoss == null) return;
         bool beaten = Bosses.IsDefeated(activeBoss) == true;
         if (beaten) Pending.Remove(activeBoss.Id.name);
@@ -60,6 +77,13 @@ public static class BossRespawn
 
     public static void Update()
     {
+        if (reloadAt > 0f && Time.unscaledTime >= reloadAt && activeBoss != null)
+        {
+            reloadAt = 0f;
+            reloadedAt = Time.unscaledTime;
+            reloadRequested = true;
+            Plugin.Logger.LogInfo($"[Respawn] {activeBoss.Name} : rechargement de l'arène pour qu'elle prépare le boss");
+        }
         try { UpdateTrace(); } catch (Exception ex) { traced = null; Plugin.Logger.LogWarning("[Respawn] relevé : " + ex.Message); }
         // Boss battu : la progression modifiée pour forcer le combat (porte, clés…) est remise aussitôt,
         // avant que le scénario ne reparte de son début (il retrouve ainsi l'état d'avant le combat).

@@ -65,6 +65,7 @@ public class PracticeBehaviour : MonoBehaviour
             try
             {
                 Arenas.Update(sequence.Active);
+                if (BossRespawn.TakeRoomReload() && !sequence.Active) Load(GameBridge.Capture(null)); // arène rechargée sur place
                 if (Arenas.TakeRequest(out var level, out var pos, out bool full) && !sequence.Active)
                     Load(GameBridge.CaptureForTeleport(level, pos, full));
             }
