@@ -288,6 +288,7 @@ public static class BossRespawn
     // ---------- Après le combat ----------
 
     static float watchUntil, lockSince = -1f, dumpAfterAt;
+    static string watchRoom;
     static int lockId = -1;
 
     /// <summary>
@@ -315,7 +316,10 @@ public static class BossRespawn
             }
         }
         else lockId = -1;
-        // Diagnostic : scénarios chargés après le combat (la suite de l'histoire, ex. sauvetage par Trevor après Death I)
+        // Diagnostic : scénarios chargés après le combat (la suite de l'histoire, ex. sauvetage par Trevor après Death I),
+        // 3 s après chaque changement de salle
+        string room = GameBridge.CurrentRoomId();
+        if (room != watchRoom) { watchRoom = room; dumpAfterAt = now + 3f; }
         if (dumpAfterAt > 0f && now >= dumpAfterAt) { dumpAfterAt = 0f; BossDiag.DumpDirectors("après le combat", all: true); }
         if (now > watchUntil)
         {
@@ -335,7 +339,7 @@ public static class BossRespawn
         if (activeBoss != null && applied.Count > 0 && (armedBoss == null || armedEntered) && EncounterDone())
         {
             Plugin.Logger.LogInfo($"[Respawn] {activeBoss.Name} battu : progression d'avant le combat remise");
-            watchUntil = Time.unscaledTime + 30f;
+            watchUntil = Time.unscaledTime + 120f; // la cinématique de fin et le changement de salle peuvent être longs
             dumpAfterAt = Time.unscaledTime + 8f; // après la cinématique de fin et le changement de salle éventuel
             Revert();
             Pending.Remove(activeBoss.Id.name);
