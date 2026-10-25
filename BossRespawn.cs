@@ -173,8 +173,17 @@ public static class BossRespawn
         armedKey = null;
         armedConds = null;
         var conds = LoadPlan(boss, key);
-        if (conds == null) { Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : conditions du combat pas encore connues"); return false; }
         Revert(); // un éventuel forçage précédent
+        if (conds == null)
+        {
+            // Conditions encore inconnues : elles seront lues devant la porte, une fois l'arène voisine chargée
+            Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : conditions du combat pas encore connues, lecture devant la porte");
+            saveCopy = SaveGuard.Take();
+            armedBoss = boss; armedKey = key; armedEntered = false; prescanned = false; prescanAt = 0f;
+            activeBoss = boss; activeKey = key;
+            armedConds = null;
+            return false;
+        }
         saveCopy = SaveGuard.Take(); // le scénario peut sauvegarder la partie pendant le combat
         var done = new HashSet<string>();
         foreach (var (c, v) in conds)
@@ -196,6 +205,8 @@ public static class BossRespawn
         armedBoss = boss;
         armedKey = key;
         armedEntered = false;
+        prescanned = false;
+        prescanAt = 0f;
         armedConds = conds;
         activeBoss = boss;
         activeKey = key;
@@ -429,13 +440,52 @@ public static class BossRespawn
         }
     }
 
+    // ---------- Devant la porte ----------
+
+    static float prescanAt;
+    static bool prescanned;
+
+    /// <summary>
+    /// Après le TP de Fight, le joueur est devant la porte : l'arène voisine est chargée mais pas encore entrée, et son
+    /// scénario ne démarre qu'à l'entrée. On lit son scénario et ses spawners maintenant et on met en place tout ce qui
+    /// manque : à l'entrée, tout est prêt (pas de rechargement, même pour un boss jamais fait).
+    /// </summary>
+    static void PrescanBeforeDoor()
+    {
+        if (armedBoss == null || armedEntered || prescanned) { prescanAt = 0f; return; }
+        float now = Time.unscaledTime;
+        if (prescanAt <= 0f) { prescanAt = now + 0.5f; return; } // première frame après le chargement
+        if (now < prescanAt) return;
+        prescanned = true;
+        var boss = armedBoss;
+        var director = FindDirector(boss, includeInactive: true);
+        if (director == null) { Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : arène pas encore chargée devant la porte, vérification à l'entrée"); return; }
+        var conds = Conditions(director, boss);
+        if (conds == null) return;
+        StorePlan(boss, conds);
+        saveCopy ??= SaveGuard.Take();
+        var done = new HashSet<string>(applied.Select(c => c.cond.Id));
+        var changed = new List<string>();
+        foreach (var (c, v) in conds)
+        {
+            if (!done.Add(c.Id) || Evaluate(c) == v) continue;
+            applied.Add(new Change { cond = c, original = !v, originalStep = c.kind == Kind.Arcana ? Step(c.character) : default });
+            Set(c, v);
+            changed.Add($"{c.Id} → {v}");
+        }
+        Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : arène lue devant la porte ('{director.name}'), "
+            + (changed.Count == 0 ? "tout est déjà en place" : "mis en place : " + string.Join(", ", changed)));
+    }
+
     public static void Update()
     {
+        try { PrescanBeforeDoor(); } catch (Exception ex) { prescanned = true; Plugin.Logger.LogWarning("[Respawn] devant la porte : " + ex.Message); }
         try { WatchAfterFight(); } catch (Exception ex) { watchUntil = 0f; Plugin.Logger.LogWarning("[Respawn] après le combat : " + ex.Message); }
         try { UpdateTrace(); } catch (Exception ex) { traced = null; Plugin.Logger.LogWarning("[Respawn] relevé : " + ex.Message); }
         // Boss battu : la progression modifiée (porte, clés…) est remise aussitôt, avant que le scénario
         // ne reparte de son début (il retrouve ainsi l'état d'avant le combat).
-        if (activeBoss != null && applied.Count > 0 && (armedBoss == null || armedEntered) && EncounterDone())
+        // (combat lancé par Fight : surveillé même sans condition à changer, pour sa suite éventuelle)
+        if (activeBoss != null && (armedBoss != null ? armedEntered : applied.Count > 0) && EncounterDone())
         {
             Plugin.Logger.LogInfo($"[Respawn] {activeBoss.Name} battu : progression d'avant le combat remise");
             watchUntil = Time.unscaledTime + 120f; // la cinématique de fin et le changement de salle peuvent être longs
@@ -529,7 +579,7 @@ public static class BossRespawn
     /// Scénario du combat du boss : celui qui cite le boss, sinon le scénario de boss le plus proche du joueur
     /// (il est dans l'arène).
     /// </summary>
-    static CutsceneDirector FindDirector(Bosses.Boss boss)
+    static CutsceneDirector FindDirector(Bosses.Boss boss, bool includeInactive = false)
     {
         string shortName = boss.Id.name.Replace("CharacterID_", "");
         CutsceneDirector nearest = null;
@@ -539,7 +589,7 @@ public static class BossRespawn
         foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<CutsceneDirector>()))
         {
             var d = o.TryCast<CutsceneDirector>();
-            if (d == null || !d.gameObject.scene.IsValid() || !d.isActiveAndEnabled) continue;
+            if (d == null || !d.gameObject.scene.IsValid() || (!includeInactive && !d.isActiveAndEnabled)) continue;
             var nodes = d._resolverData?.Nodes;
             if (nodes == null) continue;
             foreach (var n in nodes)
