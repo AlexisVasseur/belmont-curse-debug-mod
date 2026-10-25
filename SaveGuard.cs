@@ -39,6 +39,32 @@ public static class SaveGuard
         if (snapshot != null) releaseAt = Time.unscaledTime + delay;
     }
 
+    /// <summary>Copie indépendante des fichiers de sauvegarde (pour une autre protection que celle des chargements).</summary>
+    public static Dictionary<string, byte[]> Take()
+    {
+        try { return Directory.Exists(Folder) ? Directory.GetFiles(Folder, "*.sav").ToDictionary(f => f, File.ReadAllBytes) : null; }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Protection] " + ex.Message); return null; }
+    }
+
+    /// <summary>Remet les fichiers de la copie qui ont changé depuis. Retourne leur nombre.</summary>
+    public static int RestoreIfChanged(Dictionary<string, byte[]> copy, string why)
+    {
+        if (copy == null) return 0;
+        int n = 0;
+        try
+        {
+            foreach (var (path, bytes) in copy)
+            {
+                if (File.Exists(path) && File.ReadAllBytes(path).AsSpan().SequenceEqual(bytes)) continue;
+                File.WriteAllBytes(path, bytes);
+                n++;
+                Plugin.Logger.LogWarning($"[Protection] {Path.GetFileName(path)} réécrit {why} : version d'avant remise");
+            }
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Protection] " + ex.Message); }
+        return n;
+    }
+
     /// <summary>Chaque frame.</summary>
     public static void Update()
     {

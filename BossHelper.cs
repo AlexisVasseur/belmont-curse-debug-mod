@@ -47,8 +47,16 @@ public static class BossHelper
             var top = states.Peek();
             var st = top.Item2;
             if (st == null) return;
-            if (st == gsm.loadingState && ApplicationFlowManager.IsLoading) return;
-            if (st == gsm._commandMenuGameState && gsm._isCommandMenuOpen) return;
+            // Seulement les états qu'un objet de salle peut laisser derrière lui ; jamais les menus
+            // (dépiler FullscreenMenuState avec le menu ouvert bloquait le jeu)
+            string sn = st.name;
+            bool leakable = sn == gsm.dialogueState?.name || sn == gsm.sequenceState?.name
+                || sn == gsm.timelineLockInputState?.name || sn == gsm.recoveryState?.name;
+            if (!leakable)
+            {
+                Plugin.Logger.LogInfo($"[État] état '{sn}' (id {top.Item1}) laissé en place");
+                return;
+            }
             Plugin.Logger.LogInfo($"[État] état orphelin dépilé : '{st.name}' (id {top.Item1})");
             LoadSequence.Trace($"état orphelin dépilé : '{st.name}' (id {top.Item1})");
             gsm.PopState(top.Item1, gsm);

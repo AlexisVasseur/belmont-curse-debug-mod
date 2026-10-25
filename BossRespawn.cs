@@ -229,6 +229,8 @@ public static class BossRespawn
         var plan = Solve(director._resolverData);
         if (plan == null) { Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : aucun chemin vers le combat dans '{director.name}'"); return; }
         applied.Clear();
+        // Le scénario peut sauvegarder la partie pendant le combat forcé : copie des fichiers, remise au retour à la normale
+        saveCopy = SaveGuard.Take();
         var done = new HashSet<string>();
         foreach (var (cond, value) in plan)
         {
@@ -242,8 +244,12 @@ public static class BossRespawn
         BossDiag.DumpDirectors("après changement des conditions");
     }
 
+    static Dictionary<string, byte[]> saveCopy;
+
     static void Revert()
     {
+        SaveGuard.RestoreIfChanged(saveCopy, "pendant le combat forcé");
+        saveCopy = null;
         if (applied.Count == 0) return;
         for (int i = applied.Count - 1; i >= 0; i--)
         {
