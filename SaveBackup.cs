@@ -25,7 +25,7 @@ public static class SaveBackup
             Directory.CreateDirectory(target);
             foreach (var f in files) File.Copy(f, Path.Combine(target, Path.GetFileName(f)), true);
 
-            foreach (var old in new DirectoryInfo(root).GetDirectories().OrderByDescending(d => d.Name).Skip(Keep))
+            foreach (var old in new DirectoryInfo(root).GetDirectories().OrderByDescending(d => d.CreationTimeUtc).Skip(Keep))
                 old.Delete(true);
             Plugin.Logger.LogInfo($"Sauvegardes du jeu copiées dans {target}");
         }

@@ -173,6 +173,23 @@ public static class BossDiag
                 if (characterFilter != null && cd.IndexOf(characterFilter, StringComparison.OrdinalIgnoreCase) < 0) continue;
                 sb.AppendLine($"  scène '{a.name}' perso={cd} actif={a.gameObject.activeInHierarchy} pos={a.transform.position}");
             }
+            // Spawners de mobs qui citent le boss : ce sont eux qui créent son entité
+            MotherBase.EntityFramework.Entity player = null;
+            try { MainCharacterSingleton.TryGetEntity(out player); } catch { }
+            foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<MobsSpawner>()))
+            {
+                var s = o.TryCast<MobsSpawner>();
+                if (s == null || !s.gameObject.scene.IsValid()) continue;
+                var mobs = new List<string>();
+                try { var l = s.mobsToSpawn; if (l != null) for (int i = 0; i < l.Count; i++) mobs.Add(l[i].mobData?.name ?? "?"); } catch { }
+                string all = string.Join(",", mobs) + " " + s.name;
+                if (characterFilter != null && all.IndexOf(characterFilter, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                string cond = "aucune";
+                try { if (s.spawnCondition != null) cond = $"{s.spawnCondition.GetIl2CppType().Name}={(player != null ? s.spawnCondition.IsConditionValidated(player).ToString() : "?")}"; } catch (Exception ex) { cond = "? " + ex.Message; }
+                string pd = "?";
+                try { var p = s.persistentData; pd = $"aApparu={p.HasSpawned} état={p.State}"; } catch { }
+                sb.AppendLine($"  spawner '{s.name}' actif={s.isActiveAndEnabled} init={s.initialized} mobs=[{string.Join(",", mobs)}] {pd} condition={cond} apparus={s.spawnedMobsCount} morts={s.deadMobsCount} vivants={s.aliveSpawnedMobs?.Count}");
+            }
             string boss = "?";
             try { boss = BossManager.Get()?.currentBossVariable?.CurrentValue?.name ?? "aucun"; } catch { }
             Plugin.Logger.LogInfo($"[Boss] acteurs ({when}) : boss en cours={boss}\n{sb}");
