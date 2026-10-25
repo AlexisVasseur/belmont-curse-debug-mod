@@ -34,7 +34,7 @@ public static class Arenas
     static readonly Queue<(float t, Vector3 p)> trail = new();
 
     // Demande de téléportation venue de l'interface, traitée par PracticeBehaviour
-    static (LevelID level, Vector3 pos)? request;
+    static (LevelID level, Vector3 pos, bool fullReload)? request;
 
     static Dictionary<string, Entry> All()
     {
@@ -152,15 +152,17 @@ public static class Arenas
             if (l != null && l.name == e.Level) { level = l; break; }
         }
         if (level == null) return $"{b.Name}: level '{e.Level}' not found";
-        request = (level, new Vector3(e.X, e.Y, e.Z));
-        return $"Teleport: in front of {b.Name}'s arena";
+        // Boss remis « Alive » : niveau rechargé en entier, sinon le combat de l'arène reste marqué terminé
+        bool full = b.Id != null && BossRespawn.Pending.Contains(b.Id.name);
+        request = (level, new Vector3(e.X, e.Y, e.Z), full);
+        return full ? $"Teleport: in front of {b.Name}'s arena (reloading the level to reset the fight)" : $"Teleport: in front of {b.Name}'s arena";
     }
 
-    public static bool TakeRequest(out LevelID level, out Vector3 pos)
+    public static bool TakeRequest(out LevelID level, out Vector3 pos, out bool fullReload)
     {
-        level = null; pos = default;
+        level = null; pos = default; fullReload = false;
         if (request == null) return false;
-        (level, pos) = request.Value;
+        (level, pos, fullReload) = request.Value;
         request = null;
         return true;
     }

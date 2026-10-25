@@ -65,8 +65,8 @@ public class PracticeBehaviour : MonoBehaviour
             try
             {
                 Arenas.Update(sequence.Active);
-                if (Arenas.TakeRequest(out var level, out var pos) && !sequence.Active)
-                    Load(GameBridge.CaptureForTeleport(level, pos));
+                if (Arenas.TakeRequest(out var level, out var pos, out bool full) && !sequence.Active)
+                    Load(GameBridge.CaptureForTeleport(level, pos, full));
             }
             catch (Exception ex) { Plugin.Logger.LogError("[Arènes] " + ex); }
         }
