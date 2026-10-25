@@ -504,6 +504,7 @@ public static class BossRespawn
             Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : conditions imposées à l'entrée (sans TP) : {string.Join(", ", missing.Select(c => $"{c.cond.Id} → {c.value}"))}"
                 + " — si le boss n'apparaît pas, ressors, remets-le « Alive » et utilise TP");
         }
+        if (!Plugin.BossDiagnostics.Value) return;
         BossDiag.DumpActors("à l'entrée", boss.Id.name.Replace("CharacterID_", ""));
         traced = director;
         traceTimes.Clear();

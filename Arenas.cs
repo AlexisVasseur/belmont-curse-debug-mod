@@ -79,7 +79,11 @@ public static class Arenas
             // Seulement en marchant : salle d'avant occupée au moins 1 s, et pas juste après un chargement
             bool walkedIn = lastRoom != null && !lastRoomIsArena && now - lastRoomSince >= 1f && now - lastLoad >= 3f;
             if (isArena && walkedIn) Learn(boss, arcana, lastRoom, BeforeDoor(now));
-            if (isArena) { dumpAt = now + 2f; BossRespawn.OnEnterArena(BossOf(boss, arcana)); } // la salle finit de charger ses objets après le passage de la porte
+            if (isArena)
+            {
+                if (Plugin.BossDiagnostics.Value) dumpAt = now + 2f; // la salle finit de charger ses objets après le passage de la porte
+                BossRespawn.OnEnterArena(BossOf(boss, arcana));
+            }
             lastRoom = room;
             lastRoomSince = now;
             lastRoomIsArena = isArena;

@@ -90,13 +90,13 @@ public partial class SidePanelView
 
     void UpdateBosses(bool hasMouse, float mx, float my, bool click, ref bool handled)
     {
-        string title = "Bosses", text = "Alive: the boss comes back, its fight starts again the next time you enter its arena. Defeated: the boss is marked as beaten. TP: teleports you in front of its arena.";
+        string title = "Bosses", text = "To fight a boss again: click Alive, then TP, then walk into its arena. Defeated: marks the boss as beaten. TP: teleports you in front of its arena (after Alive, the whole level is reloaded so the fight is reset).";
 
         foreach (var (btn, x, y, w, h) in bossButtons)
         {
             bool hover = hasMouse && mx >= x && mx < x + w && my >= y && my < y + h;
             btn.SetHover(hover);
-            if (hover) { title = "Respawn all bosses"; text = "Brings back every defeated boss. Their fights start again the next time you enter their arenas."; }
+            if (hover) { title = "Respawn all bosses"; text = "Brings back every defeated boss. Then use TP on a boss and walk into its arena to fight it."; }
             if (click && hover && !handled) { handled = true; btn.OnClick?.Invoke(); }
         }
 
@@ -113,14 +113,14 @@ public partial class SidePanelView
             if (hover)
             {
                 title = r.boss.Name;
-                text = defeated == true ? "Defeated. Alive: bring it back (the fight starts again the next time you enter its arena)."
+                text = defeated == true ? "Defeated. To fight it again: Alive, then TP, then walk into its arena."
                     : defeated == false ? "Alive: its fight starts the next time you enter its arena. Defeated: mark it as beaten."
                     : "State unknown (load a game first).";
             }
             if (overTp)
             {
                 title = "Teleport: " + r.boss.Name;
-                text = known ? "Teleports you in front of the arena door, in the room before it."
+                text = known ? "Teleports you in front of the arena door, in the room before it. If the boss is Alive, the level is reloaded and its fight is reset (like resting at a mirror: enemies come back)."
                     : "Unknown yet: enter this arena once (walking in through its door) and the mod will remember where the door is.";
             }
 

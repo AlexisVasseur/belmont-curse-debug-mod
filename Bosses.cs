@@ -157,7 +157,7 @@ public static class Bosses
         else { Respawn(p, b); BossRespawn.Pending.Add(b.Id.name); }
         Plugin.Logger.LogInfo($"[Boss] {b.Name} → {(defeated ? "Defeated" : "Alive")} : avant {before}, après clé={p.HasProgressionKey(b.Key)} étape={Step(b)}");
         LogTriggers("après clic");
-        return defeated ? $"{b.Name}: defeated" : $"{b.Name}: alive (the fight starts again when you enter its arena)";
+        return defeated ? $"{b.Name}: defeated" : $"{b.Name}: alive — now use TP, then walk into its arena";
     }
 
     /// <summary>
@@ -216,9 +216,10 @@ public static class Bosses
         return n == 0 ? "No defeated boss" : $"{n} boss{(n > 1 ? "es" : "")} will be back";
     }
 
-    /// <summary>Diagnostic : tous les déclencheurs d'arène chargés (même inactifs) et ce qu'ils en pensent.</summary>
+    /// <summary>Diagnostic (option Debug/RelevesBoss) : déclencheurs d'arène chargés et scénarios de combat.</summary>
     public static void LogTriggers(string when)
     {
+        if (!Plugin.BossDiagnostics.Value) return;
         try
         {
             var found = UnityEngine.Resources.FindObjectsOfTypeAll(Il2CppInterop.Runtime.Il2CppType.Of<BossFightTrigger>());

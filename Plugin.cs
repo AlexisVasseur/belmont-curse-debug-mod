@@ -10,7 +10,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "fr.vasseur.belmontpractice";
     public const string Name = "Belmont Practice";
-    public const string Version = "0.24.2";
+    public const string Version = "0.25.0";
 
     internal static ManualLogSource Logger;
 
@@ -26,6 +26,7 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<float> BlackHoldDuration;
     internal static ConfigEntry<float> SettleDuration;
     internal static ConfigEntry<bool> PauseDuringFade;
+    internal static ConfigEntry<bool> BossDiagnostics;
 
     public override void Load()
     {
@@ -43,6 +44,7 @@ public class Plugin : BasePlugin
         SettleDuration = Config.Bind("Fondu", "CalmeRequisSecondes", 0.1f, "Le jeu doit être inactif (aucun chargement / transition / mouvement caméra) pendant cette durée avant de rendre l'image");
         PauseDuringFade = Config.Bind("Fondu", "PausependantFondu", true, "Met le jeu en pause pendant le passage au noir et le retour de l'image");
         FadeOutDuration = Config.Bind("Fondu", "SortieSecondes", 0.15f, "Durée du retour depuis le noir");
+        BossDiagnostics = Config.Bind("Debug", "RelevesBoss", false, "Écrit dans le journal le scénario, les acteurs et les spawners des arènes de boss (pour diagnostiquer un boss qui ne revient pas)");
         ForceSpawnPosition = Config.Bind("Debug", "ForcerPosition", true, "Au chargement complet, force la position du joueur via MainCharacterSpawnLogic.SetForcePosition");
 
         // Pas de hooks Harmony : en IL2CPP, les méthodes au code identique (ex. méthodes vides) partagent
