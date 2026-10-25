@@ -153,7 +153,9 @@ public static class Arenas
         }
         if (level == null) return $"{b.Name}: level '{e.Level}' not found";
         // Boss remis « Alive » : niveau rechargé en entier, sinon le combat de l'arène reste marqué terminé
-        bool full = false; // le rechargement complet n'était pas nécessaire (la cause était la cinématique déjà vue)
+        // Boss remis « Alive » : niveau rechargé en entier, pour que l'arène prépare le boss (elle ne le fait qu'au chargement,
+        // si le boss n'est ni vaincu ni absorbé à ce moment-là). La cinématique d'entrée est remise à « non vue » à l'entrée.
+        bool full = b.Id != null && BossRespawn.Pending.Contains(b.Id.name);
         request = (level, new Vector3(e.X, e.Y, e.Z), full);
         return full ? $"Teleport: in front of {b.Name}'s arena (reloading the level to reset the fight)" : $"Teleport: in front of {b.Name}'s arena";
     }
