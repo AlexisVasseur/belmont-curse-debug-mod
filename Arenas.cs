@@ -249,6 +249,16 @@ public static class Arenas
         return full ? $"Teleport: in front of {where}, fight reset" : $"Teleport: in front of {where}";
     }
 
+    /// <summary>
+    /// Rechargement complet du niveau en restant à la position actuelle (dans l'arène), conditions du combat imposées :
+    /// l'arène se reconstruit avec le boss.
+    /// </summary>
+    public static void RequestReloadHere(Bosses.Boss b, string key)
+    {
+        if (b?.Id == null || !BossRespawn.Pending.Contains(b.Id.name)) return;
+        request = (null, GameBridge.PlayerPosition(), true, b, key); // niveau null = niveau actuel
+    }
+
     public static bool TakeRequest(out LevelID level, out Vector3 pos, out bool fullReload, out Bosses.Boss boss, out string key)
     {
         level = null; pos = default; fullReload = false; boss = null; key = null;

@@ -601,6 +601,15 @@ public static class BossRespawn
         {
             Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : conditions en place, le scénario mène au combat");
         }
+        else if (activeKey != null && (autoReloadKey != activeKey || Time.unscaledTime - autoReloadAt > 30f))
+        {
+            // Conditions découvertes trop tard (l'arène est déjà chargée sans le boss) : on les impose et on recharge
+            // le niveau en entier, le joueur restant où il est. L'arène se reconstruit avec le boss, sans autre action.
+            autoReloadKey = activeKey;
+            autoReloadAt = Time.unscaledTime;
+            Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : conditions manquantes ({string.Join(", ", missing.Select(c => $"{c.cond.Id} → {c.value}"))}), rechargement du niveau sur place");
+            Arenas.RequestReloadHere(boss, activeKey);
+        }
         else
         {
             saveCopy ??= SaveGuard.Take();
@@ -620,6 +629,9 @@ public static class BossRespawn
         traceTimes.Clear();
         foreach (float s in new[] { 1f, 3f, 6f }) traceTimes.Enqueue(Time.unscaledTime + s);
     }
+
+    static string autoReloadKey;
+    static float autoReloadAt = -100f;
 
     static CutsceneDirector traced;
     static readonly Queue<float> traceTimes = new();
