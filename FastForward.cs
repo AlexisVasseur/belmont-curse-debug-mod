@@ -28,6 +28,9 @@ public static class FastForward
     {
         try
         {
+            // Cinématique qui a pris les commandes (celles qui les laissent au joueur ne sont pas accélérées : ce serait du gameplay)
+            var ui = CutsceneUIManager.Instance;
+            if (ui != null && ui.IsPlayingCutscene && ui._controlCount > 0) return true;
             var states = GameStateManager.GetInstance()?._states;
             if (states == null) return false;
             foreach (var t in states.ToArray())
@@ -47,7 +50,13 @@ public static class FastForward
         if (pressed)
         {
             if (armed) { Disarm(); notify?.Invoke("Cutscenes: normal speed", false); }
-            else if (playing) { armed = true; lastCutscene = now; notify?.Invoke($"Cutscenes: fast-forward ×{Speed:0}", false); }
+            else if (playing)
+            {
+                armed = true;
+                lastCutscene = now;
+                notify?.Invoke($"Cutscenes: fast-forward ×{Speed:0}", false);
+                Plugin.Logger.LogInfo($"[Cinématiques] accélération : timeScale={Time.timeScale}, cinématique={CutsceneUIManager.Instance?.IsPlayingCutscene}, scénarios={CutsceneManager.Instance?._directors?.Count}");
+            }
             else notify?.Invoke("No cutscene to fast-forward", false);
         }
         if (!armed) return;
@@ -55,11 +64,35 @@ public static class FastForward
         if (playing) lastCutscene = now;
         else if (now - lastCutscene > DisarmAfter) { Disarm(); return; }
 
-        // Pause du jeu (timeScale 0) : on n'y touche pas
-        if (playing && Time.timeScale > 0f)
+        if (playing)
         {
-            if (Time.timeScale != Speed) Time.timeScale = Speed;
-            speeding = true;
+            // Animations et timelines : temps du jeu accéléré (pause du jeu, timeScale 0 : on n'y touche pas)
+            if (Time.timeScale > 0f)
+            {
+                if (Time.timeScale != Speed) Time.timeScale = Speed;
+                speeding = true;
+            }
+            // Les scénarios avancent sur leur propre horloge : passes supplémentaires à chaque image
+            try
+            {
+                var cm = CutsceneManager.Instance;
+                float dt = Time.unscaledDeltaTime;
+                if (cm != null) for (int i = 1; i < Speed; i++) cm.UpdateDirectors(dt);
+            }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] scénarios : " + ex.Message); }
+            // Lignes de dialogue et vidéos : terminées aussitôt (elles attendent sinon une touche ou leur durée)
+            try
+            {
+                var ui = CutsceneUIManager.Instance;
+                if (ui != null)
+                {
+                    ui.ForceEndDialogueBubble();
+                    ui.ForceEndDialogueFullScreen();
+                    ui.ForceEndDialogueBarks();
+                    if (ui.IsVideoPlaying()) ui.ForceStopVideo();
+                }
+            }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] dialogues : " + ex.Message); }
         }
         else if (!playing && speeding)
         {
