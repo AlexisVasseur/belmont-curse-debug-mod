@@ -1063,7 +1063,7 @@ public partial class SidePanelView
         }
         if (tab == Tab.Bosses)
         {
-            UpdateBosses(hasMouse, mx, my, click, ref handled);
+            UpdateBosses(hasMouse, mx, my, click, hasMouse && UiCanvas.RightClicked, ref handled);
             return;
         }
         if (tab == Tab.Keybinds)

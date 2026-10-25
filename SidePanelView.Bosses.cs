@@ -133,7 +133,7 @@ public partial class SidePanelView
         b.SetHover(hover && enabled && !current);
     }
 
-    void UpdateBosses(bool hasMouse, float mx, float my, bool click, ref bool handled)
+    void UpdateBosses(bool hasMouse, float mx, float my, bool click, bool rightClick, ref bool handled)
     {
         string title = "Bosses", text = "Fight: brings the boss back and teleports you in front of its arena, then walk in. TP: just teleports you there. Alive / Defeated: sets the boss state.";
 
@@ -165,16 +165,21 @@ public partial class SidePanelView
             if (overFight)
             {
                 title = "Fight: " + r.label;
-                text = known ? "Brings the boss back and teleports you in front of its arena door. The level is reloaded so the fight is reset (like resting at a mirror: enemies come back). Then walk into the arena."
+                text = known ? "Brings the boss back and teleports you in front of its arena door. The level is reloaded so the fight is reset (like resting at a mirror: enemies come back). Then walk into the arena. Right-click: forget this entrance (wrong door), the next one you walk through is kept."
                     : "Unknown yet: enter this arena once (walking in through its door) and the mod will remember where the door is.";
             }
             if (overTp)
             {
                 title = "Teleport: " + r.label;
-                text = known ? "Teleports you in front of the arena door, in the room before it. If the boss is Alive, the level is reloaded and its fight is reset (like resting at a mirror: enemies come back)."
+                text = known ? "Teleports you in front of the arena door, in the room before it. If the boss is Alive, the level is reloaded and its fight is reset (like resting at a mirror: enemies come back). Right-click: forget this entrance (wrong door), the next one you walk through is kept."
                     : "Unknown yet: enter this arena once (walking in through its door) and the mod will remember where the door is.";
             }
 
+            if (rightClick && !handled && (overFight || overTp) && known)
+            {
+                handled = true;
+                Notify?.Invoke(Arenas.Forget(r.boss, r.key), false);
+            }
             if (click && !handled)
             {
                 if (overFight) { handled = true; r.fight.OnClick?.Invoke(); defeated = Bosses.IsDefeated(r.boss); }

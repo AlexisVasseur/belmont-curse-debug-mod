@@ -222,6 +222,16 @@ public static class Arenas
         Plugin.Logger.LogInfo($"[Arènes] {(inside ? "position dans l'arène" : "entrée de l'arène")} de {boss.Name} ({AreaLabel(level)}) retenue : {pos.Value} dans '{fromRoom}'");
     }
 
+    /// <summary>Oublie l'entrée d'une arène (mauvaise porte : sortie fermée tant que le boss vit…) ; la prochaine est retenue.</summary>
+    public static string Forget(Bosses.Boss b, string key)
+    {
+        if (key == null || !All().Remove(key)) return $"{b.Name}: no arena entrance to forget";
+        SaveFile();
+        Version++;
+        Plugin.Logger.LogInfo($"[Arènes] entrée oubliée : {key}");
+        return $"{b.Name}: arena entrance forgotten — walk into the arena through its usual door to set it again";
+    }
+
     // ---------- Téléportation ----------
 
     /// <summary>Demande une téléportation devant l'arène d'une rencontre. Retourne le message à afficher.</summary>
