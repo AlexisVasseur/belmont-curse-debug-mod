@@ -117,8 +117,7 @@ public static class FastForward
 
     /// <summary>
     /// Fait à la place du joueur ce que la fin de combat attend de lui. Retourne true si une telle étape est en cours.
-    ///  - Absorption (GameplayAbsorptionState) : l'action « …WaitForInput » du personnage n'est plus attendue, et
-    ///    l'évènement que la touche du joueur aurait déclenché est déclenché.
+    ///  - Absorption (GameplayAbsorptionState) : l'interaction longue (RB maintenu) est lancée sur le personnage.
     ///  - Fenêtres d'acquisition (carte d'arcane, objet…) : fermées après un court instant d'affichage.
     /// </summary>
     static bool AutoAdvance()
@@ -127,17 +126,10 @@ public static class FastForward
         if (HasState("GameplayAbsorptionState"))
         {
             waiting = true;
-            try
-            {
-                foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppInterop.Runtime.Il2CppType.Of<CutsceneDirector>()))
-                {
-                    var d = o.TryCast<CutsceneDirector>();
-                    var cur = d?._resolver?._currentNodes;
-                    if (cur != null) for (int i = 0; i < cur.Count; i++) Advance(cur[i], 0);
-                }
-            }
+            try { Absorb(); }
             catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] absorption : " + ex.Message); }
         }
+        else EndAbsorb();
 
         if (HasState("FullscreenMenuState") && CloseAcquisitionWindows(dryRun: true))
         {
@@ -149,30 +141,161 @@ public static class FastForward
         return waiting;
     }
 
-    /// <summary>Étape de scénario en cours (et celles de ses sous-scénarios) qui attend le joueur.</summary>
-    static void Advance(ResolverNodeBase n, int depth)
+    // Absorption en cours : moment où l'interaction a été lancée, repli déjà fait, conditions d'entrée suspendues
+    static float absorbStartedAt = -1f;
+    static bool absorbFallbackDone;
+    static readonly List<(AStartConditionFeature f, bool stop, bool ignore)> relaxed = new();
+
+    /// <summary>
+    /// L'orbe s'absorbe en maintenant RB : l'action d'interaction longue du personnage ne dure que tant que la touche est
+    /// tenue, et valide l'absorption à sa fin. On la lance nous-mêmes, sa condition « touche tenue » suspendue : le jeu
+    /// fait alors toute la suite (animation, orbe absorbée, évènement attendu par le scénario).
+    /// Repli au bout de 3 s si le scénario attend toujours : évènement déclenché et orbe rendue inactive.
+    /// </summary>
+    static void Absorb()
     {
-        if (n == null || depth > 4) return;
-        var sub = n.TryCast<ResolverPlaySubResolverNode>();
-        if (sub != null)
+        var pending = PendingEvents();
+        if (pending.Count == 0) return; // orbe pas encore prête, ou absorption déjà faite
+        float now = Time.unscaledTime;
+        if (absorbStartedAt < 0f)
         {
-            var cur = sub._resolver?._currentNodes;
-            if (cur != null) for (int i = 0; i < cur.Count; i++) Advance(cur[i], depth + 1);
+            absorbStartedAt = now;
+            StartAbsorption();
             return;
         }
-        var act = n.TryCast<ResolverPlayActionNode>();
-        if (act != null && act._waitForEndOfAnimation && (act._actionTrigger?.name ?? "").IndexOf("WaitForInput", StringComparison.OrdinalIgnoreCase) >= 0)
+        if (absorbFallbackDone || now - absorbStartedAt < 3f) return;
+        absorbFallbackDone = true;
+        foreach (var ev in pending) ev.OnEventTriggered();
+        foreach (var it in OrbInteractibles()) it.DisableInteractible();
+        Plugin.Logger.LogWarning("[Cinématiques] absorption : interaction sans effet, évènement déclenché et orbe désactivée (repli)");
+    }
+
+    static void StartAbsorption()
+    {
+        if (!MainCharacterSingleton.TryGetEntity(out MotherBase.EntityFramework.Entity player) || player == null) return;
+        var actor = player.GetComponentInChildren<MotherBase.ActionFramework.Actor>(true);
+        if (actor == null) { Plugin.Logger.LogWarning("[Cinématiques] absorption : personnage sans Actor"); return; }
+
+        // Actions candidates : celle que l'orbe fait jouer au personnage, et celles des touches du joueur.
+        // La bonne est celle qui valide une interaction longue.
+        var candidates = new List<MotherBase.ActionFramework.ActionTrigger>();
+        foreach (var it in OrbInteractibles())
         {
-            act._waitForEndOfAnimation = false; // l'étape se termine dès l'action lancée
-            Plugin.Logger.LogInfo($"[Cinématiques] absorption : action '{act._actionTrigger.name}' non attendue");
-            return;
+            Plugin.Logger.LogInfo($"[Cinématiques] absorption : orbe '{it.gameObject.name}', personnage → '{it.interactorInteractionAction?.name}', orbe → '{it.selfInteractionAction?.name}', actif={it.enabled}");
+            if (it.interactorInteractionAction != null) candidates.Add(it.interactorInteractionAction);
         }
-        var ev = n.TryCast<ResolverWaitForCutsceneEventNode>();
-        if (ev != null && !ev._isEventTriggered)
+        var input = player.GetComponentInChildren<MotherBase.ActionFramework.PlayerInput>(true);
+        var binds = input?.data?.inputBindings;
+        if (binds != null) foreach (var b in binds) if (b?.action != null) candidates.Add(b.action);
+
+        MotherBase.ActionFramework.ActionTrigger trigger = null;
+        MotherBase.ActionFramework.ActionData data = null;
+        foreach (var t in candidates)
         {
-            ev.OnEventTriggered();
-            Plugin.Logger.LogInfo("[Cinématiques] absorption : évènement attendu déclenché");
+            MotherBase.ActionFramework.ActionData d = null;
+            try { d = t.GetActionData(player); } catch { }
+            if (d != null && Feature<LongInteractValidationFeature>(d) != null) { trigger = t; data = d; break; }
         }
+        Plugin.Logger.LogInfo($"[Cinématiques] absorption : actions en cours [{ActiveActionNames(actor)}], interaction longue '{data?.name}'");
+        if (data == null) return;
+
+        // Condition « touche tenue » suspendue le temps de l'absorption (rétablie à la sortie de l'état d'absorption)
+        var features = data.actionFeatures;
+        for (int i = 0; features != null && i < features.Count; i++)
+        {
+            var sc = features[i]?.TryCast<AStartConditionFeature>();
+            if (sc == null || sc.TryCast<InputConditionFeature>() == null) continue;
+            relaxed.Add((sc, sc.stopActionIfConditionNoLongerValid, sc.ignoreConditionForCanStart));
+            sc.stopActionIfConditionNoLongerValid = false;
+            sc.ignoreConditionForCanStart = true;
+        }
+
+        bool ok = actor.TryStartAction(player, trigger);
+        if (!ok)
+        {
+            // Action d'attente en cours qui refuse d'être enchaînée : on l'interrompt avec l'interaction
+            var active = actor.activeActions;
+            for (int i = 0; !ok && active != null && i < active.Count; i++)
+            {
+                var a = active[i];
+                if ((a?.data?.name ?? "").IndexOf("WaitForInput", StringComparison.OrdinalIgnoreCase) >= 0)
+                    ok = actor.TryInterruptActionWith(player, a, trigger);
+            }
+        }
+        Plugin.Logger.LogInfo($"[Cinématiques] absorption : interaction longue {(ok ? "lancée" : "refusée")}, actions [{ActiveActionNames(actor)}]");
+    }
+
+    static void EndAbsorb()
+    {
+        foreach (var (f, stop, ignore) in relaxed)
+        {
+            try { if (f != null) { f.stopActionIfConditionNoLongerValid = stop; f.ignoreConditionForCanStart = ignore; } }
+            catch { }
+        }
+        relaxed.Clear();
+        absorbStartedAt = -1f;
+        absorbFallbackDone = false;
+    }
+
+    static T Feature<T>(MotherBase.ActionFramework.ActionData d) where T : MotherBase.ActionFramework.ActionFeature
+    {
+        var features = d.actionFeatures;
+        for (int i = 0; features != null && i < features.Count; i++)
+        {
+            var f = features[i]?.TryCast<T>();
+            if (f != null) return f;
+        }
+        return null;
+    }
+
+    static string ActiveActionNames(MotherBase.ActionFramework.Actor actor)
+    {
+        var names = new List<string>();
+        var active = actor.activeActions;
+        for (int i = 0; active != null && i < active.Count; i++) names.Add(active[i]?.data?.name ?? "?");
+        return string.Join(", ", names);
+    }
+
+    /// <summary>Interaction de l'orbe laissée par le boss vaincu (combats normaux et scriptés).</summary>
+    static List<Interactible> OrbInteractibles()
+    {
+        var list = new List<Interactible>();
+        void Add(MotherBase.EntityFramework.Entity orb)
+        {
+            if (orb == null || !orb.gameObject.activeInHierarchy) return;
+            var it = orb.GetComponentInChildren<Interactible>(true);
+            if (it != null && !list.Contains(it)) list.Add(it);
+        }
+        foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppInterop.Runtime.Il2CppType.Of<BossFight>()))
+            Add(o.TryCast<BossFight>()?._bossLootOrbEntity);
+        foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppInterop.Runtime.Il2CppType.Of<FakeBossFight>()))
+            Add(o.TryCast<FakeBossFight>()?._bossLootOrbEntity);
+        return list;
+    }
+
+    /// <summary>Étapes de scénario en cours (sous-scénarios compris) qui attendent un évènement.</summary>
+    static List<ResolverWaitForCutsceneEventNode> PendingEvents()
+    {
+        var list = new List<ResolverWaitForCutsceneEventNode>();
+        void Walk(ResolverNodeBase n, int depth)
+        {
+            if (n == null || depth > 4) return;
+            var sub = n.TryCast<ResolverPlaySubResolverNode>();
+            if (sub != null)
+            {
+                var cur = sub._resolver?._currentNodes;
+                if (cur != null) for (int i = 0; i < cur.Count; i++) Walk(cur[i], depth + 1);
+                return;
+            }
+            var ev = n.TryCast<ResolverWaitForCutsceneEventNode>();
+            if (ev != null && !ev._isEventTriggered) list.Add(ev);
+        }
+        foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppInterop.Runtime.Il2CppType.Of<CutsceneDirector>()))
+        {
+            var cur = o.TryCast<CutsceneDirector>()?._resolver?._currentNodes;
+            if (cur != null) for (int i = 0; i < cur.Count; i++) Walk(cur[i], 0);
+        }
+        return list;
     }
 
     /// <summary>Fenêtres d'acquisition ouvertes (carte d'arcane, objet, objectif…) ; dryRun : seulement les compter.</summary>
@@ -224,5 +347,6 @@ public static class FastForward
         if (speeding && Time.timeScale == Speed) Time.timeScale = 1f;
         speeding = false;
         armed = false;
+        EndAbsorb();
     }
 }
