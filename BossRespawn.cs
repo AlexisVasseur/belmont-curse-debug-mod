@@ -239,13 +239,25 @@ public static class BossRespawn
             applied.Add(new Change { cond = cond, original = !value, originalStep = cond.kind == Kind.Arcana ? Step(cond.character) : default });
             Set(cond, value);
         }
+        // Sous-scénarios du combat (BossIntro…) : « cinématique déjà vue » mène à un raccourci qui lance le combat
+        // sans la cinématique d'entrée, or c'est elle qui fait apparaître le boss. On rejoue donc tout comme la première fois.
+        var nodes = director._resolverData.Nodes;
+        foreach (var n in nodes)
+        {
+            var sub = n?.TryCast<ResolverPlaySubResolverNodeData>()?.SubResolverData?.Nodes;
+            if (sub == null) continue;
+            foreach (var sn in sub)
+            {
+                if (sn?.TryCast<ResolverConditionHasWatchedCutsceneNodeData>() == null) continue;
+                var cond = ReadCond(sn);
+                if (cond == null || !done.Add(cond.Id) || !Evaluate(cond)) continue;
+                applied.Add(new Change { cond = cond, original = true });
+                Set(cond, false);
+            }
+        }
         Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : scénario '{director.name}', {plan.Count} condition(s) sur le chemin, changé : "
             + (applied.Count == 0 ? "rien" : string.Join(", ", applied.Select(c => $"{c.cond.Id} → {!c.original}"))));
-        // Relance du scénario depuis son départ. ForceReset lève une erreur en fin de course, mais c'est avec lui
-        // que le boss apparaît (sans lui, le scénario rejoue l'intro sans faire venir le boss).
-        try { director.ForceReset(); }
-        catch (Exception ex) { Plugin.Logger.LogInfo("[Respawn] ForceReset : " + ex.Message.Split('\n')[0]); }
-        BossDiag.DumpDirectors("après relance du scénario");
+        BossDiag.DumpDirectors("après changement des conditions");
         BossDiag.DumpRun(director, "juste après la relance");
         traced = director;
         traceTimes.Clear();
