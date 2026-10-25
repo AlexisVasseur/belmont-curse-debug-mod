@@ -34,6 +34,15 @@ public class PracticeBehaviour : MonoBehaviour
 
         try { GameBridge.UpdateRoomReload(); }
         catch (Exception ex) { Plugin.Logger.LogError("[Salle] " + ex); }
+        try
+        {
+            // Accélération des cinématiques : raccourci clavier, ou Y à la manette (A sert déjà au jeu)
+            var kbd = Keyboard.current;
+            bool ff = (kbd != null && Keybinds.Capturing == null && Keybinds.FastForward.Pressed(kbd))
+                || (UnityEngine.InputSystem.Gamepad.current?.buttonNorth.wasPressedThisFrame ?? false);
+            FastForward.Update(ff, sequence.Active, (m, e) => Notify(m, e));
+        }
+        catch (Exception ex) { Plugin.Logger.LogError("[Cinématiques] " + ex); }
         try { UpdateDeferredLoad(); } catch (Exception ex) { deferredLoad = null; Plugin.Logger.LogError("[Chargement] " + ex); }
         try { sequence.Update(); }
         catch (Exception ex) { Plugin.Logger.LogError("[Chargement] " + ex); }

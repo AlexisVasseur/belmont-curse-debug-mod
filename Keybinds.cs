@@ -93,7 +93,7 @@ public static class Keybinds
 
     public static Bind TogglePanel, QuickSave, QuickLoad, QuickslotToFile, FileToQuickslot,
         SaveToFile, LoadFromFile, NextPage, PrevPage, RefreshFiles;
-    public static Bind ToggleInfiniteHealth, ToggleInfiniteMana, ToggleInfinitePotions, ToggleInfiniteJump, ToggleNoclip, MapTeleport;
+    public static Bind ToggleInfiniteHealth, ToggleInfiniteMana, ToggleInfinitePotions, ToggleInfiniteJump, ToggleNoclip, MapTeleport, FastForward;
 
     internal static ConfigEntry<bool> NumpadDigits;
 
@@ -135,6 +135,9 @@ public static class Keybinds
 
         MapTeleport = new Bind(c, "TeleportCarte", "T", "Carte ouverte : choisit le point sous le curseur comme destination de téléportation", U,
             "Map teleport", "With the map open: asks to teleport to the point under the cursor (also middle-click or Start on a gamepad); press again to go.");
+
+        FastForward = new Bind(c, "AccelererCinematiques", "F7", "Pendant une cinématique : l'accélère (×10), ainsi que les suivantes, jusqu'au retour du gameplay", U,
+            "Fast-forward cutscenes", "During a cutscene: plays it 10× faster, and the cutscenes that follow too (boss outro, absorption…). Gameplay always runs at normal speed. Press again to stop. Gamepad: Y.");
 
         NumpadDigits = c.Bind("Raccourcis", "ChiffresPaveNumerique", false,
             "Choix de l'emplacement (0-9) avec le pavé numérique au lieu des chiffres du haut du clavier");
