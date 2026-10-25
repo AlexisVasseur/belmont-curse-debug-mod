@@ -34,6 +34,7 @@ public class PracticeBehaviour : MonoBehaviour
 
         try { GameBridge.UpdateRoomReload(); }
         catch (Exception ex) { Plugin.Logger.LogError("[Salle] " + ex); }
+        try { UpdateDeferredLoad(); } catch (Exception ex) { deferredLoad = null; Plugin.Logger.LogError("[Chargement] " + ex); }
         try { sequence.Update(); }
         catch (Exception ex) { Plugin.Logger.LogError("[Chargement] " + ex); }
 
@@ -167,11 +168,26 @@ public class PracticeBehaviour : MonoBehaviour
         catch (Exception ex) { Notify("Teleport failed: " + ex.Message, true); Plugin.Logger.LogError(ex); }
     }
 
+    // Chargement en attente de la fermeture du menu du jeu
+    SaveState deferredLoad;
+    float deferredUntil;
+
     void Load(SaveState state)
     {
         if (state == null || sequence.Active) return;
         if (!GameBridge.InGame(out string why)) { Notify(why, true); return; }
+        // Menu du jeu ouvert : on le ferme d'abord, le chargement suit dès qu'il est fermé
+        if (GameBridge.CloseGameMenu()) { deferredLoad = state; deferredUntil = Time.unscaledTime + 2f; return; }
         sequence.Start(state);
+    }
+
+    void UpdateDeferredLoad()
+    {
+        if (deferredLoad == null) return;
+        if (GameBridge.GameMenuOpen() && Time.unscaledTime < deferredUntil) return;
+        var s = deferredLoad;
+        deferredLoad = null;
+        if (!sequence.Active) sequence.Start(s);
     }
 
     void Notify(string msg, bool error = false)

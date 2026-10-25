@@ -364,6 +364,39 @@ public static class GameBridge
         finally { savedTransition = null; }
     }
 
+    /// <summary>Menu plein écran du jeu ouvert (pause, carte, inventaire…) ?</summary>
+    public static bool GameMenuOpen()
+    {
+        try
+        {
+            var states = GameStateManager.GetInstance()?._states;
+            if (states == null) return false;
+            foreach (var t in states.ToArray())
+                if (t?.Item2 != null && t.Item2.name == "FullscreenMenuState") return true;
+        }
+        catch { }
+        return false;
+    }
+
+    /// <summary>
+    /// Ferme le menu plein écran du jeu s'il est ouvert. Charger une savestate menu ouvert laissait son état actif
+    /// après le chargement (joueur figé en T-pose, « No current menu stack layer found »).
+    /// Retourne true si une fermeture a été demandée (le chargement doit attendre qu'elle soit faite).
+    /// </summary>
+    public static bool CloseGameMenu()
+    {
+        if (!GameMenuOpen()) return false;
+        try
+        {
+            var menu = UnityEngine.Object.FindObjectOfType(Il2CppType.Of<GameMenuManager>())?.TryCast<GameMenuManager>();
+            if (menu == null) return false;
+            menu.Close();
+            Plugin.Logger.LogInfo("[Chargement] menu du jeu ouvert : fermé avant le chargement");
+            return true;
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Chargement] fermeture du menu : " + ex.Message); return false; }
+    }
+
     public static bool PlayerHealthZero()
     {
         try
