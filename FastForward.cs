@@ -72,7 +72,12 @@ public static class FastForward
 
         if (playing) lastCutscene = now;
         else if (now - lastCutscene > DisarmAfter) { Disarm(); return; }
-        if (!playing) { RestoreSpeed(); return; }
+        if (!playing)
+        {
+            if (videoSkippedInCutscene) { videoSkippedInCutscene = false; LogScreenState("fin de la cinématique après vidéo passée"); }
+            RestoreSpeed();
+            return;
+        }
 
         // Vidéo : à vitesse normale, passée comme par l'appui long du joueur sur la touche Passer
         if (InVideo)
@@ -80,6 +85,15 @@ public static class FastForward
             RestoreSpeed();
             try { PressVideoSkip(); }
             catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] vidéo : " + ex.Message); }
+            return;
+        }
+
+        // Vidéo passée dans cette cinématique : la suite à vitesse normale (accélérée, elle laissait l'écran noir).
+        // Les lignes de dialogue restent passées, comme avec la touche du joueur.
+        if (videoSkippedInCutscene)
+        {
+            RestoreSpeed();
+            SkipDialogueLines();
             return;
         }
 
@@ -123,6 +137,21 @@ public static class FastForward
     }
 
     static UnityEngine.Object skippedVideo;
+    static bool videoSkippedInCutscene;
+
+    /// <summary>Relevé de ce qui peut rester affiché en noir (fondu des cinématiques, écran de la vidéo).</summary>
+    static void LogScreenState(string when)
+    {
+        try
+        {
+            var ui = CutsceneUIManager.Instance;
+            var fade = ui?._fadeScreenUI;
+            var vc = ui?._videoController;
+            Plugin.Logger.LogInfo($"[Cinématiques] écran, {when} : fondu {(fade != null ? fade.FadeValue.ToString("0.00") : "?")} (en cours {fade?.IsFading}, alpha {(fade?._canvasGroup != null ? fade._canvasGroup.alpha.ToString("0.00") : "?")}), "
+                + $"vidéo en lecture {vc?.IsPlayingVideo}, écran vidéo {vc?.videoImageCanvas?.enabled}/{vc?._videoPresenter?.isActiveAndEnabled}, timeScale {Time.timeScale}");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] relevé écran : " + ex.Message); }
+    }
 
     /// <summary>
     /// Passe la vidéo en cours comme le joueur : la touche Passer est un appui long (InputActionsToUnityEvents, condition
@@ -170,6 +199,7 @@ public static class FastForward
                 if (!videoCond && !targetsVideo) continue;
                 if (cond != null && !cond.GetValue()) return; // pas encore prête : on réessaie à l'image suivante
                 skippedVideo = clip;
+                videoSkippedInCutscene = true;
                 a.onLongPressStart?.Invoke();
                 ev?.Invoke();
                 Plugin.Logger.LogInfo($"[Cinématiques] vidéo '{clip.name}' passée par la touche du jeu ('{owner}' → {string.Join(", ", targets)})");
@@ -469,6 +499,7 @@ public static class FastForward
     static void Disarm()
     {
         RestoreSpeed();
+        videoSkippedInCutscene = false;
         armed = false;
         EndAbsorb();
     }
