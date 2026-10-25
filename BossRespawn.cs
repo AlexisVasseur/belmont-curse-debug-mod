@@ -322,8 +322,41 @@ public static class BossRespawn
     }
 
     /// <summary>
-    /// Scénario du combat du boss : celui dont la mise en place cite le boss (« LEON_Real_LeonIntro_Setup »),
-    /// sinon le scénario de boss le plus proche du joueur (il est dans l'arène).
+    /// Nœud qui mène au combat : mise en place / début du combat, ou sous-scénario qui en contient un
+    /// (Isaac I : le combat démarre dans « BossIntroNoTrigger », sans mise en place dans le scénario principal).
+    /// </summary>
+    static bool LeadsToFight(NodeDataBase n)
+    {
+        if (IsBossNode(n)) return true;
+        var sub = n?.TryCast<ResolverPlaySubResolverNodeData>()?.SubResolverData?.Nodes;
+        if (sub == null) return false;
+        foreach (var sn in sub) if (IsBossNode(sn)) return true;
+        return false;
+    }
+
+    /// <summary>Le nœud cite-t-il le boss ? (action de mise en place « LEON_… », ou personnage passé au sous-scénario)</summary>
+    static bool Mentions(NodeDataBase n, Bosses.Boss boss, string shortName)
+    {
+        string action = n.TryCast<ResolverSetupBossNodeData>()?.ActionData?.Value?.name ?? "";
+        if (action.IndexOf(shortName, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+        var vars = n.TryCast<ResolverPlaySubResolverNodeData>()?.VariablesContainer?._variables;
+        if (vars == null) return false;
+        for (int i = 0; i < vars.Count; i++)
+        {
+            try
+            {
+                var real = BossDiag.Real(vars[i]);
+                var value = real.GetType().GetProperty("Value")?.GetValue(real) as Il2CppSystem.Object;
+                if (value?.TryCast<CharacterID>()?.name == boss.Id.name) return true;
+            }
+            catch { }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Scénario du combat du boss : celui qui cite le boss, sinon le scénario de boss le plus proche du joueur
+    /// (il est dans l'arène).
     /// </summary>
     static CutsceneDirector FindDirector(Bosses.Boss boss)
     {
@@ -340,10 +373,8 @@ public static class BossRespawn
             if (nodes == null) continue;
             foreach (var n in nodes)
             {
-                if (!IsBossNode(n)) continue;
-                var setup = n.TryCast<ResolverSetupBossNodeData>();
-                string action = setup?.ActionData?.Value?.name ?? "";
-                if (action.IndexOf(shortName, StringComparison.OrdinalIgnoreCase) >= 0) return d;
+                if (!LeadsToFight(n)) continue;
+                if (Mentions(n, boss, shortName)) return d;
                 float dist = Vector3.Distance(d.transform.position, player);
                 seen.Add($"'{d.name}' à {dist:0}");
                 if (dist < best) { best = dist; nearest = d; }
@@ -453,7 +484,7 @@ public static class BossRespawn
             if (i < 0 || i >= nodes.Length || cost >= bestCost || visiting.Contains(i) || visiting.Count > 80) return;
             var n = nodes[i];
             if (n == null) return;
-            if (IsBossNode(n)) { bestCost = cost; best = new List<(Cond, bool)>(path); return; }
+            if (LeadsToFight(n)) { bestCost = cost; best = new List<(Cond, bool)>(path); return; }
             visiting.Add(i);
             if (IsCondition(n))
             {
