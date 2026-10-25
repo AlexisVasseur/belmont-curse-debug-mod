@@ -288,7 +288,21 @@ public static class BossRespawn
         if (Time.unscaledTime > searchUntil)
         {
             searchUntil = 0f;
-            Plugin.Logger.LogInfo($"[Respawn] {activeBoss.Name} : aucun scénario de combat trouvé dans l'arène");
+            // Combat lancé par un simple déclencheur (BossFightTrigger) plutôt que par un scénario ?
+            var triggers = new List<string>();
+            try
+            {
+                foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<BossFightTrigger>()))
+                {
+                    var t = o.TryCast<BossFightTrigger>();
+                    if (t == null || !t.gameObject.scene.IsValid()) continue;
+                    string defeated;
+                    try { defeated = t.IsBossDefeated().ToString(); } catch (Exception ex) { defeated = "?" + ex.Message; }
+                    triggers.Add($"'{t.name}' boss={t.bossData?.name ?? "?"} actif={t.gameObject.activeInHierarchy} vaincu={defeated} déclenché={t.encounterHasBeenTriggered} rencontre={t.encounterNumber}");
+                }
+            }
+            catch { }
+            Plugin.Logger.LogInfo($"[Respawn] {activeBoss.Name} : aucun scénario de combat trouvé dans l'arène ; déclencheurs : {(triggers.Count == 0 ? "aucun" : string.Join(" | ", triggers))}");
             return;
         }
         var director = FindDirector(activeBoss);
@@ -303,14 +317,21 @@ public static class BossRespawn
     static bool IsBossNode(NodeDataBase n)
     {
         string t = n?.GetIl2CppType().Name ?? "";
-        return t == "ResolverSetupBossNodeData" || t == "ResolverStartBossFightNodeData";
+        // Combat factice (le boss s'enfuit / combat scripté) : InitFakeBoss
+        return t == "ResolverSetupBossNodeData" || t == "ResolverStartBossFightNodeData" || t == "ResolverInitFakeBossNodeData";
     }
 
+    /// <summary>
+    /// Scénario du combat du boss : celui dont la mise en place cite le boss (« LEON_Real_LeonIntro_Setup »),
+    /// sinon le scénario de boss le plus proche du joueur (il est dans l'arène).
+    /// </summary>
     static CutsceneDirector FindDirector(Bosses.Boss boss)
     {
         string shortName = boss.Id.name.Replace("CharacterID_", "");
-        CutsceneDirector any = null;
-        int count = 0;
+        CutsceneDirector nearest = null;
+        float best = float.MaxValue;
+        var player = GameBridge.PlayerPosition();
+        var seen = new List<string>();
         foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<CutsceneDirector>()))
         {
             var d = o.TryCast<CutsceneDirector>();
@@ -320,16 +341,17 @@ public static class BossRespawn
             foreach (var n in nodes)
             {
                 if (!IsBossNode(n)) continue;
-                count++;
-                any = d;
-                // Le nœud de mise en place cite l'action du boss (« LEON_Real_LeonIntro_Setup »)
                 var setup = n.TryCast<ResolverSetupBossNodeData>();
                 string action = setup?.ActionData?.Value?.name ?? "";
                 if (action.IndexOf(shortName, StringComparison.OrdinalIgnoreCase) >= 0) return d;
+                float dist = Vector3.Distance(d.transform.position, player);
+                seen.Add($"'{d.name}' à {dist:0}");
+                if (dist < best) { best = dist; nearest = d; }
                 break;
             }
         }
-        return count == 1 ? any : null;
+        if (seen.Count > 1) Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : {seen.Count} scénarios de boss chargés ({string.Join(", ", seen)}), le plus proche est retenu");
+        return nearest;
     }
 
     /// <summary>Valeur d'une variable de scénario (sous-scénarios génériques : la valeur vient du scénario parent).</summary>
