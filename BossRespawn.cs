@@ -240,8 +240,11 @@ public static class BossRespawn
         }
         Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : scénario '{director.name}', {plan.Count} condition(s) sur le chemin, changé : "
             + (applied.Count == 0 ? "rien" : string.Join(", ", applied.Select(c => $"{c.cond.Id} → {!c.original}"))));
-        // Le jeu réévalue lui-même le scénario (ForceReset plantait et n'est pas nécessaire)
-        BossDiag.DumpDirectors("après changement des conditions");
+        // Relance du scénario depuis son départ. ForceReset lève une erreur en fin de course, mais c'est avec lui
+        // que le boss apparaît (sans lui, le scénario rejoue l'intro sans faire venir le boss).
+        try { director.ForceReset(); }
+        catch (Exception ex) { Plugin.Logger.LogInfo("[Respawn] ForceReset : " + ex.Message.Split('\n')[0]); }
+        BossDiag.DumpDirectors("après relance du scénario");
     }
 
     static Dictionary<string, byte[]> saveCopy;

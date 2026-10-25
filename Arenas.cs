@@ -153,7 +153,7 @@ public static class Arenas
         }
         if (level == null) return $"{b.Name}: level '{e.Level}' not found";
         // Boss remis « Alive » : niveau rechargé en entier, sinon le combat de l'arène reste marqué terminé
-        bool full = b.Id != null && BossRespawn.Pending.Contains(b.Id.name);
+        bool full = false; // le rechargement complet ne remettait pas le combat à zéro
         request = (level, new Vector3(e.X, e.Y, e.Z), full);
         return full ? $"Teleport: in front of {b.Name}'s arena (reloading the level to reset the fight)" : $"Teleport: in front of {b.Name}'s arena";
     }
