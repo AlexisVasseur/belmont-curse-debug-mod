@@ -332,7 +332,7 @@ public static class FastForward
         Each<ArcanaAcquisitionController>(c => c.CloseArcanaAcquisition());
         Each<ItemAcquisitionController>(c => c.CloseItemAcquisition());
         Each<CollectibleAcquisitionController>(c => c.CloseAcquisition());
-        Each<MainObjectiveDeckAcquisitionManager>(c => c.CloseDeckAcquisition());
+        // Pas la fenêtre du deck d'objectif (après Death I) : fermée pendant son animation d'ouverture, elle laisse un écran noir
         return any;
     }
 
@@ -378,19 +378,13 @@ public static class FastForward
     }
 
     /// <summary>
-    /// Fin de cinématique accélérée : un affichage de vidéo resté ouvert ou un fondu au noir non refait laissent l'écran
-    /// noir alors que le jeu a repris. On les referme comme le jeu en fin normale.
+    /// Fin de cinématique accélérée : un fondu au noir non refait laisse l'écran noir alors que le jeu a repris.
+    /// On le termine comme le jeu en fin normale.
     /// </summary>
     static void ClearLeftoverBlack()
     {
         var ui = CutsceneUIManager.Instance;
         if (ui == null) return;
-        var vc = ui._videoController;
-        if (vc != null && !vc.IsPlayingVideo && !vc.IsPreparingVideo && vc.videoImageCanvas != null && vc.videoImageCanvas.enabled)
-        {
-            vc.CloseVideo();
-            Plugin.Logger.LogInfo("[Cinématiques] affichage de vidéo resté ouvert : refermé");
-        }
         var fade = ui._fadeScreenUI;
         if (fade == null || fade.IsFading) return;
         float before = fade.FadeValue;
