@@ -106,7 +106,7 @@ public static class Arenas
     static Bosses.Boss BossOf(BossData data, string arcana)
     {
         foreach (var b in Bosses.All)
-            if ((data != null && b.Data != null && b.Data.name == data.name) || (arcana != null && b.Id?.name == arcana)) return b;
+            if ((data != null && b.DataName == data.name) || (arcana != null && b.Id?.name == arcana)) return b;
         return null;
     }
 

@@ -15,13 +15,39 @@ namespace BelmontPractice;
 /// </summary>
 public static class Bosses
 {
+    /// <summary>
+    /// Ce qu'on garde d'un boss. Pas son BossData : le garder chargé empêchait le jeu de le recharger à neuf
+    /// (après un premier combat, le boss n'était plus créé). On copie ce qui sert puis on le relâche.
+    /// </summary>
     public class Boss
     {
         public CharacterID Id;
-        public BossData Data;
-        public ProgressionKeyID Key;
+        public string DataName, KeyGuid, KeyName;
+        public readonly HashSet<string> GateDataNames = new();
+        public bool IgnoreAbsorption;
         public string Name;
         public Sprite Icon;
+
+        ProgressionKeyID keyCache;
+        float nextKeySearch;
+
+        /// <summary>Clé « vaincu », retrouvée parmi les clés chargées (null si introuvable pour l'instant).</summary>
+        public ProgressionKeyID Key
+        {
+            get
+            {
+                if (KeyGuid == null) return null;
+                if (keyCache != null) return keyCache; // comparaison Unity : null si l'objet a été détruit
+                if (Time.unscaledTime < nextKeySearch) return null;
+                nextKeySearch = Time.unscaledTime + 2f;
+                foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppInterop.Runtime.Il2CppType.Of<ProgressionKeyID>()))
+                {
+                    var k = o.TryCast<ProgressionKeyID>();
+                    if (k != null && k.guid == KeyGuid) { keyCache = k; break; }
+                }
+                return keyCache;
+            }
+        }
     }
 
     public static readonly List<Boss> All = new();
@@ -59,11 +85,12 @@ public static class Bosses
                 if (!h.IsDone) continue;
                 if (h.Status == AsyncOperationStatus.Succeeded) Add(id, h.Result);
                 pending.RemoveAt(i);
+                try { Addressables.Release(h); } catch { } // relâché aussitôt : le jeu doit pouvoir le décharger / recharger
             }
             if (pending.Count == 0 || Time.unscaledTime - startTime > 20f)
             {
                 Done = true;
-                Plugin.Logger.LogInfo($"[Boss] {All.Count} boss : " + string.Join(", ", All.ConvertAll(b => $"{b.Name} ({b.Id.name}, clé {b.Key?.name ?? "aucune"})")));
+                Plugin.Logger.LogInfo($"[Boss] {All.Count} boss : " + string.Join(", ", All.ConvertAll(b => $"{b.Name} ({b.Id.name}, clé {b.KeyName ?? "aucune"})")));
             }
         }
         catch (Exception ex)
@@ -76,7 +103,14 @@ public static class Bosses
     static void Add(CharacterID id, BossData data)
     {
         if (data == null) return;
-        var b = new Boss { Id = id, Data = data, Key = data.defeatedProgressionKey };
+        var key = data.defeatedProgressionKey;
+        var b = new Boss
+        {
+            Id = id, DataName = data.name, KeyGuid = key?.guid, KeyName = key?.name,
+            IgnoreAbsorption = data.ignoreAbsorptionForSpawnCondition,
+        };
+        b.GateDataNames.Add(data.name);
+        if (data.bossDataOverrideForBossGates != null) b.GateDataNames.Add(data.bossDataOverrideForBossGates.name);
         try
         {
             var ui = id.LoadCharacterUIDisplayData();
@@ -88,7 +122,6 @@ public static class Bosses
         }
         catch { }
         if (string.IsNullOrEmpty(b.Name)) b.Name = string.IsNullOrEmpty(data.mobDisplayName) ? Pretty(id.name) : data.mobDisplayName;
-        b.Icon ??= data.mobIcon;
         All.Add(b);
     }
 
@@ -118,7 +151,7 @@ public static class Bosses
     {
         var p = Progression();
         if (p == null) return "Unavailable (load a game first)";
-        if (b.Key == null) return $"{b.Name}: no defeat flag in the game data";
+        if (b.Key == null) return b.KeyGuid == null ? $"{b.Name}: no defeat flag in the game data" : $"{b.Name}: defeat flag not loaded yet, try again";
         string before = $"clé={p.HasProgressionKey(b.Key)} étape={Step(b)}";
         if (defeated) { p.SetProgressionKey(b.Key); SetStep(b, CharacterProgressionStep.Absorbed); BossRespawn.Pending.Remove(b.Id.name); }
         else { Respawn(p, b); BossRespawn.Pending.Add(b.Id.name); }
@@ -135,7 +168,7 @@ public static class Bosses
     {
         p.UnsetProgressionKey(b.Key);
         ResetGates(b);
-        if (b.Data != null && b.Data.ignoreAbsorptionForSpawnCondition) return;
+        if (b.IgnoreAbsorption) return;
         SetStep(b, CharacterProgressionStep.Found, onlyIfAbsorbed: true);
     }
 
@@ -148,9 +181,8 @@ public static class Bosses
         try
         {
             var dict = CurrentBossGateState._bossGateState;
-            if (dict == null || b.Data == null) return;
-            var names = new HashSet<string> { b.Data.name };
-            if (b.Data.bossDataOverrideForBossGates != null) names.Add(b.Data.bossDataOverrideForBossGates.name);
+            if (dict == null) return;
+            var names = b.GateDataNames;
             var toRemove = new List<BossData>();
             foreach (var k in dict.Keys) if (k != null && names.Contains(k.name)) toRemove.Add(k);
             foreach (var k in toRemove) dict.Remove(k);
