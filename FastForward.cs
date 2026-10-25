@@ -5,14 +5,15 @@ using UnityEngine;
 namespace BelmontPractice;
 
 /// <summary>
-/// Accélération des cinématiques (raccourci, F7 / Y à la manette par défaut). Une pression pendant une cinématique l'accélère ×10,
-/// ainsi que toutes celles qui suivent (fin de combat, absorption, suite de l'histoire…). Dès que le jeu redevient
-/// jouable, la vitesse normale revient aussitôt : le gameplay n'est jamais accéléré. S'arrête à une nouvelle pression,
-/// à un chargement, ou après 20 s sans cinématique.
+/// Passage automatique des cinématiques (raccourci, F7 / Y à la manette par défaut), comme si le joueur restait appuyé
+/// sur la touche de passage du jeu (A) : lignes de dialogue terminées, passages sautables sautés, vidéos passées dès
+/// que le jeu le permet. Le reste se joue à vitesse normale. Vaut pour la cinématique en cours et celles qui suivent
+/// (fin de combat, absorption, suite de l'histoire…). S'arrête à une nouvelle pression, à un chargement, ou après
+/// 20 s sans cinématique.
 /// </summary>
 public static class FastForward
 {
-    const float Speed = 10f, DisarmAfter = 20f;
+    const float DisarmAfter = 20f;
 
     // États de jeu posés pendant une cinématique (pas le verrou des menus, qui peut rester en plein gameplay)
     static readonly HashSet<string> CutsceneStates = new()
@@ -20,7 +21,7 @@ public static class FastForward
         "DialogueState", "GameplayAbsorptionState", "SequenceState", "TimelineLockInputState",
     };
 
-    static bool armed, speeding;
+    static bool armed;
     public static bool Armed => armed;
     static float lastCutscene;
 
@@ -28,7 +29,7 @@ public static class FastForward
     {
         try
         {
-            // Cinématique qui a pris les commandes (celles qui les laissent au joueur ne sont pas accélérées : ce serait du gameplay)
+            // Cinématique qui a pris les commandes (celles qui les laissent au joueur ne sont pas passées : ce serait du gameplay)
             var ui = CutsceneUIManager.Instance;
             if (ui != null && ui.IsPlayingCutscene && ui._controlCount > 0) return true;
             var states = GameStateManager.GetInstance()?._states;
@@ -49,15 +50,15 @@ public static class FastForward
 
         if (pressed)
         {
-            if (armed) { Disarm(); notify?.Invoke("Cutscenes: normal speed", false); }
+            if (armed) { Disarm(); notify?.Invoke("Cutscenes: auto-skip off", false); }
             else if (playing)
             {
                 armed = true;
                 lastCutscene = now;
-                notify?.Invoke($"Cutscenes: fast-forward ×{Speed:0}", false);
-                Plugin.Logger.LogInfo($"[Cinématiques] accélération : timeScale={Time.timeScale}, cinématique={CutsceneUIManager.Instance?.IsPlayingCutscene}, scénarios={CutsceneManager.Instance?._directors?.Count}");
+                notify?.Invoke("Cutscenes: auto-skip", false);
+                Plugin.Logger.LogInfo($"[Cinématiques] passage automatique : cinématique={CutsceneUIManager.Instance?.IsPlayingCutscene}, scénarios={CutsceneManager.Instance?._directors?.Count}");
             }
-            else notify?.Invoke("No cutscene to fast-forward", false);
+            else notify?.Invoke("No cutscene to skip", false);
         }
         if (!armed) return;
 
@@ -67,44 +68,14 @@ public static class FastForward
 
         if (playing) lastCutscene = now;
         else if (now - lastCutscene > DisarmAfter) { Disarm(); return; }
+        if (!playing) return;
 
-        if (playing)
-        {
-            // Animations et timelines : temps du jeu accéléré (pause du jeu, timeScale 0 : on n'y touche pas)
-            if (Time.timeScale > 0f)
-            {
-                if (Time.timeScale != Speed) Time.timeScale = Speed;
-                speeding = true;
-            }
-            // Les scénarios avancent sur leur propre horloge : passes supplémentaires à chaque image
-            try
-            {
-                var cm = CutsceneManager.Instance;
-                float dt = Time.unscaledDeltaTime;
-                if (cm != null) for (int i = 1; i < Speed; i++) cm.UpdateDirectors(dt);
-            }
-            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] scénarios : " + ex.Message); }
-            // Lignes de dialogue : comme la touche du joueur, texte affiché d'un coup puis ligne terminée (le scénario
-            // passe à la suivante). Les lignes attendent sinon une touche ou leur durée.
-            SkipDialogueLines();
-            try { SkipSkippableSegments(); }
-            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] passages sautables : " + ex.Message); }
-            try { SkipVideo(); }
-            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] vidéo : " + ex.Message); }
-            blackChecked = false;
-        }
-        else if (!playing && speeding)
-        {
-            if (Time.timeScale == Speed) Time.timeScale = 1f;
-            speeding = false;
-        }
-        // Retour au jeu : écran noir laissé par une vidéo ou un fondu sautés ? (vérifié une fois, 0,5 s après)
-        if (!playing && !blackChecked && now - lastCutscene > 0.5f)
-        {
-            blackChecked = true;
-            try { ClearLeftoverBlack(); }
-            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] écran noir : " + ex.Message); }
-        }
+        // Ce que fait la touche de passage du jeu
+        SkipDialogueLines();
+        try { SkipSkippableSegments(); }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] passages sautables : " + ex.Message); }
+        try { SkipVideo(); }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] vidéo : " + ex.Message); }
     }
 
     static float acquisitionSince = -1f;
@@ -366,32 +337,13 @@ public static class FastForward
         }
     }
 
-    static bool blackChecked = true;
-
-    /// <summary>Vidéo en cours : sautée par le chemin du jeu (fermeture de l'affichage et suite de la cinématique comprises).</summary>
+    /// <summary>Vidéo en cours : passée comme par la touche du joueur, une fois que le jeu l'autorise.</summary>
     static void SkipVideo()
     {
         var vc = CutsceneUIManager.Instance?._videoController;
-        if (vc == null || !vc.IsPlayingVideo) return; // encore en préparation : sautée dès qu'elle démarre
-        vc.ForceSkipVideo();
-        Plugin.Logger.LogInfo($"[Cinématiques] vidéo sautée (encore en cours : {vc.IsPlayingVideo})");
-    }
-
-    /// <summary>
-    /// Fin de cinématique accélérée : un fondu au noir non refait laisse l'écran noir alors que le jeu a repris.
-    /// On le termine comme le jeu en fin normale.
-    /// </summary>
-    static void ClearLeftoverBlack()
-    {
-        var ui = CutsceneUIManager.Instance;
-        if (ui == null) return;
-        var fade = ui._fadeScreenUI;
-        if (fade == null || fade.IsFading) return;
-        float before = fade.FadeValue;
-        if (before < 0.9f) return;
-        ui.ForceEndFade(FadeType.FadeIn);
-        if (fade.FadeValue >= 0.9f) ui.ForceEndFade(FadeType.FadeOut);
-        Plugin.Logger.LogInfo($"[Cinématiques] fondu au noir resté affiché : {before:0.00} → {fade.FadeValue:0.00}");
+        if (vc == null || !vc.IsPlayingVideo || !vc.isReadyToSkip) return;
+        vc.TrySkipVideo();
+        Plugin.Logger.LogInfo($"[Cinématiques] vidéo passée (encore en cours : {vc.IsPlayingVideo})");
     }
 
     static float nextLineSkip;
@@ -401,7 +353,7 @@ public static class FastForward
     {
         // Un léger délai entre deux lignes, le temps que la suivante commence
         if (Time.unscaledTime < nextLineSkip) return;
-        nextLineSkip = Time.unscaledTime + 0.05f;
+        nextLineSkip = Time.unscaledTime + 0.1f;
         foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppInterop.Runtime.Il2CppType.Of<CutsceneLineReader>()))
         {
             try
@@ -417,8 +369,6 @@ public static class FastForward
 
     static void Disarm()
     {
-        if (speeding && Time.timeScale == Speed) Time.timeScale = 1f;
-        speeding = false;
         armed = false;
         EndAbsorb();
     }
