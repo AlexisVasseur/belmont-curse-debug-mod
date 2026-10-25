@@ -197,6 +197,90 @@ public static class BossDiag
         catch (Exception ex) { Plugin.Logger.LogWarning("[Boss] acteurs : " + ex.Message); }
     }
 
+    /// <summary>Condition d'entité en clair : clés de progression (à avoir / pas), inversions, sous-conditions.</summary>
+    public static string Describe(EntityConditionAbstract c, MotherBase.EntityFramework.Entity player, int depth = 0)
+    {
+        if (c == null) return "aucune";
+        if (depth > 4) return "…";
+        try
+        {
+            var not = c.TryCast<EntityConditionNot>();
+            if (not != null) return $"NON({Describe(not.condition, player, depth + 1)})";
+            var pk = c.TryCast<EntityConditionCheckProgressKey>();
+            if (pk != null)
+            {
+                bool has = false;
+                try { has = player?.GetComponent<ProgressionComponent>()?.HasProgressionKey(pk.progressionKeyToCheck) == true; } catch { }
+                return $"clé {pk.progressionKeyToCheck?.name ?? "?"} requise={pk.shouldHave} actuelle={has}";
+            }
+            // Conditions composées : sous-conditions trouvées par réflexion
+            var real = Real(c);
+            var subs = new List<string>();
+            foreach (var p in real.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            {
+                object v;
+                try { v = p.GetValue(real); } catch { continue; }
+                if (v is EntityConditionAbstract sc) subs.Add(Describe(sc, player, depth + 1));
+                else if (v is Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<EntityConditionAbstract> arr)
+                    foreach (var x in arr) subs.Add(Describe(x, player, depth + 1));
+                else if (v is Il2CppSystem.Collections.Generic.List<EntityConditionAbstract> list)
+                    for (int i = 0; i < list.Count; i++) subs.Add(Describe(list[i], player, depth + 1));
+            }
+            string ok = "?";
+            try { ok = player != null ? c.IsConditionValidated(player).ToString() : "?"; } catch { }
+            return $"{c.GetIl2CppType().Name}={ok}" + (subs.Count > 0 ? "[" + string.Join(" ; ", subs) + "]" : "");
+        }
+        catch (Exception ex) { return "?" + ex.Message; }
+    }
+
+    /// <summary>
+    /// Diagnostic : objets proches (60 u.) qui peuvent condamner un passage selon l'histoire — portes verrouillées,
+    /// évènements sur condition, portails, déclencheurs à clé — avec leur condition et leur état.
+    /// </summary>
+    public static void DumpObstacles(string when)
+    {
+        try
+        {
+            MotherBase.EntityFramework.Entity player = null;
+            try { MainCharacterSingleton.TryGetEntity(out player); } catch { }
+            var pos = GameBridge.PlayerPosition();
+            var sb = new StringBuilder();
+            void Each<T>(Func<T, string> line) where T : Component
+            {
+                foreach (var o in Resources.FindObjectsOfTypeAll(Il2CppType.Of<T>()))
+                {
+                    var x = o.TryCast<T>();
+                    if (x == null || !x.gameObject.scene.IsValid()) continue;
+                    float d = Vector3.Distance(x.transform.position, pos);
+                    if (d > 60f) continue;
+                    string s;
+                    try { s = line(x); } catch (Exception ex) { s = "? " + ex.Message; }
+                    if (s != null) sb.AppendLine($"  {typeof(T).Name} '{x.name}' à {d:0} actif={x.gameObject.activeInHierarchy} {s}");
+                }
+            }
+            Each<LockedDoorComponent>(x => "condition=" + Describe(x.changeStateCondition, player));
+            Each<EntityConditionBasedEvent>(x => "ouverture=" + Describe(x.openCondition, player));
+            Each<EntityConditionUnityEvent>(x => "condition=" + Describe(x.condition, player));
+            Each<GPE_Gate>(x => $"ouvert={x.isOpen}");
+            Each<TriggerWithMultipleProgressionKeyChecks>(x => "clés=[" + string.Join(",", ToNames(x.progressionKeys)) + "]");
+            Each<Trigger>(x => x.condition == null ? null : "condition=" + Describe(x.condition, player)); // seulement les déclencheurs conditionnels
+            Plugin.Logger.LogInfo($"[Boss] obstacles ({when}), joueur en {pos} :\n{sb}");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Boss] obstacles : " + ex.Message); }
+    }
+
+    static IEnumerable<string> ToNames(object keys)
+    {
+        var res = new List<string>();
+        try
+        {
+            if (keys is System.Collections.IEnumerable e)
+                foreach (var k in e) res.Add((k as UnityEngine.Object)?.name ?? Short(k));
+        }
+        catch { }
+        return res;
+    }
+
     /// <summary>Retire du registre des acteurs les entrées dont l'objet a été détruit (combat précédent).</summary>
     public static int PurgeDeadActors()
     {

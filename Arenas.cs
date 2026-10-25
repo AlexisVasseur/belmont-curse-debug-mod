@@ -43,7 +43,7 @@ public static class Arenas
     static bool lastRoomIsArena, insideTried;
     static BossData lastArenaData;
     static string lastArenaArcana;
-    static float lastRoomSince, lastLoad = -100f, dumpAt;
+    static float lastRoomSince, lastLoad = -100f, dumpAt, obstaclesAt;
     static readonly Queue<(float t, Vector3 p)> trail = new();
 
     // Demande de téléportation venue de l'interface, traitée par PracticeBehaviour
@@ -146,6 +146,7 @@ public static class Arenas
                 var boss = BossOf(data, arcana);
                 BossRespawn.OnEnterArena(boss, boss?.Id != null ? KeyOf(boss, room) : null);
             }
+            if (Plugin.BossDiagnostics.Value) obstaclesAt = now + 1.5f; // obstacles de la nouvelle salle (passages condamnés par l'histoire)
             lastRoom = room;
             lastRoomSince = now;
             lastRoomIsArena = isArena;
@@ -163,6 +164,7 @@ public static class Arenas
         }
         BossRespawn.Update();
         if (dumpAt > 0f && now >= dumpAt) { dumpAt = 0f; BossDiag.DumpDirectors("2 s après l'entrée dans l'arène"); }
+        if (obstaclesAt > 0f && now >= obstaclesAt) { obstaclesAt = 0f; BossDiag.DumpObstacles("salle " + room); }
         trail.Enqueue((now, pos));
         while (trail.Count > 0 && trail.Peek().t < now - 2f) trail.Dequeue();
     }
