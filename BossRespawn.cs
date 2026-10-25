@@ -326,6 +326,7 @@ public static class BossRespawn
 
     static float watchUntil, lockSince = -1f, dumpAfterAt;
     static string watchRoom, watchKey;
+    static bool followUpHealed; // une seule relance de la suite par combat
     // Cinématiques de la suite remises à « non vues » par Fight (à remettre « vues » si on ressort sans combattre)
     static readonly List<string> postApplied = new();
     static int lockId = -1;
@@ -410,7 +411,19 @@ public static class BossRespawn
                     if (gs != null && gs.Action.ToString() == "Pop" && gs.TargetState?.name == "GameplayLockMenuState") popsLock = true;
                     if (nodes[j]?.NextNodes != null) foreach (int k in nodes[j].NextNodes) queue.Enqueue(k);
                 }
-                if (popsLock) AddPostCutscene(watchKey, cs.ID, cs.name);
+                if (!popsLock) continue;
+                AddPostCutscene(watchKey, cs.ID, cs.name);
+                // Première fois : le scénario de la suite a déjà démarré du côté « déjà vue » (rien ne se joue, joueur
+                // invisible). On remet la cinématique à « non vue » et on recharge le niveau sur place : il repart du bon côté.
+                var c = new Cond { kind = Kind.Cutscene, cutsceneId = cs.ID };
+                if (!followUpHealed && Evaluate(c) && Vector3.Distance(d.transform.position, GameBridge.PlayerPosition()) < 80f)
+                {
+                    followUpHealed = true;
+                    Set(c, false);
+                    lockId = -1;
+                    Plugin.Logger.LogInfo($"[Respawn] suite du combat '{cs.name}' : rechargement sur place pour la jouer");
+                    Arenas.RequestPlainReloadHere();
+                }
             }
             catch (Exception ex) { Plugin.Logger.LogWarning("[Respawn] suite du combat : " + ex.Message); }
         }
@@ -428,6 +441,7 @@ public static class BossRespawn
             watchUntil = Time.unscaledTime + 120f; // la cinématique de fin et le changement de salle peuvent être longs
             dumpAfterAt = Time.unscaledTime + 8f; // après la cinématique de fin et le changement de salle éventuel
             watchKey = activeKey;
+            followUpHealed = false;
             postApplied.Clear(); // cinématiques de la suite : laissées « non vues », le jeu les joue maintenant
             Revert();
             // Suite du combat déjà chargée (salle voisine) : apprise et remise à « non vue » avant que le joueur y arrive

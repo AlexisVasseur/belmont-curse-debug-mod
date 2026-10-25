@@ -261,6 +261,9 @@ public static class Arenas
         request = (null, GameBridge.PlayerPosition(), true, b, key); // niveau null = niveau actuel
     }
 
+    /// <summary>Rechargement complet du niveau sur place, sans boss à préparer (suite d'un combat à rejouer).</summary>
+    public static void RequestPlainReloadHere() => request = (null, GameBridge.PlayerPosition(), true, null, null);
+
     public static bool TakeRequest(out LevelID level, out Vector3 pos, out bool fullReload, out Bosses.Boss boss, out string key)
     {
         level = null; pos = default; fullReload = false; boss = null; key = null;
