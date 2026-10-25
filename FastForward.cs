@@ -89,17 +89,21 @@ public static class FastForward
             SkipDialogueLines();
             try { SkipSkippableSegments(); }
             catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] passages sautables : " + ex.Message); }
-            try
-            {
-                var ui = CutsceneUIManager.Instance;
-                if (ui != null && ui.IsVideoPlaying()) ui.ForceStopVideo();
-            }
-            catch { }
+            try { SkipVideo(); }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] vidéo : " + ex.Message); }
+            blackChecked = false;
         }
         else if (!playing && speeding)
         {
             if (Time.timeScale == Speed) Time.timeScale = 1f;
             speeding = false;
+        }
+        // Retour au jeu : écran noir laissé par une vidéo ou un fondu sautés ? (vérifié une fois, 0,5 s après)
+        if (!playing && !blackChecked && now - lastCutscene > 0.5f)
+        {
+            blackChecked = true;
+            try { ClearLeftoverBlack(); }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Cinématiques] écran noir : " + ex.Message); }
         }
     }
 
@@ -166,7 +170,7 @@ public static class FastForward
             StartAbsorption();
         }
         HoldStates(first);
-        if (absorbFallbackDone || now - absorbStartedAt < 4f) return;
+        if (absorbFallbackDone || now - absorbStartedAt < 1.5f) return;
         absorbFallbackDone = true;
         ReleaseHeld();
         foreach (var ev in pending) ev.OnEventTriggered();
@@ -360,6 +364,40 @@ public static class FastForward
                 }
             }
         }
+    }
+
+    static bool blackChecked = true;
+
+    /// <summary>Vidéo en cours : sautée par le chemin du jeu (fermeture de l'affichage et suite de la cinématique comprises).</summary>
+    static void SkipVideo()
+    {
+        var vc = CutsceneUIManager.Instance?._videoController;
+        if (vc == null || !vc.IsPlayingVideo) return; // encore en préparation : sautée dès qu'elle démarre
+        vc.ForceSkipVideo();
+        Plugin.Logger.LogInfo($"[Cinématiques] vidéo sautée (encore en cours : {vc.IsPlayingVideo})");
+    }
+
+    /// <summary>
+    /// Fin de cinématique accélérée : un affichage de vidéo resté ouvert ou un fondu au noir non refait laissent l'écran
+    /// noir alors que le jeu a repris. On les referme comme le jeu en fin normale.
+    /// </summary>
+    static void ClearLeftoverBlack()
+    {
+        var ui = CutsceneUIManager.Instance;
+        if (ui == null) return;
+        var vc = ui._videoController;
+        if (vc != null && !vc.IsPlayingVideo && !vc.IsPreparingVideo && vc.videoImageCanvas != null && vc.videoImageCanvas.enabled)
+        {
+            vc.CloseVideo();
+            Plugin.Logger.LogInfo("[Cinématiques] affichage de vidéo resté ouvert : refermé");
+        }
+        var fade = ui._fadeScreenUI;
+        if (fade == null || fade.IsFading) return;
+        float before = fade.FadeValue;
+        if (before < 0.9f) return;
+        ui.ForceEndFade(FadeType.FadeIn);
+        if (fade.FadeValue >= 0.9f) ui.ForceEndFade(FadeType.FadeOut);
+        Plugin.Logger.LogInfo($"[Cinématiques] fondu au noir resté affiché : {before:0.00} → {fade.FadeValue:0.00}");
     }
 
     static float nextLineSkip;
