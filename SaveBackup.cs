@@ -5,7 +5,7 @@ using BepInEx;
 
 namespace BelmontPractice;
 
-/// <summary>Copie des vraies sauvegardes du jeu à chaque lancement (on garde les 10 dernières).</summary>
+/// <summary>Copie des vraies sauvegardes du jeu à chaque lancement (on garde les 10 dernières copies horodatées).</summary>
 public static class SaveBackup
 {
     const int Keep = 10;
@@ -25,7 +25,10 @@ public static class SaveBackup
             Directory.CreateDirectory(target);
             foreach (var f in files) File.Copy(f, Path.Combine(target, Path.GetFileName(f)), true);
 
-            foreach (var old in new DirectoryInfo(root).GetDirectories().OrderByDescending(d => d.CreationTimeUtc).Skip(Keep))
+            // Seuls les dossiers horodatés créés ici tournent : un dossier renommé ou ajouté à la main n'est jamais supprimé
+            var stamp = new System.Text.RegularExpressions.Regex(@"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$");
+            foreach (var old in new DirectoryInfo(root).GetDirectories().Where(d => stamp.IsMatch(d.Name))
+                         .OrderByDescending(d => d.Name, StringComparer.Ordinal).Skip(Keep))
                 old.Delete(true);
             Plugin.Logger.LogInfo($"Sauvegardes du jeu copiées dans {target}");
         }

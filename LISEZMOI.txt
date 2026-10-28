@@ -1,0 +1,91 @@
+BELMONT PRACTICE {VERSION}
+Mod d'entraînement pour Castlevania: Belmont's Curse (version Steam, Windows)
+==========================================================================
+
+Savestates, retour sur les boss, téléportation depuis la carte, accélération
+des cinématiques, PV / mana / potions infinis, noclip...
+
+
+AVANT D'INSTALLER : SAUVEGARDE TES PARTIES
+------------------------------------------
+Le mod écrit dans la sauvegarde du jeu (chargement de savestates, bouton Fight).
+Copie d'abord le dossier de tes sauvegardes dans un endroit sûr :
+
+  %USERPROFILE%\AppData\LocalLow\KONAMI\Castlevania Belmont's Curse
+
+(colle ce chemin dans la barre d'adresse de l'Explorateur Windows)
+
+Le mod fait aussi une copie de tes sauvegardes à chaque lancement du jeu,
+dans <dossier du jeu>\BelmontPractice\SauvegardesJeu (les 10 dernières).
+
+
+1. INSTALLER BEPINEX (une seule fois)
+-------------------------------------
+Il faut EXACTEMENT cette version de BepInEx :
+
+  BepInEx 6.0.0-be.791, variante Unity IL2CPP, Windows x64
+
+  - Page des builds : https://builds.bepinex.dev/projects/bepinex_be
+  - Choisis la build #791 (commit b782da4), puis le fichier dont le nom
+    commence par "BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.791"
+
+Le BepInEx 5 "stable" ne marche pas avec ce jeu, et une autre build 6.0.0-be
+risque de ne pas charger le mod.
+
+  a. Trouve le dossier du jeu : dans Steam, clic droit sur le jeu >
+     Gérer > Parcourir les fichiers locaux.
+  b. Décompresse le zip de BepInEx dans ce dossier (winhttp.dll doit se
+     retrouver à côté de l'exécutable du jeu).
+  c. Lance le jeu une première fois et attends le menu principal : BepInEx
+     prépare les fichiers du jeu, ça prend 1 à 2 minutes la première fois.
+  d. Quitte le jeu.
+
+
+2. INSTALLER LE MOD
+-------------------
+Décompresse BelmontPractice-{VERSION}.zip dans le dossier du jeu (le même que
+pour BepInEx), en acceptant de fusionner les dossiers. Tu dois obtenir :
+
+  <dossier du jeu>\BepInEx\plugins\BelmontPractice\BelmontPractice.dll
+  <dossier du jeu>\BepInEx\plugins\BelmontPractice\icons\...
+
+Lance le jeu et charge une partie.
+
+
+3. UTILISATION
+--------------
+  F1            ouvre / ferme les fenêtres du mod
+  F5 / F6       sauver / charger le quickslot (aussi pavé numérique 7 / 8)
+  Pavé num. 9   sauver dans un emplacement (puis un chiffre 0-9)
+  Pavé num. 3   charger un emplacement (puis un chiffre 0-9)
+  Pavé num. 4/6 page de savestates précédente / suivante
+  F7 (manette Y) accélérer les cinématiques
+  T             carte ouverte : se téléporter au point sous le curseur
+
+Dans le panneau latéral (F1) :
+  General   PV / mana / potions infinis, noclip, améliorations...
+  Skills    capacités et arcanes
+  Weapons   armes et reliques
+  Bosses    remettre un boss en vie et le refaire (bouton Fight)
+  Keybinds  options On / Off et tous les raccourcis (clic sur un raccourci,
+            puis appuie sur la nouvelle touche)
+
+Dans la fenêtre des savestates : double-clic sur un nom pour le charger,
+crayon pour renommer, poubelle pour supprimer.
+
+Les savestates sont dans <dossier du jeu>\BelmontPractice\Savestates.
+Les réglages sont dans <dossier du jeu>\BepInEx\config\fr.vasseur.belmontpractice.cfg.
+
+
+EN CAS DE PROBLÈME
+------------------
+- Le journal du jeu est dans <dossier du jeu>\BepInEx\LogOutput.log :
+  envoie-le avec une description de ce que tu faisais.
+- Si le mod ne se charge pas, vérifie dans ce journal la ligne
+  "BepInEx 6.0.0-be.791" tout en haut. Le mod y signale aussi une autre
+  version de BepInEx.
+- Une mise à jour du jeu peut casser le mod jusqu'à la version suivante.
+- Pour désinstaller : supprime le dossier BepInEx\plugins\BelmontPractice
+  (ou winhttp.dll pour désactiver BepInEx entièrement).
+- Certains antivirus se méfient de winhttp.dll (le lanceur de BepInEx) :
+  c'est normal pour un chargeur de mods.

@@ -22,7 +22,8 @@
   <ItemGroup>
     <ModIcon Include="icons\*.png" />
   </ItemGroup>
-  <Target Name="CopyToPlugins" AfterTargets="Build">
+  <!-- Copie dans le jeu, sauf pour le paquet (package.ps1 : SkipGameCopy=true, jeu ouvert possible) -->
+  <Target Name="CopyToPlugins" AfterTargets="Build" Condition="'$(SkipGameCopy)' != 'true'">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\BepInEx\plugins\BelmontPractice" />
     <Copy SourceFiles="@(ModIcon)" DestinationFolder="$(GameDir)\BepInEx\plugins\BelmontPractice\icons" />
   </Target>
