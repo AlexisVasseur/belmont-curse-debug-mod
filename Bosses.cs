@@ -111,19 +111,47 @@ public static class Bosses
         };
         b.GateDataNames.Add(data.name);
         if (data.bossDataOverrideForBossGates != null) b.GateDataNames.Add(data.bossDataOverrideForBossGates.name);
+        KnownNames.TryGetValue(id.name ?? "", out b.Name);
         try
         {
             var ui = id.LoadCharacterUIDisplayData();
             if (ui != null)
             {
-                b.Name = Loc.Get(ui.GetCharacterDisplayName());
+                // Nom du jeu en repli (boss ajouté par une mise à jour) : le nom par défaut, pas celui qui dépend de
+                // la progression (« ??? » ou « The Fallen » tant que le personnage n'est pas rencontré)
+                if (string.IsNullOrEmpty(b.Name)) b.Name = Known(Loc.Get(ui.GetDefaultCharacterDisplayName()));
                 b.Icon = ui.defaultCharacterIcon;
             }
         }
         catch { }
-        if (string.IsNullOrEmpty(b.Name)) b.Name = string.IsNullOrEmpty(data.mobDisplayName) ? Pretty(id.name) : data.mobDisplayName;
+        if (string.IsNullOrEmpty(b.Name)) b.Name = Known(data.mobDisplayName) ?? Pretty(id.name);
         All.Add(b);
     }
+
+    /// <summary>
+    /// Noms des boss, gardés dans le mod : le jeu n'affiche le vrai nom qu'une fois le personnage rencontré
+    /// (nouvelle partie : « ??? », Leon en « The Fallen »).
+    /// </summary>
+    static readonly Dictionary<string, string> KnownNames = new()
+    {
+        ["CharacterID_Leon"] = "Leon",
+        ["CharacterID_Joan"] = "Joan",
+        ["CharacterID_Medusa"] = "Medusa",
+        ["CharacterID_Death"] = "Death",
+        ["CharacterID_Isaac"] = "Isaac",
+        ["CharacterID_Carmilla"] = "Carmilla",
+        ["CharacterID_Talos"] = "Talos",
+        ["CharacterID_Succubus"] = "Succubus",
+        ["CharacterID_StLouis"] = "Saint Louis",
+        ["CharacterID_Mammon"] = "Mammon",
+        ["CharacterID_Brauner"] = "Brauner",
+        ["CharacterID_Arthur"] = "Arthur",
+        ["CharacterID_Doppelganger"] = "Doppelganger",
+        ["CharacterID_Dracula"] = "Dracula",
+        ["CharacterID_DraculaBeast"] = "Dracula (Beast)",
+    };
+
+    static string Known(string name) => string.IsNullOrWhiteSpace(name) || name.Trim('?', ' ').Length == 0 ? null : name;
 
     static string Pretty(string s) =>
         Regex.Replace(Regex.Replace(s ?? "", "^(CharacterID|CID)_?", ""), "(?<=[a-z])(?=[A-Z])", " ").Replace('_', ' ').Trim();
