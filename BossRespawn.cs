@@ -35,6 +35,7 @@ public static class BossRespawn
         public CharacterID character;
         public CharacterProgressionStep step;
         public string cutsceneId;
+        public bool intro; // cinématique vérifiée par le sous-scénario d'intro du boss (vue = intro courte)
         public string Id => kind switch { Kind.Key => "clé " + key?.name, Kind.Arcana => $"arcane {character?.name}≥{step}", _ => "cinématique " + cutsceneId };
     }
 
@@ -88,7 +89,7 @@ public static class BossRespawn
             {
                 Kind.Key => new PlanCond { Kind = "Key", Name = c.key.name, Guid = c.key.guid, Value = v },
                 Kind.Arcana => new PlanCond { Kind = "Arcana", Name = c.character.name, Guid = c.character.guid, Step = (int)c.step, Value = v },
-                _ => new PlanCond { Kind = "Cutscene", Guid = c.cutsceneId, Value = v },
+                _ => new PlanCond { Kind = c.intro ? "IntroCutscene" : "Cutscene", Guid = c.cutsceneId, Value = v },
             });
         }
         string key = activeKey ?? boss.Id.name;
@@ -153,6 +154,9 @@ public static class BossRespawn
                     break;
                 case "PostCutscene":
                     break; // appliquée à la fin du combat, pas avant
+                case "IntroCutscene":
+                    res.Add((new Cond { kind = Kind.Cutscene, cutsceneId = p.Guid, intro = true }, Plugin.BossShortIntro.Value));
+                    break;
                 default:
                     res.Add((new Cond { kind = Kind.Cutscene, cutsceneId = p.Guid }, p.Value));
                     break;
@@ -737,8 +741,9 @@ public static class BossRespawn
     }
 
     /// <summary>
-    /// Toutes les conditions qui mènent au combat : le chemin du scénario principal, plus « cinématique d'entrée
-    /// non vue » dans les sous-scénarios (déjà vue, le combat démarre sans la cinématique qui fait apparaître le boss).
+    /// Toutes les conditions qui mènent au combat : le chemin du scénario principal, plus la cinématique d'entrée
+    /// vérifiée par le sous-scénario d'intro. Non vue : intro complète ; vue (option IntroCourteBoss) : l'intro courte
+    /// que le jeu joue après une défaite (Leon : Fool_Fight_Intro_Random au lieu de Fool_Fight_Intro), boss présent.
     /// </summary>
     static List<(Cond cond, bool value)> Conditions(CutsceneDirector director, Bosses.Boss boss)
     {
@@ -746,6 +751,7 @@ public static class BossRespawn
         if (plan == null) return null;
         var all = new List<(Cond, bool)>(plan);
         all.AddRange(SpawnerConditions(boss));
+        var onPath = new HashSet<string>(all.Select(p => p.Item1.Id));
         foreach (var n in director._resolverData.Nodes)
         {
             var play = n?.TryCast<ResolverPlaySubResolverNodeData>();
@@ -755,7 +761,9 @@ public static class BossRespawn
             {
                 if (sn?.TryCast<ResolverConditionHasWatchedCutsceneNodeData>() == null) continue;
                 var cond = ReadCond(sn, play.VariablesContainer);
-                if (cond != null) all.Add((cond, false));
+                if (cond == null || onPath.Contains(cond.Id)) continue; // imposée par le chemin principal : on n'y touche pas
+                cond.intro = true;
+                all.Add((cond, Plugin.BossShortIntro.Value));
             }
         }
         return all;
