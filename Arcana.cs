@@ -101,9 +101,52 @@ public static class Arcana
     public static readonly List<Spell> Spells = new();
     static float nextResolve;
 
+    // Données d'arcane de tous les personnages (talents, fiche du codex) : le jeu ne charge que celles des personnages
+    // rencontrés, et une nouvelle partie n'affichait qu'une partie des arcanes. Gardées chargées (les sorts y renvoient).
+    static readonly List<UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationHandle> preloads = new();
+    static bool preloadStarted;
+    static float preloadUntil;
+
+    /// <summary>Lance le chargement des données d'arcane manquantes ; true quand tout est chargé (ou après 20 s).</summary>
+    static bool Preloaded()
+    {
+        if (!preloadStarted)
+        {
+            var cm = CharacterManager.Get();
+            if (cm == null) return false;
+            preloadStarted = true;
+            preloadUntil = Time.unscaledTime + 20f;
+            int n = 0;
+            try
+            {
+                var groups = cm.taskTalentGroupDictionary?.elements;
+                for (int i = 0; groups != null && i < groups.Count; i++)
+                {
+                    var r = groups[i]?.item;
+                    if (r == null || r.Asset != null || !r.RuntimeKeyIsValid()) continue;
+                    preloads.Add(UnityEngine.AddressableAssets.Addressables.LoadAssetAsync<ArcanaTaskTalentGroup>(r.RuntimeKey));
+                    n++;
+                }
+                var codex = cm.arcanaCodexDataDictionary?.elements;
+                for (int i = 0; codex != null && i < codex.Count; i++)
+                {
+                    var r = codex[i]?.item;
+                    if (r == null || r.Asset != null || !r.RuntimeKeyIsValid()) continue;
+                    preloads.Add(UnityEngine.AddressableAssets.Addressables.LoadAssetAsync<ArcanaCodexData>(r.RuntimeKey));
+                    n++;
+                }
+            }
+            catch (Exception ex) { Plugin.Logger.LogWarning("[Sorts] chargement des arcanes : " + ex.Message); }
+            Plugin.Logger.LogInfo($"[Sorts] {n} données d'arcane à charger (personnages pas encore rencontrés)");
+        }
+        foreach (var h in preloads) if (!h.IsDone) return Time.unscaledTime > preloadUntil;
+        return true;
+    }
+
     public static void Resolve()
     {
         if (Spells.Count > 0 || Time.unscaledTime < nextResolve || !ItemLibrary.Done) return; // attend que tous les sorts soient chargés
+        if (!Preloaded()) return;
         nextResolve = Time.unscaledTime + 2f;
         try
         {
