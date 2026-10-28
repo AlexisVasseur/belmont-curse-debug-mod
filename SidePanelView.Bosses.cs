@@ -129,14 +129,14 @@ public partial class SidePanelView
 
     /// <summary>
     /// Ordre des rencontres dans le jeu (une entrée par combat : Death et Isaac en ont deux).
-    /// Arthur, Doppelganger, Mammon, Saint Louis et Succubus : ordre entre eux non précisé, alphabétique en attendant.
+    /// Arthur, Doppelganger, Mammon et Succubus : ordre entre eux non précisé, alphabétique en attendant.
     /// </summary>
     static readonly (string id, int fight)[] GameOrder =
     {
         ("CharacterID_Leon", 0), ("CharacterID_Joan", 0), ("CharacterID_Medusa", 0), ("CharacterID_Death", 0),
         ("CharacterID_Isaac", 0), ("CharacterID_Carmilla", 0), ("CharacterID_Talos", 0),
         ("CharacterID_Death", 1),
-        ("CharacterID_Arthur", 0), ("CharacterID_Doppelganger", 0), ("CharacterID_Mammon", 0), ("CharacterID_StLouis", 0),
+        ("CharacterID_Arthur", 0), ("CharacterID_Doppelganger", 0), ("CharacterID_Mammon", 0),
         ("CharacterID_Succubus", 0),
         ("CharacterID_Isaac", 1), ("CharacterID_Dracula", 0), ("CharacterID_DraculaBeast", 0),
     };

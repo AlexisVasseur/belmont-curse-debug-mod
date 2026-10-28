@@ -100,8 +100,8 @@ public static class Bosses
         }
     }
 
-    /// <summary>Déclarés boss par le jeu mais sans combat (Brauner : une cinématique) : absents de l'onglet.</summary>
-    static readonly HashSet<string> NotFights = new() { "CharacterID_Brauner" };
+    /// <summary>Déclarés boss par le jeu mais sans combat (Brauner, Saint Louis le juge : des cinématiques) : absents de l'onglet.</summary>
+    static readonly HashSet<string> NotFights = new() { "CharacterID_Brauner", "CharacterID_StLouis" };
 
     static void Add(CharacterID id, BossData data)
     {
@@ -145,7 +145,6 @@ public static class Bosses
         ["CharacterID_Carmilla"] = "Carmilla",
         ["CharacterID_Talos"] = "Talos",
         ["CharacterID_Succubus"] = "Succubus",
-        ["CharacterID_StLouis"] = "Saint Louis",
         ["CharacterID_Mammon"] = "Mammon",
         ["CharacterID_Arthur"] = "Arthur",
         ["CharacterID_Doppelganger"] = "Doppelganger",
