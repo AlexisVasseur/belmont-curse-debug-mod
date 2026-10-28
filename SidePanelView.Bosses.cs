@@ -183,7 +183,9 @@ public partial class SidePanelView
             if (hover)
             {
                 title = r.label;
-                text = defeated == true ? "Defeated. Fight: bring it back and go to its arena."
+                text = Bosses.IsSecondPhase(r.boss) ? "Second phase of Dracula, in its own room. Fight: goes straight into it, skipping the first phase."
+                    : !r.boss.HasDefeatFlag ? "Final boss: the game never marks it as defeated. Fight: go to its arena with its fight reset."
+                    : defeated == true ? "Defeated. Fight: bring it back and go to its arena."
                     : defeated == false ? "Alive. Fight: go to its arena with its fight reset. Defeated: mark it as beaten."
                     : "State unknown (load a game first).";
             }
@@ -217,6 +219,9 @@ public partial class SidePanelView
             r.fight.LabelColor = known ? Theme.GoldText : Theme.TextDim;
             r.tp.SetHover(overTp && known);
             r.tp.LabelColor = known ? Theme.GoldText : Theme.TextDim;
+            // Boss sans état « vaincu » (Dracula) : pas de boutons Alive / Defeated
+            Ui.SetActive(r.alive.Rt, r.boss.HasDefeatFlag);
+            Ui.SetActive(r.defeated.Rt, r.boss.HasDefeatFlag);
             StyleStateButton(r.alive, defeated == false, overAlive, defeated != null);
             StyleStateButton(r.defeated, defeated == true, overDefeated, defeated != null);
             r.name.color = defeated == true ? Theme.TextDim : hover ? Theme.GoldText : Theme.Text;

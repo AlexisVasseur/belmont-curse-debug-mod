@@ -28,6 +28,9 @@ public static class Bosses
         public string Name;
         public Sprite Icon;
 
+        /// <summary>Le jeu note-t-il ce boss « vaincu » ? (Dracula, boss de fin : non)</summary>
+        public bool HasDefeatFlag => KeyGuid != null;
+
         ProgressionKeyID keyCache;
         float nextKeySearch;
 
@@ -102,6 +105,12 @@ public static class Bosses
 
     /// <summary>Déclarés boss par le jeu mais sans combat (Brauner, Saint Louis le juge : des cinématiques) : absents de l'onglet.</summary>
     static readonly HashSet<string> NotFights = new() { "CharacterID_Brauner", "CharacterID_StLouis" };
+
+    /// <summary>
+    /// Seconde phase d'un combat, jouée dans sa propre salle (Dracula (Beast) : Gym_Boss_Dracula_Phase2_BossRoom, dont le
+    /// scénario démarre seul à l'entrée). Fight y mène directement, sans refaire la première phase.
+    /// </summary>
+    public static bool IsSecondPhase(Boss b) => b?.Id?.name == "CharacterID_DraculaBeast";
 
     static void Add(CharacterID id, BossData data)
     {
@@ -240,6 +249,14 @@ public static class Bosses
     public static string Fight(Boss b, string encounterKey)
     {
         if (Arenas.Get(encounterKey) == null) return $"{b.Name}: enter its arena once so the mod can remember the door";
+        if (!b.HasDefeatFlag)
+        {
+            // Boss de fin sans état « vaincu » : rien à remettre, le combat est seulement préparé (conditions du scénario,
+            // niveau rechargé) avant le TP
+            if (!GameBridge.InGame(out string why)) return why;
+            BossRespawn.Pending.Add(b.Id.name);
+            return Arenas.RequestTeleport(b, encounterKey);
+        }
         string msg = SetDefeated(b, false);
         if (IsDefeated(b) != false) return msg; // échec (pas en jeu, clé introuvable…)
         return Arenas.RequestTeleport(b, encounterKey);
