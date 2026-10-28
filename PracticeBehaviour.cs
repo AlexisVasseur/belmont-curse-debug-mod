@@ -44,6 +44,12 @@ public class PracticeBehaviour : MonoBehaviour
             CutsceneHint.Update(!sequence.Active && IsInGame() && FastForward.CutscenePlaying() && !FastForward.InVideo, FastForward.Armed);
         }
         catch (Exception ex) { Plugin.Logger.LogError("[Cinématiques] " + ex); }
+        else
+        {
+            // Désactivée dans les options : accélération en cours arrêtée, indication masquée
+            try { FastForward.Off(); CutsceneHint.Update(false, false); }
+            catch (Exception ex) { Plugin.Logger.LogError("[Cinématiques] " + ex); }
+        }
         try { UpdateDeferredLoad(); } catch (Exception ex) { deferredLoad = null; Plugin.Logger.LogError("[Chargement] " + ex); }
         try { sequence.Update(); }
         catch (Exception ex) { Plugin.Logger.LogError("[Chargement] " + ex); }

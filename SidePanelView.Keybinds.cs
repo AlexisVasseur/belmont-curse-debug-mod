@@ -17,7 +17,8 @@ public partial class SidePanelView
 {
     class KeyRowUi
     {
-        public Bind bind;           // null pour la ligne « chiffres des emplacements »
+        public Bind bind;           // null pour la ligne « chiffres des emplacements » et les options
+        public Option option;       // option activée / désactivée (null pour un raccourci)
         public Image highlight, chipFill;
         public TextMeshProUGUI name, chip;
         public float y;
@@ -25,6 +26,30 @@ public partial class SidePanelView
     readonly List<KeyRowUi> keyRows = new();
     readonly List<(UiButton btn, float x, float y, float w, float h)> keyButtons = new();
     const float KeyRowH = 38f, ChipW = 170f;
+
+    /// <summary>Fonction du mod activée / désactivée (option bool du fichier de config).</summary>
+    class Option
+    {
+        public string Name, Help;
+        public Func<BepInEx.Configuration.ConfigEntry<bool>> Entry; // lue à l'usage : les options sont créées après l'interface possible
+        public Option(string name, Func<BepInEx.Configuration.ConfigEntry<bool>> entry, string help) { Name = name; Entry = entry; Help = help; }
+    }
+
+    static readonly Option[] Options =
+    {
+        new("Cutscene fast-forward", () => Plugin.CutsceneFastForward,
+            "Lets the fast-forward shortcut (F7 / gamepad Y) speed up cutscenes. Off: the shortcut does nothing and a fast-forward in progress stops."),
+        new("Short boss intro", () => Plugin.BossShortIntro,
+            "Fight: the boss arrives with the short intro the game plays after a defeat, instead of its full entrance cutscene."),
+        new("Fast load", () => Plugin.FastLoad,
+            "In the same level, savestates load in place without a loading screen (a full load is still used when needed)."),
+        new("Reload room", () => Plugin.ReloadRoom,
+            "Fast load: the room is reloaded too, so its enemies and objects are reset."),
+        new("Fade to black", () => Plugin.FadeToBlack,
+            "The screen fades to black during every savestate load."),
+        new("Pause during fade", () => Plugin.PauseDuringFade,
+            "The game is paused while the screen fades to black and back."),
+    };
 
     static Key[] allKeys;
 
@@ -38,9 +63,9 @@ public partial class SidePanelView
         keyButtons.Add((reset, Pad, y, iw - Pad * 2, BarH));
         y += BarH + 10;
 
-        void Row(Bind bind, string name)
+        void Row(Bind bind, string name, Option option = null)
         {
-            var r = new KeyRowUi { bind = bind, y = y };
+            var r = new KeyRowUi { bind = bind, option = option, y = y };
             r.highlight = Ui.Image(fill, "KeyHl" + name, 12, y, iw - 24, KeyRowH - 2, Theme.Hex(0x5e1418, 0.55f));
             Ui.Image(fill, "KeyLine" + name, 12, y + KeyRowH - 1, iw - 24, 1, Theme.Line);
             r.name = Ui.Text(fill, "KeyName" + name, Pad + 4, y, iw - Pad * 2 - ChipW - 12, KeyRowH, GameFonts.Title, 18f, Theme.Text);
@@ -50,6 +75,10 @@ public partial class SidePanelView
             keyRows.Add(r);
             y += KeyRowH;
         }
+
+        y = SectionTitle("Options", y);
+        foreach (var o in Options) Row(null, o.Name, o);
+        y += 10;
 
         foreach (var section in new[] { Keybinds.SectionSavestates, Keybinds.SectionUtilities })
         {
@@ -108,7 +137,7 @@ public partial class SidePanelView
         // Clic ailleurs pendant la saisie : annule
         if (Keybinds.Capturing != null && click) Keybinds.Capturing = null;
 
-        string title = "Keybinds", text = "Click a shortcut, then press the new key. Backspace: no key. Esc: cancel. Right-click: back to default. Changes are saved at once.";
+        string title = "Keybinds", text = "Options: click to switch on / off. Shortcuts: click one, then press the new key. Backspace: no key. Esc: cancel. Right-click: back to default. Changes are saved at once.";
 
         foreach (var (btn, x, y, w, h) in keyButtons)
         {
@@ -126,7 +155,26 @@ public partial class SidePanelView
 
             string chip;
             bool custom;
-            if (r.bind == null)
+            if (r.option != null)
+            {
+                var entry = r.option.Entry();
+                bool on = entry?.Value ?? false;
+                chip = on ? "On" : "Off";
+                custom = entry != null && on != (bool)entry.DefaultValue;
+                if (hover)
+                {
+                    title = r.option.Name;
+                    text = $"{r.option.Help}  Default: {(entry != null && (bool)entry.DefaultValue ? "On" : "Off")}.  Click: switch on / off. Right-click: default.";
+                }
+                if (entry != null && hover && (click || rightClick) && !handled)
+                {
+                    handled = true;
+                    Keybinds.Capturing = null;
+                    entry.Value = click ? !on : (bool)entry.DefaultValue;
+                    Notify?.Invoke($"{r.option.Name}: {(entry.Value ? "on" : "off")}", false);
+                }
+            }
+            else if (r.bind == null)
             {
                 bool numpad = Keybinds.NumpadDigits.Value;
                 chip = numpad ? "Numpad 0-9" : "Top row 0-9";
@@ -163,7 +211,7 @@ public partial class SidePanelView
             }
 
             Ui.SetText(r.chip, chip);
-            r.chip.color = capturing ? Theme.GoldText : chip == "—" ? Theme.TextDim : Theme.KeyText;
+            r.chip.color = capturing ? Theme.GoldText : chip == "—" || (r.option != null && chip == "Off") ? Theme.TextDim : Theme.KeyText;
             r.chipFill.color = capturing ? Theme.Crimson : Theme.BgButton;
             Ui.SetBorder(r.chipFill, capturing ? Theme.GoldText : custom ? Theme.GoldBright : Theme.Gold);
             r.name.color = capturing ? Theme.GoldText : custom ? Theme.GoldLabel : Theme.Text;

@@ -518,6 +518,12 @@ public static class FastForward
         }
     }
 
+    /// <summary>Fonction désactivée dans les options : arrête une accélération en cours.</summary>
+    public static void Off()
+    {
+        if (armed || appliedSpeed > 0f) Disarm();
+    }
+
     static void Disarm()
     {
         RestoreSpeed();
