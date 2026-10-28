@@ -197,7 +197,10 @@ public static class Bosses
         {
             var p = Progression();
             if (p == null || b.Key == null) return null;
-            return p.HasProgressionKey(b.Key);
+            if (p.HasProgressionKey(b.Key)) return true;
+            // Arcane absorbée = vaincu aussi : certains scénarios retirent eux-mêmes la clé « vaincu » (intro de Mammon,
+            // Doppelganger) et c'est l'absorption qui empêche le combat (élément qui mène à l'arène du Doppelganger absent)
+            return !b.IgnoreAbsorption && Step(b) == CharacterProgressionStep.Absorbed.ToString();
         }
         catch { return null; }
     }
