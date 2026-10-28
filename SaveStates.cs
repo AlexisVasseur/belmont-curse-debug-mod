@@ -426,9 +426,7 @@ public static class GameBridge
     {
         var logic = SaveLogic.Get() ?? throw new Exception("SaveLogic introuvable");
 
-        var save = JsonUtility.FromJson(state.GlobalSaveJson, Il2CppType.Of<GlobalSave>()).Cast<GlobalSave>();
-        DedupeObjectives(save);
-        logic._currentSave = save;
+        InjectSave(logic, state);
         if (!string.IsNullOrEmpty(state.RuntimeWorldSaveJson))
             logic._runtimeWorldSave = JsonUtility.FromJson(state.RuntimeWorldSaveJson, Il2CppType.Of<WorldSave>()).Cast<WorldSave>();
         Plugin.Logger.LogInfo("[Restore] sauvegarde injectée en mémoire");
@@ -443,30 +441,49 @@ public static class GameBridge
             LoadSequence.Trace($"chargement complet forcé : {unsafeReason}");
         }
         if (Plugin.FastLoad.Value && unsafeReason == null && currentLevel == state.Level
-            && MainCharacterSingleton.TryGetEntity(out Entity entity) && entity != null)
-        {
-            RestoreInPlace(logic, entity, state);
+            && MainCharacterSingleton.TryGetEntity(out Entity entity) && entity != null
+            && RestoreInPlace(logic, entity, state))
             return true;
-        }
         Plugin.Logger.LogInfo($"[Restore] chargement complet (niveau actuel '{currentLevel}', savestate '{state.Level}')");
         SaveGuard.Arm(); // le rechargement complet peut faire écrire la sauvegarde du jeu sur le disque
         FullReload(state);
         return false;
     }
 
-    /// <summary>Même niveau : relit l'état du joueur, le téléporte et force le rechargement de la salle.</summary>
-    static void RestoreInPlace(SaveLogic logic, Entity entity, SaveState state)
+    static void InjectSave(SaveLogic logic, SaveState state)
+    {
+        var save = JsonUtility.FromJson(state.GlobalSaveJson, Il2CppType.Of<GlobalSave>()).Cast<GlobalSave>();
+        DedupeObjectives(save);
+        logic._currentSave = save;
+    }
+
+    /// <summary>
+    /// Même niveau : relit l'état du joueur, le téléporte et force le rechargement de la salle.
+    /// Retourne false (rien d'autre n'est fait) si le personnage garde des éléments absents de la savestate.
+    /// </summary>
+    static bool RestoreInPlace(SaveLogic logic, Entity entity, SaveState state)
     {
         // Les composants du joueur (PV, mana, inventaire, stats…) relisent la sauvegarde injectée.
         logic.LoadState(entity);
         Plugin.Logger.LogInfo("[Rapide] état du joueur relu");
+        List<string> leftovers = null;
+        try { leftovers = PlayerSaveCheck.Leftovers(logic, entity, state.GlobalSaveJson); }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Rapide] vérification de l'état du joueur : " + ex.Message); }
+        InjectSave(logic, state); // la vérification a regénéré la sauvegarde en mémoire
+        if (leftovers != null && leftovers.Count > 0)
+        {
+            Plugin.Logger.LogInfo($"[Rapide] le personnage garde des éléments absents de la savestate, rechargement complet : {string.Join(" | ", leftovers)}");
+            LoadSequence.Trace("éléments en trop après relecture : rechargement complet");
+            return false;
+        }
+        Plugin.Logger.LogInfo("[Rapide] état du joueur conforme à la savestate");
         ApplyLiveStats(state);
 
         PlacePlayer(entity, state);
         pendingPlacement = state;
         Plugin.Logger.LogInfo($"[Rapide] joueur placé en {state.Position}");
 
-        if (!Plugin.ReloadRoom.Value) return;
+        if (!Plugin.ReloadRoom.Value) return true;
 
         string currentRoom = CurrentRoomName();
         if (!string.IsNullOrEmpty(state.Room) && state.Room == currentRoom)
@@ -480,6 +497,7 @@ public static class GameBridge
             RoomManagerSystem.ForceTriggerRoomChange = true;
             Plugin.Logger.LogInfo($"[Rapide] changement de salle demandé ('{currentRoom}' → '{state.Room}')");
         }
+        return true;
     }
 
     // ---------- Rechargement de la salle courante ----------
