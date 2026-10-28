@@ -27,7 +27,7 @@ public class SaveStatesView
     readonly List<(UiButton btn, float x, float y, float w, float h)> buttons = new();
 
     TextMeshProUGUI quickName, pageLabel, pageConfirm, toastText;
-    UiButton editBtn, addPage, removePage, movePageL, movePageR, pageYes, pageNo;
+    UiButton removePage, pageYes, pageNo;
     float toastUntil;
     const float ToastW = 640f, ToastH = 42f;
     Image toastAccent, toastFrame, toastBack;
@@ -36,7 +36,7 @@ public class SaveStatesView
     {
         public Image highlight, tip, line, diaBorder, diaFill;
         public TextMeshProUGUI digit, name, confirm;
-        public UiButton read, write, up, down, rename, del, yes, no;
+        public UiButton read, write, rename, del, yes, no;
         public float y;
         public float lastClick = -10f;
     }
@@ -142,11 +142,7 @@ public class SaveStatesView
 
         // --- Pages ---
         float py = qy + 34 + 10;
-        editBtn = Button(Pad, py + 2, 70, 26, "Edit", t, 15f, () => p.ToggleEditMode());
-        addPage = Button(Pad + 78, py + 2, 30, 26, "+", t, 17f, () => p.AddPage());
-        removePage = Button(Pad + 112, py + 2, 30, 26, "-", t, 17f, () => p.RemovePage());
-        movePageL = Button(Pad + 146, py + 2, 36, 26, "<<", t, 14f, () => p.MovePage(-1));
-        movePageR = Button(Pad + 186, py + 2, 36, 26, ">>", t, 14f, () => p.MovePage(+1));
+        removePage = Button(Pad, py + 2, 84, 26, "Del page", t, 14f, () => p.RemovePage());
 
         float cx = iw / 2f;
         KeyBox(cx - 150, py + 4, Keybinds.PrevPage.ShortLabel, () => p.PrevPage());
@@ -154,7 +150,7 @@ public class SaveStatesView
         pageLabel = Ui.Text(fill, "PageLabel", cx - 80, py, 160, 30, t, 19f, Theme.GoldText, TextAlignmentOptions.Center);
         Ui.Image(fill, "PageLineR", cx + 84, py + 15, 34, 1, Theme.LineGold);
         KeyBox(cx + 126, py + 4, Keybinds.NextPage.ShortLabel, () => p.NextPage());
-        // Nouvelle page après la page courante (toujours disponible, pas seulement en mode Edit)
+        // Nouvelle page après la page courante
         Button(cx + 160, py + 2, 74, 26, "+ Page", t, 14f, () => { p.AddPage(); p.Notify?.Invoke($"Page {p.CurrentPage + 1} added", false); });
 
         pageConfirm = Ui.Text(fill, "PageConfirm", iw - Pad - 260, py, 136, 30, t, 15f, Theme.Red, TextAlignmentOptions.MidlineRight);
@@ -187,14 +183,11 @@ public class SaveStatesView
             r.name = Ui.Text(fill, $"Row{i}Name", rx + 50, y, rw - 50 - 290, RowH, b, 21f, Theme.Text);
             r.confirm = Ui.Text(fill, $"Row{i}Confirm", right - 260, y, 140, RowH, t, 15f, Theme.Red, TextAlignmentOptions.MidlineRight);
 
-            // Mode normal
             r.write = Button(right - 78, y + 5, 78, 28, "Write", t, 15f, () => p.ClickWrite(index));
             r.read = Button(right - 78 - 6 - 78, y + 5, 78, 28, "Read", t, 15f, () => p.ClickRead(index));
-            // Mode édition
-            r.del = Button(right - 70, y + 5, 70, 28, "Delete", t, 14f, () => p.ClickDelete(index));
-            r.rename = Button(right - 70 - 6 - 78, y + 5, 78, 28, "Rename", t, 14f, () => p.StartRename(index));
-            r.down = Button(right - 70 - 6 - 78 - 6 - 56, y + 5, 56, 28, "Down", t, 14f, () => p.MoveState(index, +1));
-            r.up = Button(right - 70 - 6 - 78 - 6 - 56 - 6 - 44, y + 5, 44, 28, "Up", t, 14f, () => p.MoveState(index, -1));
+            // Renommer / supprimer : crayon et poubelle à gauche de Read
+            r.del = IconButton(right - 162 - 10 - 30, y + 5, "Delete", "ui_trash", () => p.ClickDelete(index));
+            r.rename = IconButton(right - 162 - 10 - 30 - 4 - 30, y + 5, "Rename", "ui_pencil", () => p.StartRename(index));
             // Confirmation
             r.no = Button(right - 56, y + 5, 56, 28, "No", t, 15f, () => p.ConfirmNo());
             r.yes = Button(right - 56 - 6 - 56, y + 5, 56, 28, "Yes", t, 15f, () => p.ConfirmYes());
@@ -239,6 +232,15 @@ public class SaveStatesView
     {
         var btn = UiButton.CreateSkinned(fill, "Btn" + text, x, y, w, h, text, font, size, onClick);
         buttons.Add((btn, x, y, w, h));
+        return btn;
+    }
+
+    /// <summary>Petit bouton à icône (texte de secours si l'icône manque).</summary>
+    UiButton IconButton(float x, float y, string text, string icon, Action onClick)
+    {
+        var btn = Button(x, y, 30, 28, text, GameFonts.Title, 11f, onClick);
+        if (btn.Skinned) { btn.OrnamentL = btn.OrnamentR = null; } // trop petit pour porter des volutes
+        btn.SetIcon(GameSprites.Icon(icon), 16f);
         return btn;
     }
 
@@ -294,7 +296,6 @@ public class SaveStatesView
 
     void Refresh()
     {
-        bool edit = p.EditMode;
         bool pageConfirmActive = p.Confirm == ConfirmKind.RemovePage;
 
         var q = p.Quickslot;
@@ -302,8 +303,7 @@ public class SaveStatesView
         quickName.color = q == null ? Theme.TextDim : Theme.Text;
 
         Ui.SetText(pageLabel, $"Page {p.CurrentPage + 1} / {SlotStore.PageCount}");
-        editBtn.BaseColor = edit ? Theme.Crimson : editBtn.Skinned ? Skin.ButtonIdle : Theme.BgButton;
-        foreach (var b in new[] { addPage, removePage, movePageL, movePageR }) Ui.SetActive(b.Rt, edit && !pageConfirmActive);
+        Ui.SetActive(removePage.Rt, !pageConfirmActive);
         Ui.SetActive(pageConfirm, pageConfirmActive);
         Ui.SetActive(pageYes.Rt, pageConfirmActive);
         Ui.SetActive(pageNo.Rt, pageConfirmActive);
@@ -337,13 +337,14 @@ public class SaveStatesView
             Ui.SetActive(r.yes.Rt, confirming);
             Ui.SetActive(r.no.Rt, confirming);
 
-            bool normal = !confirming && !edit && !renaming;
-            bool editing = !confirming && edit && !renaming;
+            bool normal = !confirming && !renaming;
             Ui.SetActive(r.read.Rt, normal);
             Ui.SetActive(r.write.Rt, normal);
             r.read.Enabled = s != null || p.IsReadOperation;
-            foreach (var b in new[] { r.up, r.down, r.rename, r.del }) Ui.SetActive(b.Rt, editing);
-            r.rename.Enabled = r.del.Enabled = s != null;
+            // Crayon et poubelle : seulement sur un emplacement occupé, hors choix d'emplacement
+            bool tools = normal && s != null && !p.InSelectState;
+            Ui.SetActive(r.rename.Rt, tools);
+            Ui.SetActive(r.del.Rt, tools);
 
             // Opération en cours : les boutons concernés sont mis en avant
             r.read.LabelColor = p.IsReadOperation ? Theme.Red : r.read.Skinned ? Skin.ButtonText : Theme.KeyText;
@@ -386,7 +387,7 @@ public class SaveStatesView
         }
 
         // Double-clic sur le nom d'un emplacement : chargement direct
-        if (click && !handled && !p.EditMode && !p.IsTyping)
+        if (click && !handled && !p.IsTyping)
         {
             for (int i = 0; i < Rows; i++)
             {

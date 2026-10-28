@@ -10,7 +10,7 @@ public enum ConfirmKind { None, Overwrite, DeleteState, RemovePage }
 
 /// <summary>
 /// Logique du panneau des savestates (reprend le SaveStatesPanel de DebugMod) :
-/// quickslot, pages de 10 emplacements, Read / Write, renommage, mode édition, choix d'emplacement au clavier.
+/// quickslot, pages de 10 emplacements, Read / Write, renommage et suppression (crayon / poubelle), choix d'emplacement au clavier.
 /// L'affichage est fait par SaveStatesView.
 /// </summary>
 public class SaveStatesPanel
@@ -25,7 +25,6 @@ public class SaveStatesPanel
     public bool Visible;
 
     public int CurrentPage { get; private set; }
-    public bool EditMode { get; private set; }
     public SelectOperation SelectOp { get; private set; } = SelectOperation.None;
 
     public int RenameIndex { get; private set; } = -1;
@@ -151,9 +150,7 @@ public class SaveStatesPanel
         LoadState(s);
     }
 
-    // ---------- Mode édition ----------
-
-    public void ToggleEditMode() { EditMode = !EditMode; CancelConfirm(); RenameIndex = -1; }
+    // ---------- Renommer / supprimer (crayon / poubelle) ----------
 
     public void StartRename(int index)
     {
@@ -181,15 +178,6 @@ public class SaveStatesPanel
         AskConfirm(ConfirmKind.DeleteState, index, () => { SlotStore.Delete(CurrentPage, index); Notify($"Slot {index} deleted", false); });
     }
 
-    public void MoveState(int index, int delta)
-    {
-        int p2 = CurrentPage, i2 = index + delta;
-        if (i2 < 0) { p2--; i2 = SlotStore.SlotsPerPage - 1; }
-        else if (i2 >= SlotStore.SlotsPerPage) { p2++; i2 = 0; }
-        if (p2 < 0 || p2 >= SlotStore.PageCount) return;
-        SlotStore.Swap(CurrentPage, index, p2, i2);
-    }
-
     public void AddPage() { SlotStore.AddPage(CurrentPage + 1); CurrentPage++; }
 
     public void RemovePage()
@@ -198,13 +186,6 @@ public class SaveStatesPanel
         Action remove = () => { SlotStore.RemovePage(p); CurrentPage = Math.Min(CurrentPage, SlotStore.PageCount - 1); };
         if (SlotStore.PageHasStates(p)) AskConfirm(ConfirmKind.RemovePage, -1, remove);
         else remove();
-    }
-
-    public void MovePage(int delta)
-    {
-        int t = Wrap(CurrentPage + delta);
-        SlotStore.SwapPages(CurrentPage, t);
-        CurrentPage = t;
     }
 
     // ---------- Pages ----------

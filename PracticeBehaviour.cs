@@ -109,8 +109,8 @@ public class PracticeBehaviour : MonoBehaviour
 
         // Clics et molette sur les fenêtres du mod : rien n'est transmis au jeu
         MouseBlock.Update(inGame && panel.ShouldBeVisible && MouseBlock.PointerOverModUi());
-        // Édition des savestates (mode Edit, renommage) ou saisie d'une touche : le clavier n'est pas transmis au jeu
-        KeyboardBlock.Update(inGame && ((panel.ShouldBeVisible && (panel.EditMode || panel.IsTyping)) || Keybinds.Capturing != null));
+        // Renommage d'une savestate ou saisie d'une touche : le clavier n'est pas transmis au jeu
+        KeyboardBlock.Update(inGame && (panel.IsTyping || Keybinds.Capturing != null));
 
         if (panel.ShouldBeVisible)
         {

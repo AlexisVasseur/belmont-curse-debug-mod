@@ -211,6 +211,18 @@ public class UiButton
     string centeredFor;
     Image SignH, SignV;
 
+    /// <summary>Icône centrée à la place du texte (crayon, poubelle…), teintée comme le texte.</summary>
+    public Image Icon;
+
+    public void SetIcon(Sprite sprite, float size)
+    {
+        if (sprite == null) return;
+        Label.text = "";
+        float w = Rt.rect.width, h = Rt.rect.height;
+        Icon = Skin.Sprite(Fill.transform, "Icon", (w - size) / 2f, (h - size) / 2f, size, size, sprite, LabelColor);
+        Icon.preserveAspect = true;
+    }
+
     /// <summary>
     /// Centre verticalement le texte sur la zone réellement occupée par ses caractères : la ligne de base
     /// des polices du jeu tombe bas (« - », « + », chiffres). Refait quand le texte change.
@@ -265,6 +277,7 @@ public class UiButton
             if (!Theme.Same(SignH.color, tc)) SignH.color = tc;
             if (SignV != null && !Theme.Same(SignV.color, tc)) SignV.color = tc;
         }
+        if (Icon != null && !Theme.Same(Icon.color, tc)) Icon.color = tc;
         bool orn = Skinned && (Selected || lit);
         if (OrnamentL != null && OrnamentL.activeSelf != orn) { OrnamentL.SetActive(orn); OrnamentR.SetActive(orn); }
     }

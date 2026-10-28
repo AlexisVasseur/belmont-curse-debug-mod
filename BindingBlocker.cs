@@ -85,7 +85,7 @@ public class BindingBlocker
 }
 
 /// <summary>
-/// Pendant l'édition des savestates (mode Edit, saisie d'un nom) ou la saisie d'une touche dans l'onglet Keybinds,
+/// Pendant le renommage d'une savestate ou la saisie d'une touche dans l'onglet Keybinds,
 /// les liaisons clavier des actions du jeu sont désactivées : taper un nom ne fait ni bouger ni attaquer le personnage.
 /// </summary>
 public static class KeyboardBlock
