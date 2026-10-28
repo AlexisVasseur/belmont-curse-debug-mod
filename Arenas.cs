@@ -162,11 +162,41 @@ public static class Arenas
             var boss = BossOf(lastArenaData, lastArenaArcana);
             if (boss?.Id != null && Get(KeyOf(boss, room)) == null) Learn(lastArenaData, lastArenaArcana, room, room, pos, true);
         }
+        if (lastRoomIsArena) KeepFirstPhaseRetry(BossOf(lastArenaData, lastArenaArcana), now);
         BossRespawn.Update();
         if (dumpAt > 0f && now >= dumpAt) { dumpAt = 0f; BossDiag.DumpDirectors("2 s après l'entrée dans l'arène"); }
         if (obstaclesAt > 0f && now >= obstaclesAt) { obstaclesAt = 0f; BossDiag.DumpObstacles("salle " + room); }
         trail.Enqueue((now, pos));
         while (trail.Count > 0 && trail.Peek().t < now - 2f) trail.Dequeue();
+    }
+
+    static float nextRetryCheck;
+    static LevelID retryLevel;
+
+    /// <summary>
+    /// Arène d'une seconde phase (Dracula (Beast)) : une mort doit ramener à la porte de la première phase. Le point de
+    /// réapparition du jeu après une mort contre un boss (SetupBossRetry) y est remis tant qu'on est dans l'arène.
+    /// </summary>
+    static void KeepFirstPhaseRetry(Bosses.Boss boss, float now)
+    {
+        if (now < nextRetryCheck || !Bosses.IsSecondPhase(boss)) return;
+        nextRetryCheck = now + 1f;
+        try
+        {
+            var first = Bosses.FirstPhaseOf(boss, out bool facingRight);
+            var door = Encounters(first).Select(x => x.entry).FirstOrDefault(e => !e.Inside);
+            var spawn = MainCharacterSpawnLogic.Get();
+            if (door == null || spawn == null) return;
+            if (retryLevel == null || retryLevel.name != door.Level) retryLevel = FindLevel(door.Level);
+            if (retryLevel == null) return;
+            var pos = new Vector3(door.X, door.Y, door.Z);
+            var cur = spawn._bossRetryLevelID;
+            if (cur != null && cur.name == retryLevel.name && Vector3.Distance(spawn._bossRetryPosition, pos) < 0.5f) return;
+            Plugin.Logger.LogInfo($"[Arènes] {boss.Name} : réapparition après une mort réglée sur la porte de {first.Name} {pos} "
+                + $"(le jeu avait : {(cur == null ? "aucune" : $"{cur.name} {spawn._bossRetryPosition}")}, position imposée {spawn._forceSpawnPosition})");
+            spawn.SetupBossRetry(retryLevel, pos, facingRight);
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Arènes] réapparition seconde phase : " + ex.Message); }
     }
 
     /// <summary>Position environ 0,35 s avant le changement de salle : encore dans la salle d'avant, avant la porte.</summary>

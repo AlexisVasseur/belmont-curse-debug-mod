@@ -110,7 +110,25 @@ public static class Bosses
     /// Seconde phase d'un combat, jouée dans sa propre salle (Dracula (Beast) : Gym_Boss_Dracula_Phase2_BossRoom, dont le
     /// scénario démarre seul à l'entrée). Fight y mène directement, sans refaire la première phase.
     /// </summary>
-    public static bool IsSecondPhase(Boss b) => b?.Id?.name == "CharacterID_DraculaBeast";
+    public static bool IsSecondPhase(Boss b) => b?.Id?.name != null && FirstPhases.ContainsKey(b.Id.name);
+
+    /// <summary>
+    /// Seconde phase → première phase, et sens du personnage à la porte de la première (vers l'arène).
+    /// Une mort en seconde phase fait réapparaître à la porte de la première phase.
+    /// </summary>
+    static readonly Dictionary<string, (string first, bool facingRight)> FirstPhases = new()
+    {
+        ["CharacterID_DraculaBeast"] = ("CharacterID_Dracula", false),
+    };
+
+    /// <summary>Boss de la première phase (null si b n'est pas une seconde phase).</summary>
+    public static Boss FirstPhaseOf(Boss b, out bool facingRight)
+    {
+        facingRight = false;
+        if (b?.Id?.name == null || !FirstPhases.TryGetValue(b.Id.name, out var f)) return null;
+        facingRight = f.facingRight;
+        return All.Find(x => x.Id?.name == f.first);
+    }
 
     static void Add(CharacterID id, BossData data)
     {

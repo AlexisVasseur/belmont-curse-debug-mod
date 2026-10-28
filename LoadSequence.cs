@@ -193,6 +193,13 @@ public class LoadSequence
         alpha = 0f;
         FadeOverlay.Set(0f);
         Cheats.ResyncNoclip();
+        // Position imposée pour le rechargement complet : elle ne doit pas resservir à la réapparition après une mort
+        try
+        {
+            var spawn = MainCharacterSpawnLogic.Get();
+            if (spawn != null && spawn._forceSpawnPosition) { spawn.ClearForcePosition(); Trace("position imposée effacée"); }
+        }
+        catch (Exception ex) { Trace("ERREUR effacement position imposée " + ex.Message); }
         SaveGuard.ReleaseSoon();
         Bosses.LogTriggers("après chargement");
         Enter(Phase.Idle);
