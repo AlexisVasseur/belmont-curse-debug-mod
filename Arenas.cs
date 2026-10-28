@@ -128,6 +128,8 @@ public static class Arenas
             lastRoom = null; lastRoomIsArena = false; trail.Clear(); lastLoad = now;
             return;
         }
+        // Liste des boss pas encore prête : une arène ne pourrait être attribuée à personne, on attend
+        if (!Bosses.Done) return;
         string room = GameBridge.CurrentRoomId();
         if (string.IsNullOrEmpty(room)) return;
         Vector3 pos = GameBridge.PlayerPosition();

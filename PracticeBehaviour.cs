@@ -81,6 +81,9 @@ public class PracticeBehaviour : MonoBehaviour
             catch (Exception ex) { Plugin.Logger.LogError("[Carte] " + ex); }
             try
             {
+                // Liste des boss chargée dès l'arrivée en jeu, pas seulement panneau ouvert : sans elle, une arène
+                // traversée n'est attribuée à aucun boss et son entrée n'est pas retenue (Mammon)
+                Bosses.Resolve();
                 Arenas.Update(sequence.Active);
                 if (Arenas.TakeRequest(out var level, out var pos, out bool full, out var boss, out string key) && !sequence.Active)
                 {
