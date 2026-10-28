@@ -100,9 +100,12 @@ public static class Bosses
         }
     }
 
+    /// <summary>Déclarés boss par le jeu mais sans combat (Brauner : une cinématique) : absents de l'onglet.</summary>
+    static readonly HashSet<string> NotFights = new() { "CharacterID_Brauner" };
+
     static void Add(CharacterID id, BossData data)
     {
-        if (data == null) return;
+        if (data == null || NotFights.Contains(id?.name ?? "")) return;
         var key = data.defeatedProgressionKey;
         var b = new Boss
         {
@@ -144,7 +147,6 @@ public static class Bosses
         ["CharacterID_Succubus"] = "Succubus",
         ["CharacterID_StLouis"] = "Saint Louis",
         ["CharacterID_Mammon"] = "Mammon",
-        ["CharacterID_Brauner"] = "Brauner",
         ["CharacterID_Arthur"] = "Arthur",
         ["CharacterID_Doppelganger"] = "Doppelganger",
         ["CharacterID_Dracula"] = "Dracula",

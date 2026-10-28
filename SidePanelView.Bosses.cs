@@ -134,7 +134,7 @@ public partial class SidePanelView
     static readonly (string id, int fight)[] GameOrder =
     {
         ("CharacterID_Leon", 0), ("CharacterID_Joan", 0), ("CharacterID_Medusa", 0), ("CharacterID_Death", 0),
-        ("CharacterID_Isaac", 0), ("CharacterID_Carmilla", 0), ("CharacterID_Talos", 0), ("CharacterID_Brauner", 0),
+        ("CharacterID_Isaac", 0), ("CharacterID_Carmilla", 0), ("CharacterID_Talos", 0),
         ("CharacterID_Death", 1),
         ("CharacterID_Arthur", 0), ("CharacterID_Doppelganger", 0), ("CharacterID_Mammon", 0), ("CharacterID_StLouis", 0),
         ("CharacterID_Succubus", 0),
