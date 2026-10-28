@@ -102,26 +102,51 @@ public partial class SidePanelView
     /// </summary>
     static List<(Bosses.Boss boss, string key, string label)> BossLines()
     {
-        var lines = new List<(Bosses.Boss, string, string)>();
+        var lines = new List<(Bosses.Boss b, string key, string label, int order)>();
         foreach (var b in Bosses.All)
         {
             var enc = Arenas.Encounters(b);
-            if (b.Id != null && TwoFights.TryGetValue(b.Id.name, out var levels))
+            string id = b.Id?.name ?? "";
+            if (TwoFights.TryGetValue(id, out var levels))
             {
                 var used = new HashSet<string>();
                 for (int n = 0; n < levels.Length; n++)
                 {
                     var match = enc.FirstOrDefault(x => Arenas.LevelNumber(x.entry.Level) == levels[n] && !used.Contains(x.key));
                     if (match.key != null) used.Add(match.key);
-                    lines.Add((b, match.key, $"{b.Name} {Roman[n]}"));
+                    lines.Add((b, match.key, $"{b.Name} {Roman[n]}", Order(id, n)));
                 }
-                foreach (var (k, _) in enc.Where(x => !used.Contains(x.key))) lines.Add((b, k, $"{b.Name} ?"));
+                foreach (var (k, _) in enc.Where(x => !used.Contains(x.key))) lines.Add((b, k, $"{b.Name} ?", Order(id, levels.Length)));
                 continue;
             }
-            if (enc.Count == 0) lines.Add((b, null, b.Name));
-            for (int n = 0; n < enc.Count; n++) lines.Add((b, enc[n].key, enc.Count > 1 ? $"{b.Name} {Roman[Math.Min(n, Roman.Length - 1)]}" : b.Name));
+            if (enc.Count == 0) lines.Add((b, null, b.Name, Order(id, 0)));
+            for (int n = 0; n < enc.Count; n++)
+                lines.Add((b, enc[n].key, enc.Count > 1 ? $"{b.Name} {Roman[Math.Min(n, Roman.Length - 1)]}" : b.Name, Order(id, 0) + n));
         }
-        return lines;
+        // Tri stable : ordre du jeu, puis ordre d'origine (boss absent de la liste : à la fin)
+        return lines.Select((l, i) => (l, i)).OrderBy(x => x.l.order).ThenBy(x => x.i).Select(x => (x.l.b, x.l.key, x.l.label)).ToList();
+    }
+
+    /// <summary>
+    /// Ordre des rencontres dans le jeu (une entrée par combat : Death et Isaac en ont deux).
+    /// Arthur, Doppelganger, Mammon, Saint Louis et Succubus : ordre entre eux non précisé, alphabétique en attendant.
+    /// </summary>
+    static readonly (string id, int fight)[] GameOrder =
+    {
+        ("CharacterID_Leon", 0), ("CharacterID_Joan", 0), ("CharacterID_Medusa", 0), ("CharacterID_Death", 0),
+        ("CharacterID_Isaac", 0), ("CharacterID_Carmilla", 0), ("CharacterID_Talos", 0), ("CharacterID_Brauner", 0),
+        ("CharacterID_Death", 1),
+        ("CharacterID_Arthur", 0), ("CharacterID_Doppelganger", 0), ("CharacterID_Mammon", 0), ("CharacterID_StLouis", 0),
+        ("CharacterID_Succubus", 0),
+        ("CharacterID_Isaac", 1), ("CharacterID_Dracula", 0), ("CharacterID_DraculaBeast", 0),
+    };
+
+    /// <summary>Rang d'une rencontre (×10 : place pour les arènes supplémentaires d'un même boss).</summary>
+    static int Order(string id, int fight)
+    {
+        int i = Array.FindIndex(GameOrder, g => g.id == id && g.fight == fight);
+        if (i < 0) i = Array.FindIndex(GameOrder, g => g.id == id); // rencontre en plus : avec la première du boss
+        return (i < 0 ? GameOrder.Length : i) * 10;
     }
 
     /// <summary>Bouton d'état : rouge et volutes quand c'est l'état actuel, sombre sinon.</summary>
