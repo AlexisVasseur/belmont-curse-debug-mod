@@ -45,10 +45,6 @@ public partial class SidePanelView
             "In the same level, savestates load in place without a loading screen (a full load is still used when needed)."),
         new("Reload room", () => Plugin.ReloadRoom,
             "Fast load: the room is reloaded too, so its enemies and objects are reset."),
-        new("Fade to black", () => Plugin.FadeToBlack,
-            "The screen fades to black during every savestate load."),
-        new("Pause during fade", () => Plugin.PauseDuringFade,
-            "The game is paused while the screen fades to black and back."),
     };
 
     static Key[] allKeys;
