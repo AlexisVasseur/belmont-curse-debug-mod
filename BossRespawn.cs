@@ -36,7 +36,11 @@ public static class BossRespawn
         public CharacterProgressionStep step;
         public string cutsceneId;
         public bool intro; // cinématique vérifiée par le sous-scénario d'intro du boss (vue = intro courte)
-        public string Id => kind switch { Kind.Key => "clé " + key?.name, Kind.Arcana => $"arcane {character?.name}≥{step}", _ => "cinématique " + cutsceneId };
+        // Clé retenue mais pas encore chargée par le jeu (nouvelle partie) : connue par son identifiant seulement
+        public string keyGuid, keyName;
+        public string KeyGuid => key != null ? key.guid : keyGuid;
+        public string KeyName => key != null ? key.name : keyName;
+        public string Id => kind switch { Kind.Key => "clé " + KeyName,Kind.Arcana => $"arcane {character?.name}≥{step}", _ => "cinématique " + cutsceneId };
     }
 
     class Change { public Cond cond; public bool original; public CharacterProgressionStep originalStep; }
@@ -87,7 +91,7 @@ public static class BossRespawn
             if (!seen.Add(c.Id)) continue;
             list.Add(c.kind switch
             {
-                Kind.Key => new PlanCond { Kind = "Key", Name = c.key.name, Guid = c.key.guid, Value = v },
+                Kind.Key => new PlanCond { Kind = "Key", Name = c.KeyName ?? "", Guid = c.KeyGuid ?? "", Value = v },
                 Kind.Arcana => new PlanCond { Kind = "Arcana", Name = c.character.name, Guid = c.character.guid, Step = (int)c.step, Value = v },
                 _ => new PlanCond { Kind = c.intro ? "IntroCutscene" : "Cutscene", Guid = c.cutsceneId, Value = v },
             });
@@ -143,8 +147,10 @@ public static class BossRespawn
             {
                 case "Key":
                     var pkey = FindLoaded<ProgressionKeyID>(k => (p.Guid.Length > 0 && k.guid == p.Guid) || k.name == p.Name);
-                    if (pkey == null) { Plugin.Logger.LogWarning($"[Respawn] {boss.Name} : clé '{p.Name}' introuvable"); return null; }
-                    res.Add((new Cond { kind = Kind.Key, key = pkey }, p.Value));
+                    // Pas encore chargée (nouvelle partie) : le personnage ne l'a donc pas ; elle sera écrite par son
+                    // identifiant dans la partie rechargée
+                    if (pkey == null) Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : clé '{p.Name}' pas encore chargée par le jeu, gérée par son identifiant");
+                    res.Add((new Cond { kind = Kind.Key, key = pkey, keyGuid = p.Guid, keyName = p.Name }, p.Value));
                     break;
                 case "Arcana":
                     var ch = Bosses.All.FirstOrDefault(b => b.Id?.name == p.Name)?.Id
@@ -237,7 +243,7 @@ public static class BossRespawn
                 switch (c.kind)
                 {
                     case Kind.Key:
-                        if (SetInArray(ps["progressionPersistentSave"] as JsonArray, c.key.guid, v)) changes.Add($"{c.key.name}={v}");
+                        if (SetInArray(ps["progressionPersistentSave"] as JsonArray, c.KeyGuid, v)) changes.Add($"{c.KeyName}={v}");
                         break;
                     case Kind.Cutscene:
                         if (SetInArray(ps["watchedCutscenes"] as JsonArray, c.cutsceneId, v)) changes.Add($"cinématique {c.cutsceneId}={v}");
@@ -656,7 +662,7 @@ public static class BossRespawn
         var e = Player();
         switch (c.kind)
         {
-            case Kind.Key: return e?.GetComponent<ProgressionComponent>()?.HasProgressionKey(c.key) == true;
+            case Kind.Key: return c.key != null && e?.GetComponent<ProgressionComponent>()?.HasProgressionKey(c.key) == true;
             case Kind.Arcana:
                 var cp = e?.GetComponent<CharacterProgressionComponent>();
                 return cp != null && cp.GetProgressionStep(c.character) >= c.step;
@@ -673,6 +679,7 @@ public static class BossRespawn
         switch (c.kind)
         {
             case Kind.Key:
+                if (c.key == null) { if (value) Plugin.Logger.LogWarning($"[Respawn] {c.Id} : clé pas chargée, impossible à donner sur place"); break; }
                 var p = e?.GetComponent<ProgressionComponent>();
                 if (value) p?.SetProgressionKey(c.key); else p?.UnsetProgressionKey(c.key);
                 break;
@@ -826,6 +833,20 @@ public static class BossRespawn
         if (conds == null) { Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : aucun chemin vers le combat dans '{director.name}'"); return; }
         StorePlan(boss, conds);
         var missing = conds.Where(c => Evaluate(c.cond) != c.value).ToList();
+        // Cinématique d'intro : lue par le sous-scénario d'intro seulement au moment de choisir l'intro, donc imposée
+        // sur place, sans jamais recharger (recharger alors que le scénario a démarré bloquait le jeu)
+        var intro = missing.Where(c => c.cond.intro).ToList();
+        if (intro.Count > 0)
+        {
+            saveCopy ??= SaveGuard.Take();
+            foreach (var (c, v) in intro)
+            {
+                applied.Add(new Change { cond = c, original = !v });
+                Set(c, v);
+            }
+            Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : intro imposée sur place : {string.Join(", ", intro.Select(c => $"{c.cond.Id} → {c.value}"))}");
+            missing = missing.Where(c => !c.cond.intro).ToList();
+        }
         if (missing.Count == 0)
         {
             Plugin.Logger.LogInfo($"[Respawn] {boss.Name} : conditions en place, le scénario mène au combat");
