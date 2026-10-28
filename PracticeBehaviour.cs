@@ -194,6 +194,11 @@ public class PracticeBehaviour : MonoBehaviour
     {
         if (state == null || sequence.Active) return;
         if (!GameBridge.InGame(out string why)) { Notify(why, true); return; }
+        // Savestate, quickslot, Fight, TP : les fenêtres du mod se ferment, comme avec F1
+        panel.Visible = false;
+        panel.CancelSelectState();
+        panel.CancelRename();
+        Keybinds.Capturing = null;
         // Menu du jeu ouvert : on le ferme d'abord, le chargement suit dès qu'il est fermé
         if (GameBridge.CloseGameMenu()) { deferredLoad = state; deferredUntil = Time.unscaledTime + 2f; return; }
         sequence.Start(state);
