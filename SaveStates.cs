@@ -532,6 +532,15 @@ public static class GameBridge
             var data = cfg.bossData ?? cfg.bossDataRef?.Asset?.TryCast<BossData>();
             var list = cfg.containedBossArcana;
             if (list != null && list.Count > 0) arcana = list[0]?.name;
+            // BossData pas chargé (Mammon) : reconnu par l'identifiant de sa référence, puis par les arcanes absorbables
+            if (data == null && arcana == null)
+            {
+                string guid = null;
+                try { guid = cfg.bossDataRef?.AssetGUID; } catch { }
+                if (!string.IsNullOrEmpty(guid)) arcana = Bosses.All.Find(b => b.AssetGuid == guid)?.Id?.name;
+            }
+            if (data == null && arcana == null && cfg.containedAbsorbableArcana != null && cfg.containedAbsorbableArcana.Count > 0)
+                arcana = cfg.containedAbsorbableArcana[0]?.name;
             if (data == null && arcana == null) arcana = "?" + CurrentRoomName(); // arène sans boss identifiable
             return data;
         }

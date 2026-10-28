@@ -23,6 +23,7 @@ public static class Bosses
     {
         public CharacterID Id;
         public string DataName, KeyGuid, KeyName;
+        public string AssetGuid; // référence de chargement du BossData (salle d'arène dont le BossData n'est pas chargé)
         public readonly HashSet<string> GateDataNames = new();
         public bool IgnoreAbsorption;
         public string Name;
@@ -54,7 +55,7 @@ public static class Bosses
     }
 
     public static readonly List<Boss> All = new();
-    static readonly List<(CharacterID id, AsyncOperationHandle<BossData> h)> pending = new();
+    static readonly List<(CharacterID id, string guid, AsyncOperationHandle<BossData> h)> pending = new();
     static bool started;
     static float startTime;
     public static bool Done { get; private set; }
@@ -75,18 +76,20 @@ public static class Bosses
                 {
                     var e = elements[i];
                     if (e == null || e.id == null || e.item == null) continue;
+                    string guid = null;
+                    try { guid = e.item.AssetGUID; } catch { }
                     var asset = e.item.Asset;
-                    if (asset != null) { Add(e.id, asset.TryCast<BossData>()); continue; }
+                    if (asset != null) { Add(e.id, asset.TryCast<BossData>(), guid); continue; }
                     if (!e.item.RuntimeKeyIsValid()) continue;
-                    pending.Add((e.id, Addressables.LoadAssetAsync<BossData>(e.item.RuntimeKey)));
+                    pending.Add((e.id, guid, Addressables.LoadAssetAsync<BossData>(e.item.RuntimeKey)));
                 }
             }
 
             for (int i = pending.Count - 1; i >= 0; i--)
             {
-                var (id, h) = pending[i];
+                var (id, guid, h) = pending[i];
                 if (!h.IsDone) continue;
-                if (h.Status == AsyncOperationStatus.Succeeded) Add(id, h.Result);
+                if (h.Status == AsyncOperationStatus.Succeeded) Add(id, h.Result, guid);
                 pending.RemoveAt(i);
                 try { Addressables.Release(h); } catch { } // relâché aussitôt : le jeu doit pouvoir le décharger / recharger
             }
@@ -130,13 +133,13 @@ public static class Bosses
         return All.Find(x => x.Id?.name == f.first);
     }
 
-    static void Add(CharacterID id, BossData data)
+    static void Add(CharacterID id, BossData data, string assetGuid)
     {
         if (data == null || NotFights.Contains(id?.name ?? "")) return;
         var key = data.defeatedProgressionKey;
         var b = new Boss
         {
-            Id = id, DataName = data.name, KeyGuid = key?.guid, KeyName = key?.name,
+            Id = id, DataName = data.name, AssetGuid = assetGuid, KeyGuid = key?.guid, KeyName = key?.name,
             IgnoreAbsorption = data.ignoreAbsorptionForSpawnCondition,
         };
         b.GateDataNames.Add(data.name);
