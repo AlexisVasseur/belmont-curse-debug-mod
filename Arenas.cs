@@ -61,6 +61,15 @@ public static class Arenas
         catch (Exception ex) { Plugin.Logger.LogWarning("[Arènes] lecture : " + ex.Message); }
         // Ancien format : une entrée par boss, clé = CharacterID
         foreach (var (k, e) in entries) if (string.IsNullOrEmpty(e.Boss)) e.Boss = k.Split('@')[0];
+        // Positions prises dans l'arène : Fight / TP y posaient le joueur en plein combat. Oubliées (la porte sera
+        // retenue au prochain passage), sauf pour une seconde phase, qui n'a pas de porte
+        var inside = entries.Where(kv => kv.Value.Inside && !Bosses.IsSecondPhaseId(kv.Value.Boss)).Select(kv => kv.Key).ToList();
+        if (inside.Count > 0)
+        {
+            foreach (var k in inside) entries.Remove(k);
+            Plugin.Logger.LogInfo($"[Arènes] positions dans l'arène oubliées (porte à reprendre) : {string.Join(", ", inside)}");
+            SaveFile();
+        }
         return entries;
     }
 
@@ -162,7 +171,9 @@ public static class Arenas
         {
             insideTried = true;
             var boss = BossOf(lastArenaData, lastArenaArcana);
-            if (boss?.Id != null && Get(KeyOf(boss, room)) == null) Learn(lastArenaData, lastArenaArcana, room, room, pos, true);
+            // Seulement pour une seconde phase (salle sans porte) : ailleurs, on ne téléporte jamais dans l'arène
+            if (boss?.Id != null && Bosses.IsSecondPhase(boss) && Get(KeyOf(boss, room)) == null)
+                Learn(lastArenaData, lastArenaArcana, room, room, pos, true);
         }
         if (lastRoomIsArena) KeepFirstPhaseRetry(BossOf(lastArenaData, lastArenaArcana), now);
         BossRespawn.Update();

@@ -113,7 +113,8 @@ public static class Bosses
     /// Seconde phase d'un combat, jouée dans sa propre salle (Dracula (Beast) : Gym_Boss_Dracula_Phase2_BossRoom, dont le
     /// scénario démarre seul à l'entrée). Fight y mène directement, sans refaire la première phase.
     /// </summary>
-    public static bool IsSecondPhase(Boss b) => b?.Id?.name != null && FirstPhases.ContainsKey(b.Id.name);
+    public static bool IsSecondPhase(Boss b) => IsSecondPhaseId(b?.Id?.name);
+    public static bool IsSecondPhaseId(string characterId) => characterId != null && FirstPhases.ContainsKey(characterId);
 
     /// <summary>
     /// Seconde phase → première phase, et sens du personnage à la porte de la première (vers l'arène).
