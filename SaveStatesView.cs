@@ -318,9 +318,12 @@ public class SaveStatesView
             bool confirming = p.ConfirmIndex == i && p.Confirm is ConfirmKind.Overwrite or ConfirmKind.DeleteState;
             bool hover = hasMouse && my >= r.y && my < r.y + RowH && mx >= 12 && mx < W - 14;
 
-            string name = renaming
-                ? p.RenameText + ((Time.unscaledTime % 1f) < 0.5f ? "_" : " ")
-                : s?.Name ?? "Empty";
+            string cursor = (Time.unscaledTime % 1f) < 0.5f ? "_" : " ";
+            string name = !renaming ? s?.Name ?? "Empty"
+                // Nom sélectionné (Ctrl+A) : surligné
+                : p.RenameAllSelected ? $"<mark=#C8A04A70><noparse>{p.RenameText}</noparse></mark>{cursor}"
+                : $"<noparse>{p.RenameText}</noparse>{cursor}";
+            r.name.richText = renaming; // balises (surlignage) seulement pendant la saisie ; le nom est protégé par <noparse>
             Ui.SetText(r.name, name);
             r.name.color = renaming || hover ? Theme.TextSelected : s == null ? Theme.TextDim : Theme.Text;
 

@@ -29,6 +29,8 @@ public class SaveStatesPanel
 
     public int RenameIndex { get; private set; } = -1;
     public string RenameText = "";
+    /// <summary>Nom entier sélectionné (Ctrl+A) : la prochaine frappe le remplace, Retour arrière / Suppr l'efface.</summary>
+    public bool RenameAllSelected { get; private set; }
 
     public ConfirmKind Confirm { get; private set; } = ConfirmKind.None;
     public int ConfirmIndex { get; private set; } = -1;
@@ -160,6 +162,7 @@ public class SaveStatesPanel
         CancelConfirm();
         RenameIndex = index;
         RenameText = s.Name;
+        RenameAllSelected = false;
     }
 
     public void CommitRename()
@@ -221,8 +224,11 @@ public class SaveStatesPanel
     {
         if (IsTyping)
         {
+            bool ctrl = kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed;
             if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) CommitRename();
             else if (kb.escapeKey.wasPressedThisFrame) CancelRename();
+            else if (ctrl && kb.aKey.wasPressedThisFrame) RenameAllSelected = RenameText.Length > 0;
+            else if (RenameAllSelected && (kb.backspaceKey.wasPressedThisFrame || kb.deleteKey.wasPressedThisFrame)) { RenameText = ""; RenameAllSelected = false; }
             else if (BackspaceRepeat(kb) && RenameText.Length > 0) RenameText = RenameText.Substring(0, RenameText.Length - 1);
             return true; // aucun raccourci pendant la saisie
         }
@@ -251,7 +257,9 @@ public class SaveStatesPanel
     /// <summary>Caractère tapé (Keyboard.onTextInput) pendant un renommage.</summary>
     public void OnTextInput(char c)
     {
-        if (!IsTyping || char.IsControl(c) || RenameText.Length >= 60) return;
+        if (!IsTyping || char.IsControl(c)) return;
+        if (RenameAllSelected) { RenameText = ""; RenameAllSelected = false; } // la frappe remplace le nom sélectionné
+        if (RenameText.Length >= 60) return;
         RenameText += c;
     }
 }
