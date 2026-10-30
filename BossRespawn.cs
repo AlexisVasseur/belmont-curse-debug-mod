@@ -897,6 +897,26 @@ public static class BossRespawn
         if (traceTimes.Count == 0) traced = null;
     }
 
+    /// <summary>
+    /// Chargement d'une savestate : elle doit donner exactement son état. Les combats à refaire (Fight, Alive) sont
+    /// abandonnés et ce qu'ils avaient changé est remis ; sinon l'entrée dans l'arène imposait encore l'intro courte.
+    /// </summary>
+    public static void CancelAll()
+    {
+        if (Pending.Count == 0 && activeBoss == null && armedBoss == null && applied.Count == 0 && postApplied.Count == 0) return;
+        Plugin.Logger.LogInfo($"[Respawn] savestate chargée : combats à refaire abandonnés ({(Pending.Count == 0 ? "aucun en attente" : string.Join(", ", Pending))})");
+        Revert();
+        Pending.Clear();
+        activeBoss = armedBoss = null;
+        activeKey = armedKey = null;
+        armedConds = null;
+        armedPost = new List<string>();
+        armedEntered = false;
+        searchUntil = 0f;
+        prescanned = false;
+        prescanAt = 0f;
+    }
+
     static void Revert()
     {
         SaveGuard.RestoreIfChanged(saveCopy, "pendant le combat forcé");

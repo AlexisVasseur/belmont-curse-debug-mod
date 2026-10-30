@@ -22,7 +22,7 @@ public class PracticeBehaviour : MonoBehaviour
         panel.Notify = Notify;
         panel.Busy = () => sequence.Active;
         panel.CaptureState = Capture;
-        panel.LoadState = Load;
+        panel.LoadState = s => Load(s, savestate: true);
         panel.Init();
         MapTeleport.Notify = Notify;
     }
@@ -193,10 +193,12 @@ public class PracticeBehaviour : MonoBehaviour
     SaveState deferredLoad;
     float deferredUntil;
 
-    void Load(SaveState state)
+    /// <summary>savestate : chargement d'une savestate ou du quickslot (pas Fight / TP / carte) : son état exact, sans combat à refaire.</summary>
+    void Load(SaveState state, bool savestate = false)
     {
         if (state == null || sequence.Active) return;
         if (!GameBridge.InGame(out string why)) { Notify(why, true); return; }
+        if (savestate) BossRespawn.CancelAll();
         // Savestate, quickslot, Fight, TP : les fenêtres du mod se ferment, comme avec F1
         panel.Visible = false;
         panel.CancelSelectState();
