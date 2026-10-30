@@ -514,6 +514,19 @@ public partial class SidePanelView
             y += HeartRowH;
         }
 
+        // Niveau du personnage : « −10  −  valeur  +  +10 » à droite
+        {
+            float by = y + (BookRowH - 28) / 2f;
+            Ui.Text(fill, "LevelName", Pad + 46, y, 180, BookRowH, GameFonts.Title, 19f, Theme.Text).text = "Level";
+            Button(right - 44, by, 44, 28, "+10", GameFonts.Title, 15f, () => ChangeLevel(+10), "Level");
+            Button(right - 44 - 6 - 34, by, 34, 28, "+", GameFonts.Title, 18f, () => ChangeLevel(+1), "Level");
+            levelValue = Ui.Label(fill, "LevelVal", right - 44 - 6 - 34 - 6 - 56, by, 56, 28, GameFonts.Numbers, 22f, Theme.GoldText);
+            Button(right - 44 - 6 - 34 - 6 - 56 - 6 - 34, by, 34, 28, "-", GameFonts.Title, 18f, () => ChangeLevel(-1), "Level");
+            Button(right - 44 - 6 - 34 - 6 - 56 - 6 - 34 - 6 - 44, by, 44, 28, "-10", GameFonts.Title, 15f, () => ChangeLevel(-10), "Level");
+            Ui.Image(fill, "LevelLine", 12, y + BookRowH - 1, iw - 24, 1, Theme.Line);
+            Help(y, BookRowH, "Level", $"Character level, from {Upgrades.MinLevel} to {Upgrades.MaxLevel}. - / + change it by one, -10 / +10 by ten. The experience of the level starts again from zero.");
+            y += BookRowH;
+        }
         BookRow(Upgrades.Kind.Attack);
         BookRow(Upgrades.Kind.Defense);
         HeartRow(Upgrades.Kind.LifeFragments);
@@ -523,8 +536,25 @@ public partial class SidePanelView
 
     void ChangeUpgrade(Upgrades.Kind kind, int delta) => Notify?.Invoke(Upgrades.Change(kind, delta), false);
 
+    TextMeshProUGUI levelValue;
+    float nextLevelRead;
+
+    void ChangeLevel(int delta)
+    {
+        int cur = Upgrades.ReadLevel();
+        if (cur <= 0) { Notify?.Invoke("Unavailable (load a game first)", true); return; }
+        Notify?.Invoke(Upgrades.SetLevel(cur + delta), false);
+    }
+
     void UpdateUpgrades(bool hasMouse, float mx, float my, bool click, ref bool handled)
     {
+        // Niveau relu régulièrement (il monte aussi en jouant)
+        if (levelValue != null && Time.unscaledTime >= nextLevelRead)
+        {
+            nextLevelRead = Time.unscaledTime + 0.5f;
+            int lvl = Upgrades.ReadLevel();
+            Ui.SetText(levelValue, lvl > 0 ? lvl.ToString() : "—");
+        }
         foreach (var r in upgradeRows)
         {
             if (r.icon.sprite == null) r.icon.sprite = UpgradeIcon(r.kind);

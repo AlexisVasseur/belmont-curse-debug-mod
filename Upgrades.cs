@@ -96,6 +96,52 @@ public static class Upgrades
         catch (Exception ex) { return "Change failed: " + ex.Message; }
     }
 
+    // ---------- Niveau du personnage (1 à 99) ----------
+
+    public const int MinLevel = 1, MaxLevel = 99;
+    public static int Level;
+
+    static ExperienceComponent Experience(out Entity e)
+    {
+        e = null;
+        return MainCharacterSingleton.TryGetEntity(out e) && e != null ? e.GetComponent<ExperienceComponent>() : null;
+    }
+
+    /// <summary>Niveau actuel (0 si inconnu : pas en jeu).</summary>
+    public static int ReadLevel()
+    {
+        try { Level = Experience(out _)?.GetLevel() ?? 0; }
+        catch { Level = 0; }
+        return Level;
+    }
+
+    /// <summary>Met le personnage au niveau voulu (expérience du niveau remise à 0), PV / mana gardés.</summary>
+    public static string SetLevel(int target)
+    {
+        try
+        {
+            var xp = Experience(out var e);
+            if (xp == null) return "Unavailable (load a game first)";
+            target = Math.Clamp(target, MinLevel, MaxLevel);
+            int before = xp.GetLevel();
+            var dmg = e.GetComponent<Damageable>();
+            var mana = e.GetComponent<ManaCaster>();
+            int hp = dmg != null ? dmg.currentHealth : -1;
+            float mp = mana != null ? mana.GetCurrentMana(e, mana.spellManaType) : -1f;
+
+            xp.SetLevel(e, target);
+            xp.SetExperienceCurrent(e, 0);
+
+            if (dmg != null && hp > 0) dmg.SetCurrentHealth(e, Math.Min(hp, dmg.maxHealth), true);
+            if (mana != null && mp >= 0f) mana.SetCurrentMana(e, mana.spellManaType, Mathf.Min(mp, mana.GetMaxMana(e, mana.spellManaType)), false);
+            Cheats.RefreshBars(e);
+            ReadLevel();
+            Plugin.Logger.LogInfo($"[Niveau] {before} → {Level} (demandé {target})");
+            return $"Level {Level}";
+        }
+        catch (Exception ex) { return "Level change failed: " + ex.Message; }
+    }
+
     public static string Label(Kind k) => k switch
     {
         Kind.Attack => "Attack+",
