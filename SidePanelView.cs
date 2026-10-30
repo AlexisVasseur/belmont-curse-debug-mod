@@ -128,6 +128,7 @@ public partial class SidePanelView
         buildPage = Tab.General;
         y = BuildUtilities(y) + 10;
         y = BuildUpgrades(y) + 10;
+        y = BuildStats(y) + 10;
         contentH[(int)Tab.General] = y + 8;
 
         // --- Onglet Skills : Movement, puis Spells ---
@@ -1165,6 +1166,7 @@ public partial class SidePanelView
         {
             UpdateUtilities(hasMouse, mx, my, click, ref handled);
             UpdateUpgrades(hasMouse, mx, my, click, ref handled);
+            UpdateStats();
             // Zone du bas : explication de l'élément survolé, sinon résumé de l'onglet
             string helpTitle = "General", helpText = "Hover an element to see what it does. Utilities: click a row to turn it on or off. Health, mana, potions and upgrades: use the buttons, or click a vial or a heart.";
             if (hasMouse && mx >= 0f)
