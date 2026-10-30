@@ -113,7 +113,7 @@ public class PracticeBehaviour : MonoBehaviour
         // Clics et molette sur les fenêtres du mod : rien n'est transmis au jeu
         MouseBlock.Update(inGame && panel.ShouldBeVisible && MouseBlock.PointerOverModUi());
         // Renommage d'une savestate ou saisie d'une touche : le clavier n'est pas transmis au jeu
-        KeyboardBlock.Update(inGame && (panel.IsTyping || Keybinds.Capturing != null));
+        KeyboardBlock.Update(inGame && (panel.IsTyping || Keybinds.Capturing != null || SidePanelView.Typing));
 
         if (panel.ShouldBeVisible)
         {
@@ -135,6 +135,7 @@ public class PracticeBehaviour : MonoBehaviour
     void HandleKeys(Keyboard kb)
     {
         if (Keybinds.Capturing != null) return; // nouvelle touche en cours de saisie dans l'onglet Keybinds
+        if (SidePanelView.Typing) return; // niveau en cours de saisie (les chiffres du pavé sont aussi des raccourcis)
         if (panel.HandleKeyboard(kb)) return; // saisie d'un nom ou choix d'emplacement
 
         if (Keybinds.TogglePanel.Pressed(kb))

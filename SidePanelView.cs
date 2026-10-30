@@ -205,6 +205,7 @@ public partial class SidePanelView
             StyleTab(tabButtons[i], pages[i], (int)tab == i, over);
         }
         if (tab != Tab.Keybinds) Keybinds.Capturing = null; // onglet quitté pendant la saisie d'une touche
+        if (tab != Tab.General) levelTyping = false; // … ou du niveau
     }
 
     /// <summary>Onglet actif : fond bordeaux et volutes dorées ; les autres : fond sombre, sans volutes.</summary>
@@ -520,11 +521,15 @@ public partial class SidePanelView
             Ui.Text(fill, "LevelName", Pad + 46, y, 180, BookRowH, GameFonts.Title, 19f, Theme.Text).text = "Level";
             Button(right - 44, by, 44, 28, "+10", GameFonts.Title, 15f, () => ChangeLevel(+10), "Level");
             Button(right - 44 - 6 - 34, by, 34, 28, "+", GameFonts.Title, 18f, () => ChangeLevel(+1), "Level");
-            levelValue = Ui.Label(fill, "LevelVal", right - 44 - 6 - 34 - 6 - 56, by, 56, 28, GameFonts.Numbers, 22f, Theme.GoldText);
+            // Valeur cliquable : champ de saisie du niveau exact
+            var field = Button(right - 44 - 6 - 34 - 6 - 56, by, 56, 28, "", GameFonts.Numbers, 22f, StartLevelEdit, "Level");
+            if (field.Skinned) { field.OrnamentL = field.OrnamentR = null; }
+            field.LabelColor = Theme.GoldText;
+            levelValue = field.Label;
             Button(right - 44 - 6 - 34 - 6 - 56 - 6 - 34, by, 34, 28, "-", GameFonts.Title, 18f, () => ChangeLevel(-1), "Level");
             Button(right - 44 - 6 - 34 - 6 - 56 - 6 - 34 - 6 - 44, by, 44, 28, "-10", GameFonts.Title, 15f, () => ChangeLevel(-10), "Level");
             Ui.Image(fill, "LevelLine", 12, y + BookRowH - 1, iw - 24, 1, Theme.Line);
-            Help(y, BookRowH, "Level", $"Character level, from {Upgrades.MinLevel} to {Upgrades.MaxLevel}. - / + change it by one, -10 / +10 by ten. The experience of the level starts again from zero.");
+            Help(y, BookRowH, "Level", $"Character level, from {Upgrades.MinLevel} to {Upgrades.MaxLevel}. Click the number to type the exact level (Enter: apply, Esc: cancel). - / + change it by one, -10 / +10 by ten. The experience of the level starts again from zero.");
             y += BookRowH;
         }
         BookRow(Upgrades.Kind.Attack);
@@ -539,17 +544,64 @@ public partial class SidePanelView
     TextMeshProUGUI levelValue;
     float nextLevelRead;
 
+    // Saisie du niveau exact (clic sur la valeur)
+    static bool levelTyping;
+    string levelText = "";
+    int levelEditFrame;
+
+    /// <summary>Niveau en cours de saisie : clavier coupé pour le jeu et pour les raccourcis du mod.</summary>
+    public static bool Typing => levelTyping;
+
     void ChangeLevel(int delta)
     {
+        levelTyping = false;
         int cur = Upgrades.ReadLevel();
         if (cur <= 0) { Notify?.Invoke("Unavailable (load a game first)", true); return; }
         Notify?.Invoke(Upgrades.SetLevel(cur + delta), false);
     }
 
+    void StartLevelEdit()
+    {
+        if (Upgrades.ReadLevel() <= 0) { Notify?.Invoke("Unavailable (load a game first)", true); return; }
+        levelTyping = true;
+        levelText = "";
+        levelEditFrame = Time.frameCount;
+    }
+
+    void CommitLevelEdit()
+    {
+        levelTyping = false;
+        if (levelText.Length == 0) return; // rien tapé : niveau inchangé
+        Notify?.Invoke(Upgrades.SetLevel(int.Parse(levelText)), false);
+        nextLevelRead = 0f;
+    }
+
+    /// <summary>Chiffres (rangée du haut ou pavé), Retour arrière, Entrée (valide), Échap (annule), clic ailleurs (valide).</summary>
+    void UpdateLevelEdit(bool click)
+    {
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb == null) return;
+        if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) { CommitLevelEdit(); return; }
+        if (kb.escapeKey.wasPressedThisFrame) { levelTyping = false; nextLevelRead = 0f; return; }
+        if (click && Time.frameCount != levelEditFrame) { CommitLevelEdit(); return; }
+        if (kb.backspaceKey.wasPressedThisFrame && levelText.Length > 0) levelText = levelText.Substring(0, levelText.Length - 1);
+        for (int d = 0; d <= 9; d++)
+        {
+            // Dans l'enum, Digit0 vient APRÈS Digit9 (voir Keybinds.DigitPressed)
+            var top = kb[d == 0 ? UnityEngine.InputSystem.Key.Digit0 : UnityEngine.InputSystem.Key.Digit1 + (d - 1)];
+            var pad = kb[UnityEngine.InputSystem.Key.Numpad0 + d];
+            if (!top.wasPressedThisFrame && !pad.wasPressedThisFrame) continue;
+            if (levelText.Length >= 2 || (levelText.Length == 0 && d == 0)) continue; // 1 à 99
+            levelText += d;
+        }
+        Ui.SetText(levelValue, levelText + ((Time.unscaledTime % 1f) < 0.5f ? "_" : " "));
+    }
+
     void UpdateUpgrades(bool hasMouse, float mx, float my, bool click, ref bool handled)
     {
+        if (levelTyping && levelValue != null) UpdateLevelEdit(click);
         // Niveau relu régulièrement (il monte aussi en jouant)
-        if (levelValue != null && Time.unscaledTime >= nextLevelRead)
+        else if (levelValue != null && Time.unscaledTime >= nextLevelRead)
         {
             nextLevelRead = Time.unscaledTime + 0.5f;
             int lvl = Upgrades.ReadLevel();
@@ -1025,7 +1077,7 @@ public partial class SidePanelView
 
     public void Update(bool visible)
     {
-        if (!visible) { if (panel != null && panel.activeSelf) panel.SetActive(false); wasVisible = false; Keybinds.Capturing = null; return; }
+        if (!visible) { if (panel != null && panel.activeSelf) panel.SetActive(false); wasVisible = false; Keybinds.Capturing = null; levelTyping = false; return; }
         // À l'ouverture : relit les améliorations (Attack+, cœurs…)
         if (!wasVisible) { wasVisible = true; Upgrades.Refresh(true); }
 
