@@ -35,6 +35,7 @@ public class SaveStatesView
     class RowUi
     {
         public Image highlight, tip, line, diaBorder, diaFill;
+        public Image selection, caret; // saisie du nom : sélection (sous le texte) et curseur (sur le texte)
         public TextMeshProUGUI digit, name, confirm;
         public UiButton read, write, rename, del, yes, no;
         public float y;
@@ -180,7 +181,11 @@ public class SaveStatesView
             r.digit.text = index.ToString();
 
             float right = rx + rw - 22;
+            r.selection = Ui.Image(fill, $"Row{i}Selection", rx + 50, y + 7, 2, RowH - 14, Theme.Hex(0x3d6fb0, 0.85f)); // créée avant : sous le texte
+            r.selection.gameObject.SetActive(false);
             r.name = Ui.Text(fill, $"Row{i}Name", rx + 50, y, rw - 50 - 290, RowH, b, 21f, Theme.Text);
+            r.caret = Ui.Image(fill, $"Row{i}Caret", rx + 50, y + 8, 2, RowH - 16, Theme.GoldText);
+            r.caret.gameObject.SetActive(false);
             r.confirm = Ui.Text(fill, $"Row{i}Confirm", right - 260, y, 140, RowH, t, 15f, Theme.Red, TextAlignmentOptions.MidlineRight);
 
             r.write = Button(right - 78, y + 5, 78, 28, "Write", t, 15f, () => p.ClickWrite(index));
@@ -318,14 +323,11 @@ public class SaveStatesView
             bool confirming = p.ConfirmIndex == i && p.Confirm is ConfirmKind.Overwrite or ConfirmKind.DeleteState;
             bool hover = hasMouse && my >= r.y && my < r.y + RowH && mx >= 12 && mx < W - 14;
 
-            string cursor = (Time.unscaledTime % 1f) < 0.5f ? "_" : " ";
-            string name = !renaming ? s?.Name ?? "Empty"
-                // Nom sélectionné (Ctrl+A) : surligné
-                : p.RenameAllSelected ? $"<mark=#C8A04A70><noparse>{p.RenameText}</noparse></mark>{cursor}"
-                : $"<noparse>{p.RenameText}</noparse>{cursor}";
-            r.name.richText = renaming; // balises (surlignage) seulement pendant la saisie ; le nom est protégé par <noparse>
+            string name = !renaming ? s?.Name ?? "Empty" : p.RenameText;
+            r.name.overflowMode = renaming ? TextOverflowModes.Overflow : TextOverflowModes.Ellipsis; // saisie : texte entier
             Ui.SetText(r.name, name);
             r.name.color = renaming || hover ? Theme.TextSelected : s == null ? Theme.TextDim : Theme.Text;
+            UpdateRenameMarks(r, renaming);
 
             bool lit = hover || renaming || confirming;
             Ui.SetActive(r.highlight, lit);
@@ -357,6 +359,79 @@ public class SaveStatesView
         foreach (var h in hints) h.label.color = p.SelectOp == h.op ? Theme.Red : Theme.GoldLabel;
     }
 
+    // ---------- Saisie du nom : sélection et curseur dessinés sous / sur le texte ----------
+
+    const float NameX = 12 + 50; // abscisse du nom dans le panneau (rx + 50)
+
+    /// <summary>Abscisse (depuis le bord gauche du nom) de la limite avant le caractère k (k = longueur : après le dernier).</summary>
+    static float CharX(TextMeshProUGUI t, int k)
+    {
+        var info = t.textInfo;
+        int n = info?.characterCount ?? 0;
+        if (n == 0) return 0f;
+        float left = t.rectTransform.rect.xMin;
+        if (k < n) return info.characterInfo[k].origin - left;
+        return info.characterInfo[n - 1].xAdvance - left;
+    }
+
+    /// <summary>Limite entre caractères la plus proche de x (depuis le bord gauche du nom).</summary>
+    static int IndexAt(TextMeshProUGUI t, float x, int length)
+    {
+        int best = 0;
+        float bestDist = float.MaxValue;
+        for (int k = 0; k <= length; k++)
+        {
+            float d = Mathf.Abs(CharX(t, k) - x);
+            if (d < bestDist) { bestDist = d; best = k; }
+        }
+        return best;
+    }
+
+    void UpdateRenameMarks(RowUi r, bool renaming)
+    {
+        if (!renaming) { Ui.SetActive(r.selection, false); Ui.SetActive(r.caret, false); return; }
+        r.name.ForceMeshUpdate(); // positions des caractères du texte en cours
+        if (p.HasSelection)
+        {
+            float x0 = CharX(r.name, p.SelectionStart), x1 = CharX(r.name, p.SelectionEnd);
+            Ui.Place(r.selection.rectTransform, NameX + x0, r.y + 7, Mathf.Max(2f, x1 - x0), RowH - 14);
+            Ui.SetActive(r.selection, true);
+        }
+        else Ui.SetActive(r.selection, false);
+        // Curseur clignotant (toujours visible pendant un glisser à la souris)
+        bool on = dragRow == r || (Time.unscaledTime % 1f) < 0.5f;
+        Ui.Place(r.caret.rectTransform, NameX + CharX(r.name, p.RenameCursor) - 1f, r.y + 8, 2f, RowH - 16);
+        Ui.SetActive(r.caret, on);
+    }
+
+    RowUi dragRow; // glisser à la souris en cours dans ce nom
+    float lastNameClick = -10f;
+
+    /// <summary>
+    /// Souris dans le nom en cours de saisie : clic = curseur, glisser = sélection, Maj+clic = étendre,
+    /// double-clic = tout sélectionner.
+    /// </summary>
+    void HandleRenameMouse(float mx, float my, Mouse mouse)
+    {
+        if (!p.IsTyping) { dragRow = null; return; }
+        var r = rows[p.RenameIndex];
+        float localX = mx - NameX;
+        bool overName = my >= r.y && my < r.y + RowH && mx >= NameX - 8 && mx < W - 14;
+        if (mouse.leftButton.wasPressedThisFrame && overName)
+        {
+            r.name.ForceMeshUpdate();
+            var kb = Keyboard.current;
+            bool shift = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
+            if (Time.unscaledTime - lastNameClick < 0.35f) { p.SelectAll(); lastNameClick = -10f; dragRow = null; return; }
+            lastNameClick = Time.unscaledTime;
+            p.SetCaret(IndexAt(r.name, localX, p.RenameText.Length), shift);
+            dragRow = r;
+        }
+        else if (dragRow == r && mouse.leftButton.isPressed)
+            p.SetCaret(IndexAt(r.name, localX, p.RenameText.Length), true);
+        if (!mouse.leftButton.isPressed) dragRow = null;
+    }
+
     // ---------- Souris ----------
 
     /// <summary>Position de la souris dans le repère du panneau (pixels de référence, origine en haut à gauche du fond).</summary>
@@ -374,6 +449,7 @@ public class SaveStatesView
         if (!ok) return;
         var mouse = Mouse.current;
         bool click = mouse.leftButton.wasPressedThisFrame;
+        HandleRenameMouse(mx, my, mouse);
 
         bool handled = false;
         foreach (var (btn, x, y, w, h) in buttons)

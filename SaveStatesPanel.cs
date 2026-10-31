@@ -29,8 +29,32 @@ public class SaveStatesPanel
 
     public int RenameIndex { get; private set; } = -1;
     public string RenameText = "";
-    /// <summary>Nom entier sélectionné (Ctrl+A) : la prochaine frappe le remplace, Retour arrière / Suppr l'efface.</summary>
-    public bool RenameAllSelected { get; private set; }
+    /// <summary>Position du curseur de texte dans RenameText (0 = avant le premier caractère).</summary>
+    public int RenameCursor { get; private set; }
+    /// <summary>Autre bout de la sélection (égal au curseur : pas de sélection). Ctrl+A, Maj+flèches, glisser à la souris.</summary>
+    public int RenameAnchor { get; private set; }
+    public bool HasSelection => RenameAnchor != RenameCursor;
+    public int SelectionStart => Math.Min(RenameAnchor, RenameCursor);
+    public int SelectionEnd => Math.Max(RenameAnchor, RenameCursor);
+
+    /// <summary>Place le curseur (souris, flèches) ; extend : garde l'ancre pour étendre la sélection.</summary>
+    public void SetCaret(int index, bool extend)
+    {
+        RenameCursor = Math.Clamp(index, 0, RenameText.Length);
+        if (!extend) RenameAnchor = RenameCursor;
+    }
+
+    public void SelectAll() { RenameAnchor = 0; RenameCursor = RenameText.Length; }
+
+    /// <summary>Retire le texte sélectionné (curseur à sa place). Retourne false s'il n'y avait pas de sélection.</summary>
+    bool DeleteSelection()
+    {
+        if (!HasSelection) return false;
+        int s = SelectionStart;
+        RenameText = RenameText.Remove(s, SelectionEnd - s);
+        RenameCursor = RenameAnchor = s;
+        return true;
+    }
 
     public ConfirmKind Confirm { get; private set; } = ConfirmKind.None;
     public int ConfirmIndex { get; private set; } = -1;
@@ -162,7 +186,7 @@ public class SaveStatesPanel
         CancelConfirm();
         RenameIndex = index;
         RenameText = s.Name;
-        RenameAllSelected = false;
+        RenameCursor = RenameAnchor = RenameText.Length;
     }
 
     public void CommitRename()
@@ -225,11 +249,33 @@ public class SaveStatesPanel
         if (IsTyping)
         {
             bool ctrl = kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed;
+            bool shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
+            RenameCursor = Math.Clamp(RenameCursor, 0, RenameText.Length);
+            RenameAnchor = Math.Clamp(RenameAnchor, 0, RenameText.Length);
             if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) CommitRename();
             else if (kb.escapeKey.wasPressedThisFrame) CancelRename();
-            else if (ctrl && kb.aKey.wasPressedThisFrame) RenameAllSelected = RenameText.Length > 0;
-            else if (RenameAllSelected && (kb.backspaceKey.wasPressedThisFrame || kb.deleteKey.wasPressedThisFrame)) { RenameText = ""; RenameAllSelected = false; }
-            else if (BackspaceRepeat(kb) && RenameText.Length > 0) RenameText = RenameText.Substring(0, RenameText.Length - 1);
+            else if (ctrl && kb.aKey.wasPressedThisFrame) SelectAll();
+            else if (Repeat(kb.leftArrowKey, ref nextLeft))
+            {
+                // Sans Maj, une sélection se referme sur son début ; avec Maj, elle s'étend
+                if (!shift && HasSelection) SetCaret(SelectionStart, false);
+                else SetCaret(RenameCursor - 1, shift);
+            }
+            else if (Repeat(kb.rightArrowKey, ref nextRight))
+            {
+                if (!shift && HasSelection) SetCaret(SelectionEnd, false);
+                else SetCaret(RenameCursor + 1, shift);
+            }
+            else if (kb.homeKey.wasPressedThisFrame) SetCaret(0, shift);
+            else if (kb.endKey.wasPressedThisFrame) SetCaret(RenameText.Length, shift);
+            else if (Repeat(kb.backspaceKey, ref nextBackspace))
+            {
+                if (!DeleteSelection() && RenameCursor > 0) { RenameText = RenameText.Remove(RenameCursor - 1, 1); SetCaret(RenameCursor - 1, false); }
+            }
+            else if (Repeat(kb.deleteKey, ref nextDelete))
+            {
+                if (!DeleteSelection() && RenameCursor < RenameText.Length) RenameText = RenameText.Remove(RenameCursor, 1);
+            }
             return true; // aucun raccourci pendant la saisie
         }
         if (InSelectState)
@@ -241,25 +287,27 @@ public class SaveStatesPanel
         return false;
     }
 
-    // Répétition de Retour arrière maintenu, comme dans un champ texte (les caractères, eux, sont déjà répétés par onTextInput)
+    // Répétition des touches maintenues (flèches, Retour arrière, Suppr), comme dans un champ texte
+    // (les caractères, eux, sont déjà répétés par onTextInput)
     const float RepeatDelay = 0.45f, RepeatRate = 0.035f;
-    float nextBackspace;
+    float nextBackspace, nextDelete, nextLeft, nextRight;
 
-    bool BackspaceRepeat(Keyboard kb)
+    static bool Repeat(UnityEngine.InputSystem.Controls.KeyControl k, ref float next)
     {
-        var k = kb.backspaceKey;
-        if (k.wasPressedThisFrame) { nextBackspace = UnityEngine.Time.unscaledTime + RepeatDelay; return true; }
-        if (!k.isPressed || UnityEngine.Time.unscaledTime < nextBackspace) return false;
-        nextBackspace = UnityEngine.Time.unscaledTime + RepeatRate;
+        if (k.wasPressedThisFrame) { next = UnityEngine.Time.unscaledTime + RepeatDelay; return true; }
+        if (!k.isPressed || UnityEngine.Time.unscaledTime < next) return false;
+        next = UnityEngine.Time.unscaledTime + RepeatRate;
         return true;
     }
 
-    /// <summary>Caractère tapé (Keyboard.onTextInput) pendant un renommage.</summary>
+    /// <summary>Caractère tapé (Keyboard.onTextInput) pendant un renommage : inséré au curseur, à la place de la sélection.</summary>
     public void OnTextInput(char c)
     {
         if (!IsTyping || char.IsControl(c)) return;
-        if (RenameAllSelected) { RenameText = ""; RenameAllSelected = false; } // la frappe remplace le nom sélectionné
+        DeleteSelection();
         if (RenameText.Length >= 60) return;
-        RenameText += c;
+        RenameCursor = Math.Clamp(RenameCursor, 0, RenameText.Length);
+        RenameText = RenameText.Insert(RenameCursor, c.ToString());
+        SetCaret(RenameCursor + 1, false);
     }
 }
