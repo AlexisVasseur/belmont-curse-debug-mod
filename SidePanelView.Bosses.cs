@@ -43,11 +43,6 @@ public partial class SidePanelView
         bossesBuiltFor = BossesShown;
         float iw = W - 1;
 
-        var all = UiButton.CreateSkinned(fill, "BtnRespawnAll", Pad, y, iw - Pad * 2, BarH, "Respawn all bosses", GameFonts.Title, 16f,
-            () => Notify?.Invoke(Bosses.RespawnAll(), false));
-        bossButtons.Add((all, Pad, y, iw - Pad * 2, BarH));
-        y += BarH + 10;
-
         y = SectionTitle("Bosses", y);
         if (!Bosses.Done || Bosses.All.Count == 0)
         {
@@ -85,7 +80,13 @@ public partial class SidePanelView
             bossRows.Add(r);
             y += BossRowH;
         }
-        return y;
+
+        // Sous la liste : la place ne manque pas, et la liste commence directement sous son titre
+        y += 12;
+        var all = UiButton.CreateSkinned(fill, "BtnRespawnAll", Pad, y, iw - Pad * 2, BarH, "Respawn all bosses", GameFonts.Title, 16f,
+            () => Notify?.Invoke(Bosses.RespawnAll(), false));
+        bossButtons.Add((all, Pad, y, iw - Pad * 2, BarH));
+        return y + BarH + 8;
     }
 
     // Boss combattus deux fois : numéro de niveau de chaque rencontre, dans l'ordre (I, II)
