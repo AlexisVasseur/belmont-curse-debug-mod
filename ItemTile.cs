@@ -54,7 +54,8 @@ public class ItemTile
             Ui.SetActive(eqMark, equipped);
             return;
         }
-        frame.color = hover ? Theme.Hex(0xffa850) : equipped ? Theme.Hex(0x9fd0ff) : owned ? frameTint : Theme.Hex(0x4a4038);
-        Skin.ApplyGlow(glow, hover, equipped);
+        // Survol en rouge (comme les lignes des autres écrans), objet équipé en doré animé
+        frame.color = hover ? Theme.Hex(0xff8a80) : equipped ? Theme.Hex(0xffd27a) : owned ? frameTint : Theme.Hex(0x4a4038);
+        Skin.ApplyItemGlow(glow, hover, equipped);
     }
 }

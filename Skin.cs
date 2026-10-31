@@ -93,6 +93,18 @@ public static class Skin
         if (equipped) glow.color = new Color(HoverGlow.r, HoverGlow.g, HoverGlow.b, 0.8f + 0.2f * Mathf.Sin(Time.unscaledTime * 5f));
     }
 
+    /// <summary>Rouge du survol des armes et reliques : la même sensation que les lignes survolées des autres écrans.</summary>
+    public static readonly Color HoverRed = Theme.Hex(0xd8343a);
+
+    /// <summary>Armes et reliques : lueur rouge au survol, liseré doré animé pour l'objet équipé.</summary>
+    public static void ApplyItemGlow(Image glow, bool hover, bool equipped)
+    {
+        if (glow == null) return;
+        Ui.SetActive(glow, hover || equipped);
+        if (hover) glow.color = new Color(HoverRed.r, HoverRed.g, HoverRed.b, 0.9f);
+        else if (equipped) glow.color = new Color(HoverGlow.r, HoverGlow.g, HoverGlow.b, 0.8f + 0.2f * Mathf.Sin(Time.unscaledTime * 5f));
+    }
+
     /// <summary>Image découpée en 9 : multiplier = facteur de réduction des bords fixes (bord affiché = bord source / multiplier).</summary>
     public static Image Sliced(Transform parent, string name, float x, float y, float w, float h, Sprite sprite, Color color, float multiplier)
     {
