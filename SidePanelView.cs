@@ -981,10 +981,10 @@ public partial class SidePanelView
             Ui.SetActive(c.equipped, spellEquipped && c.frame == null);
             if (c.frame != null)
             {
-                var fs = overIcon && Skin.DiamondHover != null ? Skin.DiamondHover : Skin.Diamond;
-                if (c.frame.sprite != fs) c.frame.sprite = fs;
+                // Survol : la bande de la ligne suffit (pas de liseré) ; le liseré doré animé marque l'arcane équipée
+                if (c.frame.sprite != Skin.Diamond) c.frame.sprite = Skin.Diamond;
                 c.frame.color = owned == true || overIcon ? Color.white : new Color(0.55f, 0.5f, 0.45f, 1f);
-                Skin.ApplyGlow(c.glow, overIcon, spellEquipped);
+                Skin.ApplyEquippedGlow(c.glow, spellEquipped);
             }
             c.line.color = owned == true ? Theme.GoldBright : Theme.Line;
             Ui.SetActive(c.highlight, overIcon);

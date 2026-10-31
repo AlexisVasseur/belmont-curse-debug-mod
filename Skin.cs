@@ -83,6 +83,16 @@ public static class Skin
         else if (equipped) glow.color = new Color(EquippedGlow.r, EquippedGlow.g, EquippedGlow.b, 0.9f);
     }
 
+    /// <summary>
+    /// Lueur réservée à l'élément équipé (arcanes) : le liseré doré animé qui servait au survol, rien au survol.
+    /// </summary>
+    public static void ApplyEquippedGlow(Image glow, bool equipped)
+    {
+        if (glow == null) return;
+        Ui.SetActive(glow, equipped);
+        if (equipped) glow.color = new Color(HoverGlow.r, HoverGlow.g, HoverGlow.b, 0.8f + 0.2f * Mathf.Sin(Time.unscaledTime * 5f));
+    }
+
     /// <summary>Image découpée en 9 : multiplier = facteur de réduction des bords fixes (bord affiché = bord source / multiplier).</summary>
     public static Image Sliced(Transform parent, string name, float x, float y, float w, float h, Sprite sprite, Color color, float multiplier)
     {
