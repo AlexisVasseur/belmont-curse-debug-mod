@@ -354,7 +354,7 @@ public static class Arcana
             }
             bool now = c.IsTalentUnlocked(t.Data);
             Plugin.Logger.LogInfo($"[Sorts] talent {t.Data.name} → {(now ? "débloqué" : "verrouillé")}");
-            return $"{t.Owner.Name} · upgrade {t.Index + 1}: {(now ? "unlocked" : "locked")}";
+            return $"{t.Owner.Name} - Upgrade {t.Index + 1}: {(now ? "unlocked" : "locked")}";
         }
         catch (Exception ex) { return "Toggle failed: " + ex.Message; }
     }

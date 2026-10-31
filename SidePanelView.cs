@@ -779,8 +779,8 @@ public partial class SidePanelView
 
             if (hover)
             {
-                title = $"{t.weapon.Name} · tier {t.weapon.Tier}";
-                text = (owned == true ? (equipped ? "Owned · equipped. " : "Owned. ") : "Not owned. ") + t.weapon.Description;
+                title = $"{t.weapon.Name} - Tier {t.weapon.Tier}";
+                text = (owned == true ? (equipped ? "Owned, equipped. " : "Owned. ") : "Not owned. ") + t.weapon.Description;
                 string special = t.weapon.Special;
                 if (!string.IsNullOrEmpty(special)) text += "  " + special;
                 if (click && !handled) { handled = true; Notify?.Invoke(Weapons.Toggle(t.weapon), false); }
@@ -801,7 +801,7 @@ public partial class SidePanelView
             if (hover)
             {
                 title = t.relic.Name;
-                text = (owned == true ? (equipped ? "Owned · equipped. " : "Owned. ") : "Not owned. ") + t.relic.Description
+                text = (owned == true ? (equipped ? "Owned, equipped. " : "Owned. ") : "Not owned. ") + t.relic.Description
                     + "  Click: unlock or remove. Right-click: equip or unequip.";
                 if (click && !handled) { handled = true; Notify?.Invoke(Relics.Toggle(t.relic), false); }
                 if (rightClick && !handled) { handled = true; Notify?.Invoke(Relics.ToggleEquip(t.relic), false); }
@@ -992,7 +992,7 @@ public partial class SidePanelView
             if (overIcon)
             {
                 title = c.spell.Name;
-                text = (owned == true ? (Arcana.IsEquipped(c.spell) ? "Owned · equipped. " : "Owned. ") : "Not owned. ") + c.spell.Description;
+                text = (owned == true ? (Arcana.IsEquipped(c.spell) ? "Owned, equipped. " : "Owned. ") : "Not owned. ") + c.spell.Description;
                 var next = c.spell.NextVariant();
                 text += "  Click: unlock or remove. Right-click: equip or unequip.";
                 if (next != null) text += $"  The button on the right switches to {Loc.Get(next.itemDisplayName, next.name)} (only one of the two can be owned).";
@@ -1017,7 +1017,7 @@ public partial class SidePanelView
                 }
                 if (hover)
                 {
-                    title = $"{c.spell.Name} · upgrade {t.talent.Index + 1}";
+                    title = $"{c.spell.Name} - Upgrade {t.talent.Index + 1}";
                     text = (on == true ? "Unlocked. " : "Locked. ") + t.talent.Description;
                     if (click && !handled) { handled = true; Notify?.Invoke(Arcana.ToggleTalent(t.talent), false); }
                 }
