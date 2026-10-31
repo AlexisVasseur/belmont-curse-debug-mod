@@ -14,7 +14,7 @@ namespace BelmontPractice;
 /// </summary>
 public partial class SidePanelView
 {
-    const float W = 470f, Pad = 14f, TabsH = 38f, TitleH = 44f, BarH = 30f;
+    const float W = 470f, Pad = 14f, TabsH = 38f, BarH = 30f;
     const int Cols = 5;
     const float Gap = 6f, TileH = 124f, IconSize = 58f;
 
@@ -88,7 +88,7 @@ public partial class SidePanelView
         for (int i = 0; i < TabNames.Length; i++)
             tabButtons[i] = UiButton.CreateSkinned(fill, "Tab" + TabNames[i], TabX(i), y, TabW, TabsH, TabNames[i], t, 16f, null);
 
-        Ui.Image(fill, "TabsLine", Pad, y + TabsH + 4, iw - Pad * 2, 1, Theme.LineGold);
+        CardFrame.Rule(fill, "TabsRule", 0, y + TabsH + 5, iw); // séparateur à losange entre les onglets et le contenu
         y += TabsH + 8;
 
         // Zone défilante sous les onglets : masque + une page par onglet (mêmes coordonnées que le fond)
@@ -111,6 +111,13 @@ public partial class SidePanelView
         detailText.overflowMode = TextOverflowModes.Truncate;
         weaponDetailTitle = detailTitle;
         weaponDetailText = detailText;
+
+        // Séparateur à losange entre la zone qui défile et la zone de détail, accroché au bas du panneau
+        var detailRule = CardFrame.Rule(root, "DetailRule", 0, 0, iw).rectTransform;
+        detailRule.anchorMin = new Vector2(0f, 0f);
+        detailRule.anchorMax = new Vector2(1f, 0f);
+        detailRule.offsetMin = new Vector2(0f, DetailAreaH - 6f);
+        detailRule.offsetMax = new Vector2(0f, DetailAreaH + 6f);
 
         // Barre de défilement (à droite de la zone défilante)
         scrollTrack = Ui.Image(root, "ScrollTrack", 0, 0, ScrollbarW, 10, Theme.Line);
@@ -187,6 +194,9 @@ public partial class SidePanelView
 
     const float DetailH = 190f, ScrollbarW = 5f;
     const float TabsTop = 16f; // sous le haut du cadre et ses coins
+    const float SectionH = 46f; // bandeau de section (titre)
+    // Barre de défilement contre le filet droit du cadre (repère du contenu, décalé de 1 px)
+    static float ScrollX => W - 1 - CardFrame.EdgeWidth - ScrollbarW;
     Image scrollTrack, scrollThumb;
     bool draggingScrollbar;
     static float DetailAreaH => DetailH + Pad * 2;
@@ -1004,19 +1014,12 @@ public partial class SidePanelView
     float SectionTitle(string text, float y)
     {
         float iw = W - 1;
-        // Ruban bordeaux du jeu ; à défaut, titre doré entre deux filets
-        // Toute la largeur du panneau ; hauteur laissant ~10 px entre le titre et les filets dorés
-        if (Skin.BannerSprite != null) return Skin.Banner(fill, text, 0, y, iw, 70, GameFonts.Title) + 10;
-        var title = Ui.Text(fill, "Section" + text, Pad, y, iw - Pad * 2, TitleH, GameFonts.Title, 32f, Theme.GoldText, TextAlignmentOptions.Center);
-        title.text = text;
-        float tw = Mathf.Min(iw - Pad * 2 - 40, title.preferredWidth + 24);
-        float side = (iw - Pad * 2 - tw) / 2f - 8;
-        if (side > 10)
-        {
-            Ui.Image(fill, "LineL" + text, Pad, y + TitleH / 2f, side, 1, Theme.LineGold);
-            Ui.Image(fill, "LineR" + text, iw - Pad - side, y + TitleH / 2f, side, 1, Theme.LineGold);
-        }
-        return y + TitleH + 6;
+        // Comme le titre des savestates : bandeau bordeaux uni sur toute la largeur, titre centré, séparateur à losange
+        // centré sur sa limite basse
+        Ui.Image(fill, "Section" + text, 0, y, iw, SectionH, CardFrame.Band);
+        Ui.Text(fill, "SectionTitle" + text, 0, y, iw, SectionH, GameFonts.Title, 25f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = text;
+        CardFrame.Rule(fill, "SectionRule" + text, 0, y + SectionH, iw);
+        return y + SectionH + 14;
     }
 
     const float ShieldW = 80f, ShieldH = 88f, ShieldRowH = 140f;
@@ -1136,9 +1139,9 @@ public partial class SidePanelView
         Ui.SetActive(scrollThumb, showBar);
         if (showBar)
         {
-            Ui.Place(scrollTrack.rectTransform, W - 1 - ScrollbarW - 9, trackTop, ScrollbarW, trackH); // à l'intérieur du filet droit du cadre
+            Ui.Place(scrollTrack.rectTransform, ScrollX, trackTop, ScrollbarW, trackH); // collée contre le filet droit du cadre
             float thumbY = trackTop + (trackH - thumbH) * (scroll / maxScroll);
-            Ui.Place(scrollThumb.rectTransform, W - 1 - ScrollbarW - 9, thumbY, ScrollbarW, thumbH);
+            Ui.Place(scrollThumb.rectTransform, ScrollX, thumbY, ScrollbarW, thumbH);
             scrollThumb.color = draggingScrollbar || overTrack ? Theme.GoldText : Theme.GoldBright;
         }
         var page = pages[ti].GetComponent<RectTransform>();

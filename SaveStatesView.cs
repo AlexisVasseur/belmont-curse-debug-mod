@@ -133,7 +133,7 @@ public class SaveStatesView
         float right = iw - M;
 
         // --- Bandeau titre : bordeaux uni sur toute la largeur (son séparateur est posé à la fin, sur la limite) ---
-        Ui.Image(bg, "Banner", 0, 0, iw, BannerH, Theme.Area(0x5e1418));
+        Ui.Image(bg, "Banner", 0, 0, iw, BannerH, CardFrame.Band);
         Ui.Text(fill, "Title", 0, 0, iw, BannerH, t, 30f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = "Savestates";
 
         // --- En-tête : bande un peu plus claire ---
@@ -221,17 +221,8 @@ public class SaveStatesView
         Plugin.Logger.LogInfo($"[Interface] panneau construit (polices du jeu : {(builtWithGameFonts ? "oui" : "non")})");
     }
 
-    /// <summary>
-    /// Séparateur du mod (filet doré qui s'estompe aux bouts, losange au centre), centré verticalement sur y :
-    /// l'image fait 12 px de haut, son filet passe en son milieu.
-    /// </summary>
-    void Separator(string name, float y)
-    {
-        float iw = W - 2, x = 0f, w = iw; // d'un bord du cadre à l'autre (le cadre le recouvre à ses extrémités)
-        var rule = GameSprites.Icon("ui_rule");
-        if (rule != null) Skin.Sprite(fill, name, x, y - 6f, w, 12f, rule, CardFrame.Gold);
-        else Ui.Image(fill, name, x, y - 1f, w, 2f, CardFrame.Gold);
-    }
+    /// <summary>Séparateur commun (CardFrame.Rule), d'un bord du cadre à l'autre (le cadre le recouvre à ses extrémités).</summary>
+    void Separator(string name, float y) => CardFrame.Rule(fill, name, 0f, y, W - 2);
 
     float AddHint(float x, float y, Bind bind, string text, SelectOperation op)
     {

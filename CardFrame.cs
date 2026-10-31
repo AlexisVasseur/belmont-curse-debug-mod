@@ -16,7 +16,23 @@ public static class CardFrame
     const string FrameTex = "ui_card_frame", InnerTex = "ui_card_inner";
     const float Corner = 130f, Edge = 14f; // dans la texture
 
+    /// <summary>Épaisseur affichée du filet du cadre (pour coller un élément contre lui).</summary>
+    public static float EdgeWidth => Edge * Scale;
+
+    /// <summary>Bordeaux uni des bandeaux (titre des savestates, sections du panneau latéral), à l'opacité de la config.</summary>
+    public static Color Band => Theme.Area(0x5e1418);
+
     static Sprite Part(float x, float y, float w, float h) => GameSprites.Part(FrameTex, x, y, w, h);
+
+    /// <summary>
+    /// Séparateur du mod (filet doré qui ne s'estompe que sur ses derniers pixels, losange au centre), centré verticalement
+    /// sur y : l'image fait 12 px de haut, son filet passe en son milieu. Retourne l'image (pour l'ancrer si besoin).
+    /// </summary>
+    public static Image Rule(Transform parent, string name, float x, float y, float w)
+    {
+        var rule = GameSprites.Icon("ui_rule");
+        return rule != null ? Skin.Sprite(parent, name, x, y - 6f, w, 12f, rule, Gold) : Ui.Image(parent, name, x, y - 1f, w, 2f, Gold);
+    }
 
     static void Piece(RectTransform parent, string name, Sprite sp, Vector2 aMin, Vector2 aMax, Vector2 offMin, Vector2 offMax)
     {
