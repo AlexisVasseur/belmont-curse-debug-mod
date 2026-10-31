@@ -26,6 +26,8 @@ public partial class SidePanelView
     readonly List<(UiButton btn, float x, float y, float w, float h)> bossButtons = new();
     const float BossRowH = 46f, BossIcon = 36f, BossFightW = 56f, BossTpW = 40f, BossStateW = 74f, BossBtnH = 26f, BossGap = 4f;
     int bossesBuiltFor = -1;
+    CheatUi bossHpRow;
+    const string BossHpHelp = "Bosses can't die: their health drops as usual (phases still change) and is refilled when it reaches the bottom. Practice a fight as long as you want. Click the row to turn it on or off.";
     // La liste n'est affichée qu'une fois complète ; reconstruite quand une arène est apprise (une ligne par rencontre)
     static int BossesShown => Bosses.Done ? Bosses.All.Count * 1000 + Arenas.Version : -2;
 
@@ -44,6 +46,8 @@ public partial class SidePanelView
         float iw = W - 1;
 
         y = SectionTitle("Bosses", y);
+        bossHpRow = CheatRow("Boss infinite HP", BossHpHelp, () => BossHealth.Infinite, v => BossHealth.Infinite = v, y);
+        y += CheatRowH + 6;
         if (!Bosses.Done || Bosses.All.Count == 0)
         {
             var t = Ui.Text(fill, "BossesLoading", Pad + 4, y, iw - Pad * 2, BossRowH, GameFonts.Body, 17f, Theme.TextDim);
@@ -170,6 +174,8 @@ public partial class SidePanelView
             if (hover) { title = "Respawn all bosses"; text = "Marks every defeated boss Alive. To fight one, use its Fight button."; }
             if (click && hover && !handled) { handled = true; btn.OnClick?.Invoke(); }
         }
+
+        if (bossHpRow != null && UpdateCheatRow(bossHpRow, hasMouse, mx, my, click, ref handled)) { title = bossHpRow.name; text = BossHpHelp; }
 
         bool Over(float x, float w, float rowY) { float by = BossBtnY(rowY); return hasMouse && mx >= x && mx < x + w && my >= by && my < by + BossBtnH; }
 

@@ -68,7 +68,7 @@ public class PracticeBehaviour : MonoBehaviour
         // Charge en arrière-plan tous les objets du jeu (armes et sorts pas encore rencontrés)
         if (inGame && !sequence.Active)
         {
-            try { Cheats.Update(); Cheats.ApplyNoclip(); } catch (Exception ex) { Plugin.Logger.LogError("[Utilitaires] " + ex); }
+            try { Cheats.Update(); Cheats.ApplyNoclip(); BossHealth.Update(); } catch (Exception ex) { Plugin.Logger.LogError("[Utilitaires] " + ex); }
         }
         if (inGame) { try { ItemLibrary.Update(); } catch (Exception ex) { Plugin.Logger.LogError("[Objets] " + ex); } }
         if (inGame)

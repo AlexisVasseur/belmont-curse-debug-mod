@@ -344,6 +344,40 @@ public partial class SidePanelView
     }
     const float CheatRowH = 42f;
 
+    /// <summary>Ligne On / Off (nom à gauche, pastille à droite), toute la ligne est cliquable.</summary>
+    CheatUi CheatRow(string name, string desc, Func<bool> get, Action<bool> set, float y)
+    {
+        float iw = W - 1;
+        var r = new CheatUi { name = name, desc = desc, get = get, set = set, y = y };
+        r.highlight = Ui.Image(fill, "CheatHl" + name, 12, y, iw - 24, CheatRowH - 2, Theme.Hex(0x5e1418, 0.55f));
+        Ui.Image(fill, "CheatLine" + name, 12, y + CheatRowH - 1, iw - 24, 1, Theme.Line);
+        r.label = Ui.Text(fill, "CheatName" + name, Pad + 4, y, iw - Pad * 2 - 90, CheatRowH, GameFonts.Title, 19f, Theme.Text);
+        r.label.text = name;
+        r.pill = UiButton.CreateSkinned(fill, "CheatPill" + name, iw - Pad - 76, y + (CheatRowH - 30) / 2f, 70, 30, "", GameFonts.Title, 15f, null);
+        return r;
+    }
+
+    /// <summary>Affiche l'état d'une ligne On / Off et la bascule au clic. True si la ligne est survolée.</summary>
+    bool UpdateCheatRow(CheatUi r, bool hasMouse, float mx, float my, bool click, ref bool handled)
+    {
+        bool on = r.get();
+        bool hover = hasMouse && my >= r.y && my < r.y + CheatRowH && mx >= 12 && mx < W - 14;
+        Ui.SetActive(r.highlight, hover);
+        Ui.SetText(r.pill.Label, on ? "On" : "Off");
+        r.pill.BaseColor = on ? Theme.Crimson : r.pill.Skinned ? Skin.ButtonIdle : Theme.BgButton;
+        r.pill.LabelColor = on ? Theme.GoldText : Theme.TextDim;
+        r.pill.SetHover(false);
+        if (!r.pill.Skinned) Ui.SetBorder(r.pill.Fill, on ? Theme.GoldBright : Theme.Gold);
+        r.label.color = on ? Theme.GoldText : Theme.Text;
+        if (click && hover && !handled)
+        {
+            handled = true;
+            r.set(!on);
+            Notify?.Invoke($"{r.name}: {(!on ? "enabled" : "disabled")}", false);
+        }
+        return hover;
+    }
+
     float BuildUtilities(float y)
     {
         cheatRows.Clear();
@@ -353,13 +387,7 @@ public partial class SidePanelView
         y = SectionTitle("Utilities", y);
         void Row(string name, string desc, Func<bool> get, Action<bool> set)
         {
-            var r = new CheatUi { name = name, desc = desc, get = get, set = set, y = y };
-            r.highlight = Ui.Image(fill, "CheatHl" + name, 12, y, iw - 24, CheatRowH - 2, Theme.Hex(0x5e1418, 0.55f));
-            Ui.Image(fill, "CheatLine" + name, 12, y + CheatRowH - 1, iw - 24, 1, Theme.Line);
-            r.label = Ui.Text(fill, "CheatName" + name, Pad + 4, y, iw - Pad * 2 - 90, CheatRowH, GameFonts.Title, 19f, Theme.Text);
-            r.label.text = name;
-            r.pill = UiButton.CreateSkinned(fill, "CheatPill" + name, iw - Pad - 76, y + (CheatRowH - 30) / 2f, 70, 30, "", GameFonts.Title, 15f, null);
-            cheatRows.Add(r);
+            cheatRows.Add(CheatRow(name, desc, get, set, y));
             Help(y, CheatRowH, name, desc + ". Click the row to turn it on or off.");
             y += CheatRowH;
         }
@@ -441,24 +469,7 @@ public partial class SidePanelView
         UpdateGauge(healthGauge, Cheats.HealthValues(out float hc, out float hm), hc, hm);
         UpdateGauge(manaGauge, Cheats.ManaValues(out float mc, out float mm), mc, mm);
         UpdatePotions(hasMouse, mx, my, click, ref handled);
-        foreach (var r in cheatRows)
-        {
-            bool on = r.get();
-            bool hover = hasMouse && my >= r.y && my < r.y + CheatRowH && mx >= 12 && mx < W - 14;
-            Ui.SetActive(r.highlight, hover);
-            Ui.SetText(r.pill.Label, on ? "On" : "Off");
-            r.pill.BaseColor = on ? Theme.Crimson : r.pill.Skinned ? Skin.ButtonIdle : Theme.BgButton;
-            r.pill.LabelColor = on ? Theme.GoldText : Theme.TextDim;
-            r.pill.SetHover(false);
-            if (!r.pill.Skinned) Ui.SetBorder(r.pill.Fill, on ? Theme.GoldBright : Theme.Gold);
-            r.label.color = on ? Theme.GoldText : Theme.Text;
-            if (click && hover && !handled)
-            {
-                handled = true;
-                r.set(!on);
-                Notify?.Invoke($"{r.name}: {(!on ? "enabled" : "disabled")}", false);
-            }
-        }
+        foreach (var r in cheatRows) UpdateCheatRow(r, hasMouse, mx, my, click, ref handled);
     }
 
     // ---------- Améliorations ----------
