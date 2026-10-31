@@ -254,7 +254,7 @@ public class SaveStatesPanel
             RenameAnchor = Math.Clamp(RenameAnchor, 0, RenameText.Length);
             if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) CommitRename();
             else if (kb.escapeKey.wasPressedThisFrame) CancelRename();
-            else if (ctrl && kb.aKey.wasPressedThisFrame) SelectAll();
+            else if (ctrl && LetterA(kb).wasPressedThisFrame) SelectAll();
             else if (Repeat(kb.leftArrowKey, ref nextLeft))
             {
                 // Sans Maj, une sélection se referme sur son début ; avec Maj, elle s'étend
@@ -300,10 +300,33 @@ public class SaveStatesPanel
         return true;
     }
 
+    static UnityEngine.InputSystem.Controls.KeyControl letterA;
+    static string letterALayout;
+
+    /// <summary>
+    /// Touche qui porte la lettre A dans la disposition actuelle du clavier. Les touches de l'Input System sont nommées
+    /// d'après leur place sur un clavier américain : en AZERTY, aKey est la touche marquée Q, et Ctrl+A ne marchait pas.
+    /// </summary>
+    static UnityEngine.InputSystem.Controls.KeyControl LetterA(Keyboard kb)
+    {
+        try
+        {
+            if (letterA == null || letterALayout != kb.keyboardLayout)
+            {
+                letterALayout = kb.keyboardLayout;
+                letterA = kb.FindKeyOnCurrentKeyboardLayout("a") ?? kb.aKey;
+            }
+            return letterA;
+        }
+        catch { return kb.aKey; }
+    }
+
     /// <summary>Caractère tapé (Keyboard.onTextInput) pendant un renommage : inséré au curseur, à la place de la sélection.</summary>
     public void OnTextInput(char c)
     {
-        if (!IsTyping || char.IsControl(c)) return;
+        if (!IsTyping) return;
+        if (c == '\u0001') { SelectAll(); return; } // Ctrl+A envoyé comme caractère de contrôle, quelle que soit la disposition
+        if (char.IsControl(c)) return;
         DeleteSelection();
         if (RenameText.Length >= 60) return;
         RenameCursor = Math.Clamp(RenameCursor, 0, RenameText.Length);

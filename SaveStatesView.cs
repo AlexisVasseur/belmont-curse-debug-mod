@@ -120,15 +120,27 @@ public class SaveStatesView
         var frameFill = Ui.Frame(container, "Frame", 0, 0, W, H, Theme.Gold, new Color(0f, 0f, 0f, 0f));
         fill = frameFill.transform;
         float iw = W - 2; // largeur intérieure
+
+        // Fonds (titre, en-tête, liste, pied, surbrillances) découpés aux coins arrondis de l'arc intérieur du cadre :
+        // aux 4 coins, rien ne dépasse entre l'arc et le bord. Masque = intérieur du cadre de carte (ui_card_inner : la forme du
+        // cadre sans les zones hors arc des coins), découpé en 9 et mis à l'échelle exactement comme le cadre.
+        var bg = fill;
+        var inner = GameSprites.Icon("ui_card_inner", new Vector4(130, 130, 130, 130));
+        if (inner != null)
+        {
+            var clip = Skin.Sliced(fill, "BackgroundClip", -1, -1, W, H, inner, Color.white, 1f / CardScale); // aligné sur le cadre (le fond est décalé de 1 px)
+            clip.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+            bg = Ui.Rect(clip.transform, "Backgrounds", 1, 1, iw, H - 2); // repère du fond : les fonds restent alignés sur les lignes
+        }
         float right = iw - M;
 
         // --- Bandeau titre : bordeaux uni sur toute la largeur (son séparateur est posé à la fin, sur la limite) ---
-        Ui.Image(fill, "Banner", 0, 0, iw, BannerH, Theme.Area(0x5e1418));
+        Ui.Image(bg, "Banner", 0, 0, iw, BannerH, Theme.Area(0x5e1418));
         Ui.Text(fill, "Title", 0, 0, iw, BannerH, t, 30f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = "Savestates";
 
         // --- En-tête : bande un peu plus claire ---
-        Ui.Image(fill, "HeadBand", 0, BannerH, iw, HeadBottom - BannerH, Theme.Area(0x261a16));
-        Ui.Image(fill, "ListBg", 0, HeadBottom, iw, FootTop - HeadBottom, Theme.Bg);
+        Ui.Image(bg, "HeadBand", 0, BannerH, iw, HeadBottom - BannerH, Theme.Area(0x261a16));
+        Ui.Image(bg, "ListBg", 0, HeadBottom, iw, FootTop - HeadBottom, Theme.Bg);
 
         // Quickslot : libellé, nom, puis [F6] Load  [F5] Save à droite (touches + action, sans bouton)
         float qy = BannerH + HeadPad, qky = qy + (QuickH - KeyH) / 2f;
@@ -163,7 +175,7 @@ public class SaveStatesView
             int index = i;
             float y = RowsTop + i * RowH;
             var r = new RowUi { y = y };
-            r.highlight = Ui.Image(fill, $"Row{i}Highlight", 0, y, iw, RowH, Theme.Crimson);
+            r.highlight = Ui.Image(bg, $"Row{i}Highlight", 0, y, iw, RowH, Theme.Crimson);
             // Filet entre deux lignes seulement : le pied de page a le sien
             if (i < Rows - 1) r.line = Ui.Image(fill, $"Row{i}Line", 0, y + RowH - 1, iw, 1, Theme.Line);
 
@@ -190,7 +202,7 @@ public class SaveStatesView
         }
 
         // --- Pied de page : même bande que l'en-tête, touches + action ---
-        Ui.Image(fill, "FootBand", 0, FootTop, iw, H - 2 - FootTop, Theme.Area(0x261a16)); // même teinte que l'en-tête
+        Ui.Image(bg, "FootBand", 0, FootTop, iw, H - 2 - FootTop, Theme.Area(0x261a16)); // même teinte que l'en-tête
         float fy = FootTop + (FootH - KeyH) / 2f;
         float hx = M;
         hx = AddHint(hx, fy, Keybinds.SaveToFile, "Save to slot", SelectOperation.SaveToFile);
