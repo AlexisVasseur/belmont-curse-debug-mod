@@ -88,7 +88,6 @@ public partial class SidePanelView
         for (int i = 0; i < TabNames.Length; i++)
             tabButtons[i] = UiButton.CreateSkinned(fill, "Tab" + TabNames[i], TabX(i), y, TabW, TabsH, TabNames[i], t, 16f, null);
 
-        CardFrame.Rule(fill, "TabsRule", 0, y + TabsH + 5, iw); // séparateur à losange entre les onglets et le contenu
         y += TabsH + 8;
 
         // Zone défilante sous les onglets : masque + une page par onglet (mêmes coordonnées que le fond)
@@ -98,21 +97,29 @@ public partial class SidePanelView
         Stretch(viewport, 0, viewportTop, 0, DetailAreaH);
         viewport.gameObject.AddComponent<RectMask2D>();
 
-        // Zone de détail fixe en bas du panneau (commune aux onglets) : l'élément survolé a toujours son explication
-        var box = Ui.Frame(root, "Detail", 0, 0, iw - Pad * 2, DetailH, Theme.Gold, Theme.TileOff);
-        var boxRt = box.transform.parent.Cast<RectTransform>();
-        boxRt.anchorMin = new Vector2(0f, 0f);
-        boxRt.anchorMax = new Vector2(0f, 0f);
-        boxRt.pivot = new Vector2(0f, 0f);
-        boxRt.anchoredPosition = new Vector2(Pad, Pad);
-        detailTitle = Ui.Text(box.transform, "Title", 10, 6, iw - Pad * 2 - 22, 30, GameFonts.Title, 20f, Theme.GoldText);
-        detailText = Ui.Text(box.transform, "Text", 10, 38, iw - Pad * 2 - 22, DetailH - 46, GameFonts.Body, 17f, Theme.Text, TextAlignmentOptions.TopLeft);
+        // Zone de détail fixe en bas du panneau (commune aux onglets) : l'élément survolé a toujours son explication.
+        // Pas de cadre : le texte sur une bande de la couleur du pied de page des savestates, sous le masque des coins.
+        var detailBand = Ui.Image(clip != null ? clip : container, "DetailBand", 0, 0, 0, 0, Theme.Area(0x261a16));
+        detailBand.rectTransform.anchorMin = new Vector2(0f, 0f);
+        detailBand.rectTransform.anchorMax = new Vector2(1f, 0f);
+        detailBand.rectTransform.offsetMin = new Vector2(1f, 0f);
+        detailBand.rectTransform.offsetMax = new Vector2(0f, DetailAreaH);
+        if (clip == null) detailBand.transform.SetSiblingIndex(content.GetSiblingIndex()); // sous le contenu
+        var box = Ui.Rect(root, "Detail", 0, 0, iw - Pad * 2, DetailH);
+        box.anchorMin = new Vector2(0f, 0f);
+        box.anchorMax = new Vector2(0f, 0f);
+        box.pivot = new Vector2(0f, 0f);
+        box.anchoredPosition = new Vector2(Pad, Pad);
+        detailTitle = Ui.Text(box, "Title", 4, 6, iw - Pad * 2 - 8, 30, GameFonts.Title, 20f, Theme.GoldText);
+        detailText = Ui.Text(box, "Text", 4, 38, iw - Pad * 2 - 8, DetailH - 46, GameFonts.Body, 17f, Theme.Text, TextAlignmentOptions.TopLeft);
         detailText.enableWordWrapping = true;
         detailText.overflowMode = TextOverflowModes.Truncate;
         weaponDetailTitle = detailTitle;
         weaponDetailText = detailText;
 
-        // Séparateur à losange entre la zone qui défile et la zone de détail, accroché au bas du panneau
+        // Séparateurs à losange, créés après la zone défilante pour rester par-dessus ses bandeaux : sous les onglets, et
+        // entre la zone qui défile et la zone de détail (accroché au bas du panneau)
+        CardFrame.Rule(root, "TabsRule", 0, TabsTop + TabsH + 5, iw);
         var detailRule = CardFrame.Rule(root, "DetailRule", 0, 0, iw).rectTransform;
         detailRule.anchorMin = new Vector2(0f, 0f);
         detailRule.anchorMax = new Vector2(1f, 0f);
@@ -1014,10 +1021,11 @@ public partial class SidePanelView
     float SectionTitle(string text, float y)
     {
         float iw = W - 1;
-        // Comme le titre des savestates : bandeau bordeaux uni sur toute la largeur, titre centré, séparateur à losange
-        // centré sur sa limite basse
+        // Comme le titre des savestates : bandeau bordeaux uni sur toute la largeur, titre centré, séparateurs à losange
+        // centrés sur ses limites haute et basse (créés après le bandeau : par-dessus)
         Ui.Image(fill, "Section" + text, 0, y, iw, SectionH, CardFrame.Band);
         Ui.Text(fill, "SectionTitle" + text, 0, y, iw, SectionH, GameFonts.Title, 25f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = text;
+        CardFrame.Rule(fill, "SectionRuleTop" + text, 0, y, iw);
         CardFrame.Rule(fill, "SectionRule" + text, 0, y + SectionH, iw);
         return y + SectionH + 14;
     }
