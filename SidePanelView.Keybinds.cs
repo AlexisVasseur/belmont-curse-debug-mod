@@ -55,10 +55,6 @@ public partial class SidePanelView
         keyButtons.Clear();
         float iw = W - 1;
 
-        var reset = UiButton.CreateSkinned(fill, "BtnResetKeys", Pad, y, iw - Pad * 2, BarH, "Reset all to default", GameFonts.Title, 16f, ResetAllKeys);
-        keyButtons.Add((reset, Pad, y, iw - Pad * 2, BarH));
-        y += BarH + 10;
-
         void Row(Bind bind, string name, Option option = null)
         {
             var r = new KeyRowUi { bind = bind, option = option, y = y };
@@ -83,7 +79,11 @@ public partial class SidePanelView
             if (section == Keybinds.SectionSavestates) Row(null, "Slot digits");
             y += 10;
         }
-        return y;
+
+        // Sous les raccourcis : la liste commence directement sous son titre
+        var reset = UiButton.CreateSkinned(fill, "BtnResetKeys", Pad, y, iw - Pad * 2, BarH, "Reset all to default", GameFonts.Title, 16f, ResetAllKeys);
+        keyButtons.Add((reset, Pad, y, iw - Pad * 2, BarH));
+        return y + BarH + 8;
     }
 
     void ResetAllKeys()
