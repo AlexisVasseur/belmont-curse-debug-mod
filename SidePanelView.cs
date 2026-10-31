@@ -105,6 +105,13 @@ public partial class SidePanelView
         detailBand.rectTransform.offsetMin = new Vector2(1f, 0f);
         detailBand.rectTransform.offsetMax = new Vector2(0f, DetailAreaH);
         if (clip == null) detailBand.transform.SetSiblingIndex(content.GetSiblingIndex()); // sous le contenu
+        // Même bande en haut, derrière les onglets (l'en-tête du panneau), jusqu'au séparateur sous les onglets
+        var headBand = Ui.Image(clip != null ? clip : container, "HeadBand", 0, 0, 0, 0, Theme.Area(0x261a16));
+        headBand.rectTransform.anchorMin = new Vector2(0f, 1f);
+        headBand.rectTransform.anchorMax = new Vector2(1f, 1f);
+        headBand.rectTransform.offsetMin = new Vector2(1f, -(TabsTop + TabsH + 5f));
+        headBand.rectTransform.offsetMax = new Vector2(0f, 0f);
+        if (clip == null) headBand.transform.SetSiblingIndex(content.GetSiblingIndex());
         var box = Ui.Rect(root, "Detail", 0, 0, iw - Pad * 2, DetailH);
         box.anchorMin = new Vector2(0f, 0f);
         box.anchorMax = new Vector2(0f, 0f);
