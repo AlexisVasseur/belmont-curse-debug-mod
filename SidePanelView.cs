@@ -218,7 +218,7 @@ public partial class SidePanelView
     float viewportTop;
 
     enum Tab { General, Skills, Weapons, Bosses, Keybinds }
-    static readonly string[] TabNames = { "General", "Skills", "Weapons", "Bosses", "Keybinds" };
+    static readonly string[] TabNames = { "General", "Skills", "Items", "Bosses", "Keybinds" };
     Tab tab = Tab.General;
     static float TabW => (W - 1 - Pad * 2 - 4 * (TabNames.Length - 1)) / TabNames.Length; // les onglets occupent toute la largeur
     float TabX(int i) => Pad + i * (TabW + 4);
