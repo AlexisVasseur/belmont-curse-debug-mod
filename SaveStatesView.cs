@@ -122,18 +122,13 @@ public class SaveStatesView
         float iw = W - 2; // largeur intérieure
         float right = iw - M;
 
-        // --- Bandeau titre : bordeaux uni sur toute la largeur, titre, puis un filet doré à losange central
-        //     (dessiné pour le mod, s'estompe aux deux bouts) ---
+        // --- Bandeau titre : bordeaux uni sur toute la largeur (son séparateur est posé à la fin, sur la limite) ---
         Ui.Image(fill, "Banner", 0, 0, iw, BannerH, Theme.Area(0x5e1418));
-        Ui.Text(fill, "Title", 0, 2, iw, BannerH - 14, t, 30f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = "Savestates";
-        var rule = GameSprites.Icon("ui_rule");
-        if (rule != null) Skin.Sprite(fill, "BannerRule", M + 20, BannerH - 16, iw - 2 * (M + 20), 12, rule, FrameGold);
-        else Ui.Image(fill, "BannerRule", M + 20, BannerH - 11, iw - 2 * (M + 20), 2, FrameGold);
+        Ui.Text(fill, "Title", 0, 0, iw, BannerH, t, 30f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = "Savestates";
 
-        // --- En-tête : bande un peu plus claire, bordée d'un filet doré ---
+        // --- En-tête : bande un peu plus claire ---
         Ui.Image(fill, "HeadBand", 0, BannerH, iw, HeadBottom - BannerH, Theme.Area(0x261a16));
         Ui.Image(fill, "ListBg", 0, HeadBottom, iw, FootTop - HeadBottom, Theme.Bg);
-        Ui.Image(fill, "HeadRule", 0, HeadBottom, iw, 1, FrameGold);
 
         // Quickslot : libellé, nom, puis [F6] Load  [F5] Save à droite (touches + action, sans bouton)
         float qy = BannerH + HeadPad, qky = qy + (QuickH - KeyH) / 2f;
@@ -194,9 +189,8 @@ public class SaveStatesView
             rows[i] = r;
         }
 
-        // --- Pied de page : bande plus sombre, un seul filet doré, touches + action ---
+        // --- Pied de page : bande plus sombre, touches + action ---
         Ui.Image(fill, "FootBand", 0, FootTop, iw, H - 2 - FootTop, Theme.Area(0x0e0908));
-        Ui.Image(fill, "FootRule", 0, FootTop, iw, 1, FrameGold);
         float fy = FootTop + (FootH - KeyH) / 2f;
         float hx = M;
         hx = AddHint(hx, fy, Keybinds.SaveToFile, "Save to slot", SelectOperation.SaveToFile);
@@ -205,10 +199,28 @@ public class SaveStatesView
         hx = AddHint(hx, fy, Keybinds.QuickslotToFile, "Write", SelectOperation.QuickslotToFile);
         KeyAction(right, fy, Keybinds.TogglePanel.ShortLabel, "Close", () => p.Visible = false, alignRight: true, textFirst: true);
 
+        // --- Séparateurs entre les zones (titre | en-tête | liste | pied), centrés sur la limite entre les deux couleurs ;
+        //     posés après tout le reste pour que rien ne les recouvre (surbrillance de la première ligne…) ---
+        Separator("TitleSep", BannerH);
+        Separator("HeadSep", HeadBottom);
+        Separator("FootSep", FootTop);
+
         // --- Cadre des cartes d'arcane du jeu, par-dessus tout ; à défaut, le filet doré du fond reste ---
         if (CardFrame(container)) Ui.SetBorder(frameFill, new Color(0f, 0f, 0f, 0f));
 
         Plugin.Logger.LogInfo($"[Interface] panneau construit (polices du jeu : {(builtWithGameFonts ? "oui" : "non")})");
+    }
+
+    /// <summary>
+    /// Séparateur du mod (filet doré qui s'estompe aux bouts, losange au centre), centré verticalement sur y :
+    /// l'image fait 12 px de haut, son filet passe en son milieu.
+    /// </summary>
+    void Separator(string name, float y)
+    {
+        float iw = W - 2, x = M + 20, w = iw - 2 * (M + 20);
+        var rule = GameSprites.Icon("ui_rule");
+        if (rule != null) Skin.Sprite(fill, name, x, y - 6f, w, 12f, rule, FrameGold);
+        else Ui.Image(fill, name, x, y - 1f, w, 2f, FrameGold);
     }
 
     float AddHint(float x, float y, Bind bind, string text, SelectOperation op)
