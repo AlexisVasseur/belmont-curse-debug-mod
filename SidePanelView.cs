@@ -126,7 +126,7 @@ public partial class SidePanelView
 
         // Séparateurs à losange, créés après la zone défilante pour rester par-dessus ses bandeaux : sous les onglets, et
         // entre la zone qui défile et la zone de détail (accroché au bas du panneau)
-        CardFrame.Rule(root, "TabsRule", 0, PagesTop, iw); // au début des pages : confondu avec le haut du premier bandeau
+        CardFrame.Rule(root, "TabsRule", 0, PagesTop, iw, diamond: false);// au début des pages : confondu avec le haut du premier bandeau
         var detailRule = CardFrame.Rule(root, "DetailRule", 0, 0, iw).rectTransform;
         detailRule.anchorMin = new Vector2(0f, 0f);
         detailRule.anchorMax = new Vector2(1f, 0f);
@@ -1029,11 +1029,11 @@ public partial class SidePanelView
     float SectionTitle(string text, float y)
     {
         float iw = W - 1;
-        // Comme le titre des savestates : bandeau bordeaux uni sur toute la largeur, titre centré, séparateurs à losange
-        // centrés sur ses limites haute et basse (créés après le bandeau : par-dessus)
+        // Comme le titre des savestates : bandeau bordeaux uni sur toute la largeur, titre centré, filet nu en haut et
+        // séparateur à losange en bas, centrés sur ses limites (créés après le bandeau : par-dessus)
         Ui.Image(fill, "Section" + text, 0, y, iw, SectionH, CardFrame.Band);
         Ui.Text(fill, "SectionTitle" + text, 0, y, iw, SectionH, GameFonts.Title, 25f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = text;
-        CardFrame.Rule(fill, "SectionRuleTop" + text, 0, y, iw);
+        CardFrame.Rule(fill, "SectionRuleTop" + text, 0, y, iw, diamond: false);
         CardFrame.Rule(fill, "SectionRule" + text, 0, y + SectionH, iw);
         return y + SectionH + 14;
     }

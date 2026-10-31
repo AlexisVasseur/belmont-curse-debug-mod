@@ -26,11 +26,12 @@ public static class CardFrame
 
     /// <summary>
     /// Séparateur du mod (filet doré qui ne s'estompe que sur ses derniers pixels, losange au centre), centré verticalement
-    /// sur y : l'image fait 12 px de haut, son filet passe en son milieu. Retourne l'image (pour l'ancrer si besoin).
+    /// sur y : l'image fait 12 px de haut, son filet passe en son milieu. diamond false : filet nu (ui_rule_plain), pour le
+    /// haut des bandeaux. Retourne l'image (pour l'ancrer si besoin).
     /// </summary>
-    public static Image Rule(Transform parent, string name, float x, float y, float w)
+    public static Image Rule(Transform parent, string name, float x, float y, float w, bool diamond = true)
     {
-        var rule = GameSprites.Icon("ui_rule");
+        var rule = GameSprites.Icon(diamond ? "ui_rule" : "ui_rule_plain") ?? GameSprites.Icon("ui_rule");
         return rule != null ? Skin.Sprite(parent, name, x, y - 6f, w, 12f, rule, Gold) : Ui.Image(parent, name, x, y - 1f, w, 2f, Gold);
     }
 
