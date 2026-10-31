@@ -88,7 +88,7 @@ public partial class SidePanelView
         for (int i = 0; i < TabNames.Length; i++)
             tabButtons[i] = UiButton.CreateSkinned(fill, "Tab" + TabNames[i], TabX(i), y, TabW, TabsH, TabNames[i], t, 16f, null);
 
-        y += TabsH + 8;
+        y = PagesTop;
 
         // Zone défilante sous les onglets : masque + une page par onglet (mêmes coordonnées que le fond)
         var root = fill;
@@ -109,7 +109,7 @@ public partial class SidePanelView
         var headBand = Ui.Image(clip != null ? clip : container, "HeadBand", 0, 0, 0, 0, Theme.Area(0x261a16));
         headBand.rectTransform.anchorMin = new Vector2(0f, 1f);
         headBand.rectTransform.anchorMax = new Vector2(1f, 1f);
-        headBand.rectTransform.offsetMin = new Vector2(1f, -(TabsTop + TabsH + 5f));
+        headBand.rectTransform.offsetMin = new Vector2(1f, -PagesTop);
         headBand.rectTransform.offsetMax = new Vector2(0f, 0f);
         if (clip == null) headBand.transform.SetSiblingIndex(content.GetSiblingIndex());
         var box = Ui.Rect(root, "Detail", 0, 0, iw - Pad * 2, DetailH);
@@ -126,7 +126,7 @@ public partial class SidePanelView
 
         // Séparateurs à losange, créés après la zone défilante pour rester par-dessus ses bandeaux : sous les onglets, et
         // entre la zone qui défile et la zone de détail (accroché au bas du panneau)
-        CardFrame.Rule(root, "TabsRule", 0, TabsTop + TabsH + 5, iw);
+        CardFrame.Rule(root, "TabsRule", 0, PagesTop, iw); // au début des pages : confondu avec le haut du premier bandeau
         var detailRule = CardFrame.Rule(root, "DetailRule", 0, 0, iw).rectTransform;
         detailRule.anchorMin = new Vector2(0f, 0f);
         detailRule.anchorMax = new Vector2(1f, 0f);
@@ -208,6 +208,7 @@ public partial class SidePanelView
 
     const float DetailH = 190f, ScrollbarW = 5f;
     const float TabsTop = 16f; // sous le haut du cadre et ses coins
+    const float PagesTop = TabsTop + TabsH + 8f; // début du contenu des onglets (et séparateur sous les onglets)
     const float SectionH = 46f; // bandeau de section (titre)
     // Barre de défilement contre le filet droit du cadre (repère du contenu, décalé de 1 px)
     static float ScrollX => W - 1 - CardFrame.EdgeWidth - ScrollbarW;
