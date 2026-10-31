@@ -12,6 +12,8 @@ public static class Theme
     // Fonds semi-transparents (réglage Interface/Opacite) : on voit le jeu derrière, comme avec DebugMod.
     static float Opacity => Mathf.Clamp01(Plugin.PanelOpacity?.Value ?? 0.85f);
     public static Color Bg => Hex(0x140e0c, Opacity);
+    /// <summary>Couleur de fond d'une zone de fenêtre, avec l'opacité réglée dans la config (comme Bg).</summary>
+    public static Color Area(int rgb) => Hex(rgb, Opacity);
     public static Color BgButton => Hex(0x1c1411, Mathf.Min(1f, Opacity + 0.08f));
     public static Color BgButtonHover => Hex(0x3a2418, Mathf.Min(1f, Opacity + 0.1f));
     public static Color BgGap => Hex(0x0b0706, Opacity);

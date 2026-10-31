@@ -48,7 +48,7 @@ public class SaveStatesView
 
     // Mise en page (repère du fond du panneau) : en-tête (titre, quickslot, pages), liste, pied de page.
     // M : marge du contenu, pour que textes et boutons ne touchent jamais le cadre ni ses coins.
-    const float M = 30f, HeadPad = 6f, QuickH = 46f, PagesH = 40f, FootH = 52f;
+    const float M = 30f, HeadPad = 6f, QuickH = 46f, PagesH = 40f, FootH = 64f;
     static float HeadBottom => BannerH + HeadPad + QuickH + PagesH + HeadPad;
     static float RowsTop => HeadBottom + 4;
     static float FootTop => RowsTop + Rows * RowH + 4;
@@ -115,21 +115,24 @@ public class SaveStatesView
         container.anchoredPosition = new Vector2(0f, -Top);
         panel = container.gameObject;
 
-        var frameFill = Ui.Frame(container, "Frame", 0, 0, W, H, Theme.Gold, Theme.Bg);
+        // Fond commun transparent : chaque zone (titre, en-tête, liste, pied) a son propre fond, à l'opacité de la config,
+        // pour que tout le panneau laisse voir le jeu de la même façon
+        var frameFill = Ui.Frame(container, "Frame", 0, 0, W, H, Theme.Gold, new Color(0f, 0f, 0f, 0f));
         fill = frameFill.transform;
         float iw = W - 2; // largeur intérieure
         float right = iw - M;
 
         // --- Bandeau titre : bordeaux uni sur toute la largeur, titre, puis un filet doré à losange central
         //     (dessiné pour le mod, s'estompe aux deux bouts) ---
-        Ui.Image(fill, "Banner", 0, 0, iw, BannerH, Theme.Crimson);
+        Ui.Image(fill, "Banner", 0, 0, iw, BannerH, Theme.Area(0x5e1418));
         Ui.Text(fill, "Title", 0, 2, iw, BannerH - 14, t, 30f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = "Savestates";
         var rule = GameSprites.Icon("ui_rule");
         if (rule != null) Skin.Sprite(fill, "BannerRule", M + 20, BannerH - 16, iw - 2 * (M + 20), 12, rule, FrameGold);
         else Ui.Image(fill, "BannerRule", M + 20, BannerH - 11, iw - 2 * (M + 20), 2, FrameGold);
 
         // --- En-tête : bande un peu plus claire, bordée d'un filet doré ---
-        Ui.Image(fill, "HeadBand", 0, BannerH, iw, HeadBottom - BannerH, Theme.Hex(0x261a16));
+        Ui.Image(fill, "HeadBand", 0, BannerH, iw, HeadBottom - BannerH, Theme.Area(0x261a16));
+        Ui.Image(fill, "ListBg", 0, HeadBottom, iw, FootTop - HeadBottom, Theme.Bg);
         Ui.Image(fill, "HeadRule", 0, HeadBottom, iw, 1, FrameGold);
 
         // Quickslot : libellé, nom, puis [F6] Load  [F5] Save à droite (touches + action, sans bouton)
@@ -192,7 +195,7 @@ public class SaveStatesView
         }
 
         // --- Pied de page : bande plus sombre, un seul filet doré, touches + action ---
-        Ui.Image(fill, "FootBand", 0, FootTop, iw, H - 2 - FootTop, Theme.Hex(0x120c0b));
+        Ui.Image(fill, "FootBand", 0, FootTop, iw, H - 2 - FootTop, Theme.Area(0x0e0908));
         Ui.Image(fill, "FootRule", 0, FootTop, iw, 1, FrameGold);
         float fy = FootTop + (FootH - KeyH) / 2f;
         float hx = M;
@@ -260,10 +263,10 @@ public class SaveStatesView
         return total;
     }
 
-    // ---------- Cadre des cartes d'arcane (texture du jeu 1127 × 2048, affichée à 40 %) ----------
+    // ---------- Cadre des cartes d'arcane (texture du jeu 1127 × 2048, affichée à 30 %) ----------
 
     const string CardFrameTex = "ui_card_frame";
-    const float CardScale = 0.4f;
+    const float CardScale = 0.3f; // cadre fin : coins de 39 px, filet de 4 px
     // Doré du cadre et du filet du titre. La texture du cadre est un masque blanc (forme du cadre du jeu) teinté de
     // cette seule couleur : les dégradés de l'original faisaient des cassures entre les morceaux.
     static readonly Color FrameGold = Theme.Hex(0xc9a24f);
