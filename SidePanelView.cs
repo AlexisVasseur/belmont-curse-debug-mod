@@ -92,7 +92,7 @@ public partial class SidePanelView
 
         // Zone défilante sous les onglets : masque + une page par onglet (mêmes coordonnées que le fond)
         var root = fill;
-        viewportTop = y - 6;
+        viewportTop = y; // zone visible à partir du séparateur des onglets : rien ne dépasse au-dessus de la ligne
         var viewport = Ui.Rect(root, "Viewport", 0, 0, iw, 10);
         Stretch(viewport, 0, viewportTop, 0, DetailAreaH);
         viewport.gameObject.AddComponent<RectMask2D>();
