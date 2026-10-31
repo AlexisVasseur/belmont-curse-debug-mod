@@ -120,28 +120,17 @@ public class SaveStatesView
         float iw = W - 2; // largeur intérieure
         float right = iw - M;
 
-        // --- Bandeau titre : ruban bordeaux du jeu (à défaut, bande bordeaux à filets dorés), sur toute la largeur ---
-        if (Skin.BannerSprite != null)
-        {
-            Ui.Image(fill, "BannerShade", 0, 0, iw, BannerH, Theme.Hex(0x0b0706, 0.6f));
-            // Le ruban occupe les lignes 8 à 61 de son image (70 px) : on l'agrandit pour que sa partie
-            // visible couvre exactement le bandeau, collée au cadre en haut
-            float bh = BannerH * 70f / 53f;
-            Skin.Sprite(fill, "Banner", 0, -bh * 8f / 70f, iw, bh, Skin.BannerSprite, Color.white);
-            Ui.Text(fill, "Title", 0, 0, iw, BannerH, t, 30f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = "Savestates";
-        }
-        else
-        {
-            Ui.Image(fill, "Banner", 0, 0, iw, BannerH, Theme.Crimson);
-            Ui.Image(fill, "BannerBottom", 0, BannerH - 2, iw, 2, Theme.GoldBright);
-            Ui.Text(fill, "Title", 0, 0, iw, BannerH, t, 30f, Theme.GoldText, TextAlignmentOptions.Center).text = "Savestates";
-            SmallDiamond(M, BannerH / 2f);
-            SmallDiamond(iw - M, BannerH / 2f);
-        }
+        // --- Bandeau titre : bordeaux uni sur toute la largeur, titre, puis un filet doré à losange central
+        //     (dessiné pour le mod, s'estompe aux deux bouts) ---
+        Ui.Image(fill, "Banner", 0, 0, iw, BannerH, Theme.Crimson);
+        Ui.Text(fill, "Title", 0, 2, iw, BannerH - 14, t, 30f, Theme.GoldText, TextAlignmentOptions.CenterGeoAligned).text = "Savestates";
+        var rule = GameSprites.Icon("ui_rule");
+        if (rule != null) Skin.Sprite(fill, "BannerRule", M + 20, BannerH - 16, iw - 2 * (M + 20), 12, rule, FrameGold);
+        else Ui.Image(fill, "BannerRule", M + 20, BannerH - 11, iw - 2 * (M + 20), 2, FrameGold);
 
         // --- En-tête : bande un peu plus claire, bordée d'un filet doré ---
         Ui.Image(fill, "HeadBand", 0, BannerH, iw, HeadBottom - BannerH, Theme.Hex(0x261a16));
-        Ui.Image(fill, "HeadRule", 0, HeadBottom, iw, 1, Theme.Gold);
+        Ui.Image(fill, "HeadRule", 0, HeadBottom, iw, 1, FrameGold);
 
         // Quickslot : libellé, nom, puis [F6] Load  [F5] Save à droite (touches + action, sans bouton)
         float qy = BannerH + HeadPad, qky = qy + (QuickH - KeyH) / 2f;
@@ -204,7 +193,7 @@ public class SaveStatesView
 
         // --- Pied de page : bande plus sombre, un seul filet doré, touches + action ---
         Ui.Image(fill, "FootBand", 0, FootTop, iw, H - 2 - FootTop, Theme.Hex(0x120c0b));
-        Ui.Image(fill, "FootRule", 0, FootTop, iw, 1, Theme.Gold);
+        Ui.Image(fill, "FootRule", 0, FootTop, iw, 1, FrameGold);
         float fy = FootTop + (FootH - KeyH) / 2f;
         float hx = M;
         hx = AddHint(hx, fy, Keybinds.SaveToFile, "Save to slot", SelectOperation.SaveToFile);
@@ -275,24 +264,28 @@ public class SaveStatesView
 
     const string CardFrameTex = "ui_card_frame";
     const float CardScale = 0.4f;
+    // Doré du cadre et du filet du titre. La texture du cadre est un masque blanc (forme du cadre du jeu) teinté de
+    // cette seule couleur : les dégradés de l'original faisaient des cassures entre les morceaux.
+    static readonly Color FrameGold = Theme.Hex(0xc9a24f);
 
     /// <summary>
-    /// Pose le cadre des cartes d'arcane autour du panneau : coins arrondis, bords et pointes découpés dans la texture
-    /// du jeu (les bords droits sont étirés, les coins et les pointes gardent leurs proportions). False si la texture manque.
+    /// Pose le cadre des cartes d'arcane autour du panneau : coins arrondis et pointes découpés dans la forme du cadre
+    /// du jeu, bords droits étirés à partir de la colonne (ou ligne) qui touche les coins, pour un raccord sans couture.
+    /// False si la texture manque.
     /// </summary>
     bool CardFrame(RectTransform container)
     {
         const float s = CardScale;
         Sprite P(float x, float y, float w, float h) => GameSprites.Part(CardFrameTex, x, y, w, h);
-        void I(string name, Sprite sp, float x, float y, float w, float h) { if (sp != null) Skin.Sprite(container, "Card" + name, x, y, w, h, sp, Color.white); }
+        void I(string name, Sprite sp, float x, float y, float w, float h) { if (sp != null) Skin.Sprite(container, "Card" + name, x, y, w, h, sp, FrameGold); }
         var tl = P(0, 0, 130, 130);
         if (tl == null) return false;
         float c = 130 * s, e = 14 * s;
-        // Bords droits, puis pointes et coins par-dessus
-        I("Top", P(140, 0, 360, 14), c, 0, W - 2 * c, e);
-        I("Bottom", P(140, 2034, 360, 14), c, H - e, W - 2 * c, e);
-        I("Left", P(0, 140, 14, 800), 0, c, e, H - 2 * c);
-        I("Right", P(1113, 140, 14, 800), W - e, c, e, H - 2 * c);
+        // Bords droits (1 px de large, pris juste après le coin), puis pointes et coins par-dessus
+        I("Top", P(131, 0, 1, 14), c, 0, W - 2 * c, e);
+        I("Bottom", P(131, 2034, 1, 14), c, H - e, W - 2 * c, e);
+        I("Left", P(0, 131, 14, 1), 0, c, e, H - 2 * c);
+        I("Right", P(1113, 131, 14, 1), W - e, c, e, H - 2 * c);
         I("NotchTop", P(525, 0, 77, 34), W / 2f - 77 * s / 2f, 0, 77 * s, 34 * s);
         I("NotchBottom", P(525, 2014, 77, 34), W / 2f - 77 * s / 2f, H - 34 * s, 77 * s, 34 * s);
         I("NotchLeft", P(0, 990, 36, 68), 0, H / 2f - 68 * s / 2f, 36 * s, 68 * s);
@@ -302,14 +295,6 @@ public class SaveStatesView
         I("BL", P(0, 1918, 130, 130), 0, H - c, c, c);
         I("BR", P(997, 1918, 130, 130), W - c, H - c, c, c);
         return true;
-    }
-
-    void SmallDiamond(float cx, float cy)
-    {
-        var img = Ui.Image(fill, "Ornament", 0, 0, 9, 9, Theme.GoldBright);
-        img.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        img.rectTransform.anchoredPosition = new Vector2(cx, -cy);
-        img.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
     }
 
     UiButton Button(float x, float y, float w, float h, string text, TMP_FontAsset font, float size, Action onClick)
