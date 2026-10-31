@@ -165,7 +165,7 @@ public class SaveStatesView
             var r = new RowUi { y = y };
             r.highlight = Ui.Image(fill, $"Row{i}Highlight", 0, y, iw, RowH, Theme.Crimson);
             // Filet entre deux lignes seulement : le pied de page a le sien
-            if (i < Rows - 1) r.line = Ui.Image(fill, $"Row{i}Line", M - 10, y + RowH - 1, iw - 2 * (M - 10), 1, Theme.Line);
+            if (i < Rows - 1) r.line = Ui.Image(fill, $"Row{i}Line", 0, y + RowH - 1, iw, 1, Theme.Line);
 
             var d = Ui.Diamond(fill, $"Row{i}Diamond", M + 12, y + RowH / 2f, 24, n, 22f);
             r.diaBorder = d.border; r.diaFill = d.fill; r.digit = d.label;
@@ -189,8 +189,8 @@ public class SaveStatesView
             rows[i] = r;
         }
 
-        // --- Pied de page : bande plus sombre, touches + action ---
-        Ui.Image(fill, "FootBand", 0, FootTop, iw, H - 2 - FootTop, Theme.Area(0x0e0908));
+        // --- Pied de page : même bande que l'en-tête, touches + action ---
+        Ui.Image(fill, "FootBand", 0, FootTop, iw, H - 2 - FootTop, Theme.Area(0x261a16)); // même teinte que l'en-tête
         float fy = FootTop + (FootH - KeyH) / 2f;
         float hx = M;
         hx = AddHint(hx, fy, Keybinds.SaveToFile, "Save to slot", SelectOperation.SaveToFile);
@@ -217,7 +217,7 @@ public class SaveStatesView
     /// </summary>
     void Separator(string name, float y)
     {
-        float iw = W - 2, x = M + 20, w = iw - 2 * (M + 20);
+        float iw = W - 2, x = 0f, w = iw; // d'un bord du cadre à l'autre (le cadre le recouvre à ses extrémités)
         var rule = GameSprites.Icon("ui_rule");
         if (rule != null) Skin.Sprite(fill, name, x, y - 6f, w, 12f, rule, FrameGold);
         else Ui.Image(fill, name, x, y - 1f, w, 2f, FrameGold);
