@@ -73,13 +73,18 @@ public partial class SidePanelView
 
         
         var edgeGold = Ui.Image(container, "EdgeGold", 0, 0, 0, 0, Theme.Gold); Stretch(edgeGold.rectTransform, 0, 0, 0, 0); edgeGold.rectTransform.anchorMax = new Vector2(0f, 1f); edgeGold.rectTransform.offsetMax = new Vector2(1f, 0f);
-        var bg = Ui.Image(container, "Fill", 0, 0, 0, 0, Theme.Bg);
+        // Cadre des cartes d'arcane (comme la fenêtre des savestates) : fond découpé aux coins du cadre, contenu dans un repère
+        // à part aux mêmes coordonnées que le fond, cadre posé par-dessus tout à la fin
+        var clip = CardFrame.Clip(container);
+        var bg = Ui.Image(clip != null ? clip : container, "Fill", 0, 0, 0, 0, Theme.Bg);
         Stretch(bg.rectTransform, 1, 0, 0, 0);
-        fill = bg.transform;
+        var content = Ui.Rect(container, "Content", 0, 0, 0, 0);
+        Stretch(content, 1, 0, 0, 0);
+        fill = content;
         float iw = W - 1;
 
         // --- Onglets ---
-        float y = 8;
+        float y = TabsTop;
         for (int i = 0; i < TabNames.Length; i++)
             tabButtons[i] = UiButton.CreateSkinned(fill, "Tab" + TabNames[i], TabX(i), y, TabW, TabsH, TabNames[i], t, 16f, null);
 
@@ -174,12 +179,14 @@ public partial class SidePanelView
         BuildSpells(y);
         fill = root;
 
+        if (CardFrame.Add(container)) edgeGold.gameObject.SetActive(false);
         Plugin.Logger.LogInfo("[Interface] panneau latéral construit");
     }
 
     // ---------- Onglets ----------
 
     const float DetailH = 190f, ScrollbarW = 5f;
+    const float TabsTop = 16f; // sous le haut du cadre et ses coins
     Image scrollTrack, scrollThumb;
     bool draggingScrollbar;
     static float DetailAreaH => DetailH + Pad * 2;
@@ -197,12 +204,12 @@ public partial class SidePanelView
 
     void UpdateTabs(bool hasMouse, float mx, float my, bool click, ref bool handled)
     {
-        if (click && !handled && my >= 8 && my < 8 + TabsH)
+        if (click && !handled && my >= TabsTop && my < TabsTop + TabsH)
             for (int i = 0; i < TabNames.Length; i++)
                 if (mx >= TabX(i) && mx < TabX(i) + TabW) { tab = (Tab)i; handled = true; }
         for (int i = 0; i < TabNames.Length; i++)
         {
-            bool over = hasMouse && my >= 8 && my < 8 + TabsH && mx >= TabX(i) && mx < TabX(i) + TabW;
+            bool over = hasMouse && my >= TabsTop && my < TabsTop + TabsH && mx >= TabX(i) && mx < TabX(i) + TabW;
             StyleTab(tabButtons[i], pages[i], (int)tab == i, over);
         }
         if (tab != Tab.Keybinds) Keybinds.Capturing = null; // onglet quitté pendant la saisie d'une touche
@@ -1129,9 +1136,9 @@ public partial class SidePanelView
         Ui.SetActive(scrollThumb, showBar);
         if (showBar)
         {
-            Ui.Place(scrollTrack.rectTransform, W - 1 - ScrollbarW - 3, trackTop, ScrollbarW, trackH);
+            Ui.Place(scrollTrack.rectTransform, W - 1 - ScrollbarW - 9, trackTop, ScrollbarW, trackH); // à l'intérieur du filet droit du cadre
             float thumbY = trackTop + (trackH - thumbH) * (scroll / maxScroll);
-            Ui.Place(scrollThumb.rectTransform, W - 1 - ScrollbarW - 3, thumbY, ScrollbarW, thumbH);
+            Ui.Place(scrollThumb.rectTransform, W - 1 - ScrollbarW - 9, thumbY, ScrollbarW, thumbH);
             scrollThumb.color = draggingScrollbar || overTrack ? Theme.GoldText : Theme.GoldBright;
         }
         var page = pages[ti].GetComponent<RectTransform>();

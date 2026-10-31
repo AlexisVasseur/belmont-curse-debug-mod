@@ -125,12 +125,10 @@ public class SaveStatesView
         // aux 4 coins, rien ne dépasse entre l'arc et le bord. Masque = intérieur du cadre de carte (ui_card_inner : la forme du
         // cadre sans les zones hors arc des coins), découpé en 9 et mis à l'échelle exactement comme le cadre.
         var bg = fill;
-        var inner = GameSprites.Icon("ui_card_inner", new Vector4(130, 130, 130, 130));
-        if (inner != null)
+        var clip = CardFrame.Clip(fill, 1f); // débord de 1 px : calé sur le cadre (le fond est décalé de 1 px)
+        if (clip != null)
         {
-            var clip = Skin.Sliced(fill, "BackgroundClip", -1, -1, W, H, inner, Color.white, 1f / CardScale); // aligné sur le cadre (le fond est décalé de 1 px)
-            clip.gameObject.AddComponent<Mask>().showMaskGraphic = false;
-            bg = Ui.Rect(clip.transform, "Backgrounds", 1, 1, iw, H - 2); // repère du fond : les fonds restent alignés sur les lignes
+            bg = Ui.Rect(clip, "Backgrounds", 1, 1, iw, H - 2); // repère du fond : les fonds restent alignés sur les lignes
         }
         float right = iw - M;
 
@@ -218,7 +216,7 @@ public class SaveStatesView
         Separator("FootSep", FootTop);
 
         // --- Cadre des cartes d'arcane du jeu, par-dessus tout ; à défaut, le filet doré du fond reste ---
-        if (CardFrame(container)) Ui.SetBorder(frameFill, new Color(0f, 0f, 0f, 0f));
+        if (CardFrame.Add(container)) Ui.SetBorder(frameFill, new Color(0f, 0f, 0f, 0f));
 
         Plugin.Logger.LogInfo($"[Interface] panneau construit (polices du jeu : {(builtWithGameFonts ? "oui" : "non")})");
     }
@@ -231,8 +229,8 @@ public class SaveStatesView
     {
         float iw = W - 2, x = 0f, w = iw; // d'un bord du cadre à l'autre (le cadre le recouvre à ses extrémités)
         var rule = GameSprites.Icon("ui_rule");
-        if (rule != null) Skin.Sprite(fill, name, x, y - 6f, w, 12f, rule, FrameGold);
-        else Ui.Image(fill, name, x, y - 1f, w, 2f, FrameGold);
+        if (rule != null) Skin.Sprite(fill, name, x, y - 6f, w, 12f, rule, CardFrame.Gold);
+        else Ui.Image(fill, name, x, y - 1f, w, 2f, CardFrame.Gold);
     }
 
     float AddHint(float x, float y, Bind bind, string text, SelectOperation op)
@@ -287,42 +285,6 @@ public class SaveStatesView
         return total;
     }
 
-    // ---------- Cadre des cartes d'arcane (texture du jeu 1127 × 2048, affichée à 30 %) ----------
-
-    const string CardFrameTex = "ui_card_frame";
-    const float CardScale = 0.3f; // cadre fin : coins de 39 px, filet de 4 px
-    // Doré du cadre et du filet du titre. La texture du cadre est un masque blanc (forme du cadre du jeu) teinté de
-    // cette seule couleur : les dégradés de l'original faisaient des cassures entre les morceaux.
-    static readonly Color FrameGold = Theme.Hex(0xc9a24f);
-
-    /// <summary>
-    /// Pose le cadre des cartes d'arcane autour du panneau : coins arrondis et pointes découpés dans la forme du cadre
-    /// du jeu, bords droits étirés à partir de la colonne (ou ligne) qui touche les coins, pour un raccord sans couture.
-    /// False si la texture manque.
-    /// </summary>
-    bool CardFrame(RectTransform container)
-    {
-        const float s = CardScale;
-        Sprite P(float x, float y, float w, float h) => GameSprites.Part(CardFrameTex, x, y, w, h);
-        void I(string name, Sprite sp, float x, float y, float w, float h) { if (sp != null) Skin.Sprite(container, "Card" + name, x, y, w, h, sp, FrameGold); }
-        var tl = P(0, 0, 130, 130);
-        if (tl == null) return false;
-        float c = 130 * s, e = 14 * s;
-        // Bords droits (1 px de large, pris juste après le coin), puis pointes et coins par-dessus
-        I("Top", P(131, 0, 1, 14), c, 0, W - 2 * c, e);
-        I("Bottom", P(131, 2034, 1, 14), c, H - e, W - 2 * c, e);
-        I("Left", P(0, 131, 14, 1), 0, c, e, H - 2 * c);
-        I("Right", P(1113, 131, 14, 1), W - e, c, e, H - 2 * c);
-        I("NotchTop", P(525, 0, 77, 34), W / 2f - 77 * s / 2f, 0, 77 * s, 34 * s);
-        I("NotchBottom", P(525, 2014, 77, 34), W / 2f - 77 * s / 2f, H - 34 * s, 77 * s, 34 * s);
-        I("NotchLeft", P(0, 990, 36, 68), 0, H / 2f - 68 * s / 2f, 36 * s, 68 * s);
-        I("NotchRight", P(1091, 990, 36, 68), W - 36 * s, H / 2f - 68 * s / 2f, 36 * s, 68 * s);
-        I("TL", tl, 0, 0, c, c);
-        I("TR", P(997, 0, 130, 130), W - c, 0, c, c);
-        I("BL", P(0, 1918, 130, 130), 0, H - c, c, c);
-        I("BR", P(997, 1918, 130, 130), W - c, H - c, c, c);
-        return true;
-    }
 
     UiButton Button(float x, float y, float w, float h, string text, TMP_FontAsset font, float size, Action onClick)
     {
