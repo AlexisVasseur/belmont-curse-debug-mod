@@ -20,6 +20,10 @@ public static class Skin
     public static Sprite GemLocked => GameSprites.Icon("ui_gem_locked");
     public static Sprite GemUnlocked => GameSprites.Icon("ui_gem_unlocked");
     public static Sprite GemHover => GameSprites.Icon("ui_gem_hover");
+    // Losanges des objectifs d'arcane du jeu : emplacement vide (bord doré, teinté cuivre quand verrouillé) et gemme orange
+    public static Sprite TaskSlot => GameSprites.Icon("ui_task_slot");
+    public static Sprite TaskGem => GameSprites.Icon("ui_task_gem");
+    public static readonly Color TaskLocked = new(0.85f, 0.55f, 0.35f, 1f);
     // Lueurs qui épousent la forme (bord du carré / du losange à 24..104 sur 128 px), à teinter
     public static Sprite GlowSquare => GameSprites.Icon("ui_glow_square");
     public static Sprite GlowDiamond => GameSprites.Icon("ui_glow_diamond");

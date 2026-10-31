@@ -815,7 +815,8 @@ public partial class SidePanelView
 
     // ---------- Sorts ----------
 
-    const float SpellCellH = 60f, SpellIcon = 48f, TalentSize = 20f, SpellNameW = 140f, SwitchW = 96f;
+    // Ligne d'arcane : nom à gauche, puis l'icône qui lance la chaîne de ses améliorations (colonnes fixes)
+    const float SpellCellH = 60f, SpellIcon = 48f, TalentSize = 20f, SpellNameW = 160f, SwitchW = 84f, GemSize = 26f, GemStep = 36f;
     float spellsTop;
     int spellsBuiltFor = -1;
 
@@ -882,8 +883,8 @@ public partial class SidePanelView
             c.highlight = Ui.Image(fill, $"Spell{i}Hl", cx, cy, cellW, SpellCellH - 4, Theme.Hex(0x5e1418, 0.55f));
             c.highlight.gameObject.SetActive(false);
 
-            // Icône du sort (les icônes d'arcanes du jeu sont déjà en losange)
-            float iconX = cx + 4, iconY = cy + (SpellCellH - 4 - SpellIcon) / 2f;
+            // Icône du sort (les icônes d'arcanes du jeu sont déjà en losange), après la colonne du nom
+            float iconX = cx + 6 + SpellNameW + 8, iconY = cy + (SpellCellH - 4 - SpellIcon) / 2f;
             float icx = iconX + SpellIcon / 2f, icy = iconY + SpellIcon / 2f;
             // Losange du jeu derrière l'illustration (lueur orangée dessous au survol)
             if (Skin.Diamond != null)
@@ -909,29 +910,30 @@ public partial class SidePanelView
             c.equipped.rectTransform.anchoredPosition = new Vector2(iconX + SpellIcon / 2f, -(iconY + SpellIcon + 1));
             c.equipped.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
 
-            // Ligne horizontale portant les 3 améliorations
             float midY = cy + (SpellCellH - 4) / 2f;
-            c.name = Ui.Text(fill, $"Spell{i}Name", iconX + SpellIcon + 10, cy, SpellNameW, SpellCellH - 4, GameFonts.Title, 17f, Theme.Text);
-            float lineEnd = cx + cellW - 8;
+            c.name = Ui.Text(fill, $"Spell{i}Name", cx + 6, cy, SpellNameW, SpellCellH - 4, GameFonts.Title, 17f, Theme.Text);
+            c.name.enableAutoSizing = true; // les noms longs (Chronomantic Dilation) rapetissent au lieu d'être coupés
+            c.name.fontSizeMin = 12f;
+            c.name.fontSizeMax = 17f;
             if (c.spell.Variants.Count > 1)
             {
                 var spell = c.spell;
                 c.switchX = cx + cellW - SwitchW;
                 c.switchBtn = Button(c.switchX, midY - 15, SwitchW, 30, "Switch", GameFonts.Title, 14f, () => Notify?.Invoke(Arcana.SwitchVariant(spell), false), $"Spell{i}");
-                lineEnd = c.switchX - 10;
             }
-            float lineX = iconX + SpellIcon + 10 + SpellNameW + 4, lineW = lineEnd - lineX;
-            c.line = Ui.Image(fill, $"Spell{i}Line", lineX, midY, lineW, 1, Theme.Gold);
+            // Chaîne : filet qui part de la pointe droite de l'icône et relie les améliorations, en colonnes fixes
             int n = c.spell.Talents.Length;
+            float gem0 = icx + 27 + GemStep - 10, lineX = icx + 27;
+            c.line = Ui.Image(fill, $"Spell{i}Line", lineX, midY, gem0 + GemStep * (n - 1) - lineX, 1, Theme.Gold);
             for (int k = 0; k < n; k++)
             {
-                float tcx = lineX + lineW * (k + 1) / (n + 1f);
-                if (Skin.GemLocked != null && Skin.GemUnlocked != null)
+                float tcx = gem0 + GemStep * k;
+                if (Skin.TaskSlot != null && Skin.TaskGem != null)
                 {
-                    // Gemme du jeu : emplacement sombre (verrouillée) ou gemme (débloquée), halo doré au survol
-                    var gem = Skin.Sprite(fill, $"Spell{i}T{k}", tcx - 14, midY - 14, 28, 28, Skin.GemLocked, Color.white);
+                    // Losange des objectifs du jeu : emplacement vide (verrouillée) ou gemme orange (débloquée), halo doré au survol
+                    var gem = Skin.Sprite(fill, $"Spell{i}T{k}", tcx - GemSize / 2f, midY - GemSize / 2f, GemSize, GemSize, Skin.TaskSlot, Skin.TaskLocked);
                     Image halo = null;
-                    if (Skin.GemHover != null) { halo = Skin.Sprite(fill, $"Spell{i}T{k}Hover", tcx - 20, midY - 20, 40, 40, Skin.GemHover, Color.white); halo.gameObject.SetActive(false); }
+                    if (Skin.GemHover != null) { halo = Skin.Sprite(fill, $"Spell{i}T{k}Hover", tcx - 19, midY - 19, 38, 38, Skin.GemHover, Color.white); halo.gameObject.SetActive(false); }
                     c.talents.Add(new TalentUi { talent = c.spell.Talents[k], gem = gem, gemHover = halo, cx = tcx, cy = midY });
                     continue;
                 }
@@ -1006,8 +1008,9 @@ public partial class SidePanelView
                 bool hover = inCell && Mathf.Abs(mx - t.cx) <= TalentSize * 0.75f && Mathf.Abs(my - t.cy) <= TalentSize * 0.75f;
                 if (t.gem != null)
                 {
-                    var gs = on == true ? Skin.GemUnlocked : Skin.GemLocked;
+                    var gs = on == true ? Skin.TaskGem : Skin.TaskSlot;
                     if (t.gem.sprite != gs) t.gem.sprite = gs;
+                    t.gem.color = on == true ? Color.white : Skin.TaskLocked;
                     Ui.SetActive(t.gemHover, hover);
                 }
                 else
