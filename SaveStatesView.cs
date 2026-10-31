@@ -27,14 +27,14 @@ public class SaveStatesView
     readonly List<(UiButton btn, float x, float y, float w, float h)> buttons = new();
 
     TextMeshProUGUI quickName, pageLabel, pageConfirm, toastText;
-    UiButton removePage, pageYes, pageNo;
+    UiButton removePage, addPage, pageYes, pageNo;
     float toastUntil;
     const float ToastW = 640f, ToastH = 42f;
     Image toastAccent, toastFrame, toastBack;
 
     class RowUi
     {
-        public Image highlight, tip, line, diaBorder, diaFill;
+        public Image highlight, line, diaBorder, diaFill;
         public Image selection, caret; // saisie du nom : sélection (sous le texte) et curseur (sur le texte)
         public TextMeshProUGUI digit, name, confirm;
         public UiButton read, write, rename, del, yes, no;
@@ -46,8 +46,13 @@ public class SaveStatesView
     class Hint { public Bind bind; public SelectOperation op; public TextMeshProUGUI label; public GameObject go; }
     readonly List<Hint> hints = new();
 
-    float H => BannerH + 12 + 34 + 10 + 30 + 10 + Rows * RowH + 12 + 34 + 8;
-    float RowsTop => BannerH + 12 + 34 + 10 + 30 + 10;
+    // Mise en page (repère du fond du panneau) : en-tête (titre, quickslot, pages), liste, pied de page.
+    // M : marge du contenu, pour que textes et boutons ne touchent jamais le cadre ni ses coins.
+    const float M = 30f, HeadPad = 6f, QuickH = 46f, PagesH = 40f, FootH = 52f;
+    static float HeadBottom => BannerH + HeadPad + QuickH + PagesH + HeadPad;
+    static float RowsTop => HeadBottom + 4;
+    static float FootTop => RowsTop + Rows * RowH + 4;
+    static float H => FootTop + FootH;
 
     public SaveStatesView(SaveStatesPanel panel) { p = panel; }
 
@@ -95,6 +100,7 @@ public class SaveStatesView
         if (panel != null) UnityEngine.Object.Destroy(panel);
         buttons.Clear();
         hints.Clear();
+        keyHits.Clear();
         builtWithGameFonts = GameFonts.Resolved;
 
         var t = GameFonts.Title;
@@ -109,12 +115,12 @@ public class SaveStatesView
         container.anchoredPosition = new Vector2(0f, -Top);
         panel = container.gameObject;
 
-        // Un seul cadre doré autour du fond (le filet extérieur doublait le bord)
-
-        fill = Ui.Frame(container, "Frame", 0, 0, W, H, Theme.Gold, Theme.Bg).transform;
+        var frameFill = Ui.Frame(container, "Frame", 0, 0, W, H, Theme.Gold, Theme.Bg);
+        fill = frameFill.transform;
         float iw = W - 2; // largeur intérieure
+        float right = iw - M;
 
-        // --- Bandeau titre : ruban bordeaux du jeu (à défaut, bande bordeaux à filets dorés) ---
+        // --- Bandeau titre : ruban bordeaux du jeu (à défaut, bande bordeaux à filets dorés), sur toute la largeur ---
         if (Skin.BannerSprite != null)
         {
             Ui.Image(fill, "BannerShade", 0, 0, iw, BannerH, Theme.Hex(0x0b0706, 0.6f));
@@ -127,89 +133,88 @@ public class SaveStatesView
         else
         {
             Ui.Image(fill, "Banner", 0, 0, iw, BannerH, Theme.Crimson);
-            Ui.Image(fill, "BannerTop", 0, 0, iw, 2, Theme.GoldBright);
             Ui.Image(fill, "BannerBottom", 0, BannerH - 2, iw, 2, Theme.GoldBright);
             Ui.Text(fill, "Title", 0, 0, iw, BannerH, t, 30f, Theme.GoldText, TextAlignmentOptions.Center).text = "Savestates";
-            SmallDiamond(18, BannerH / 2f);
-            SmallDiamond(iw - 18, BannerH / 2f);
+            SmallDiamond(M, BannerH / 2f);
+            SmallDiamond(iw - M, BannerH / 2f);
         }
 
-        // --- Quickslot ---
-        float qy = BannerH + 12;
-        Ui.Text(fill, "QuickLabel", Pad, qy, 120, 34, t, 19f, Theme.GoldLabel).text = "Quickslot";
-        quickName = Ui.Text(fill, "QuickName", Pad + 124, qy, iw - Pad * 2 - 124 - 2 * 150 - 12, 34, b, 21f, Theme.Text);
-        KeyButton(iw - Pad - 150, qy + 2, 150, 30, "Save", Keybinds.QuickSave, () => p.QuickSave());
-        KeyButton(iw - Pad - 150 - 8 - 150, qy + 2, 150, 30, "Load", Keybinds.QuickLoad, () => p.QuickLoad());
+        // --- En-tête : bande un peu plus claire, bordée d'un filet doré ---
+        Ui.Image(fill, "HeadBand", 0, BannerH, iw, HeadBottom - BannerH, Theme.Hex(0x261a16));
+        Ui.Image(fill, "HeadRule", 0, HeadBottom, iw, 1, Theme.Gold);
 
-        // --- Pages ---
-        float py = qy + 34 + 10;
-        removePage = Button(Pad, py + 2, 84, 26, "Del page", t, 14f, () => p.RemovePage());
+        // Quickslot : libellé, nom, puis [F6] Load  [F5] Save à droite (touches + action, sans bouton)
+        float qy = BannerH + HeadPad, qky = qy + (QuickH - KeyH) / 2f;
+        var ql = Ui.Text(fill, "QuickLabel", M, qy, 110, QuickH, t, 15f, Theme.GoldLabel);
+        ql.text = "QUICKSLOT";
+        ql.characterSpacing = 6f;
+        float saveW = KeyAction(right, qky, Keybinds.QuickSave.ShortLabel, "Save", () => p.QuickSave(), alignRight: true);
+        float loadW = KeyAction(right - saveW - 24, qky, Keybinds.QuickLoad.ShortLabel, "Load", () => p.QuickLoad(), alignRight: true);
+        float qx = M + 116;
+        quickName = Ui.Text(fill, "QuickName", qx, qy, right - saveW - 24 - loadW - 20 - qx, QuickH, b, 21f, Theme.Text);
 
-        float cx = iw / 2f;
-        KeyBox(cx - 150, py + 4, Keybinds.PrevPage.ShortLabel, () => p.PrevPage());
-        Ui.Image(fill, "PageLineL", cx - 118, py + 15, 34, 1, Theme.LineGold);
-        pageLabel = Ui.Text(fill, "PageLabel", cx - 80, py, 160, 30, t, 19f, Theme.GoldText, TextAlignmentOptions.Center);
-        Ui.Image(fill, "PageLineR", cx + 84, py + 15, 34, 1, Theme.LineGold);
-        KeyBox(cx + 126, py + 4, Keybinds.NextPage.ShortLabel, () => p.NextPage());
-        // Nouvelle page après la page courante
-        Button(cx + 160, py + 2, 74, 26, "+ Page", t, 14f, () => { p.AddPage(); p.Notify?.Invoke($"Page {p.CurrentPage + 1} added", false); });
+        // Pages : [4] Page 1 / 7 [6] à gauche ; + Page, Del page à droite (ou la confirmation de suppression)
+        float py = qy + QuickH, pky = py + (PagesH - KeyH) / 2f, pby = py + (PagesH - 26) / 2f;
+        float px = M;
+        px += KeyAction(px, pky, Keybinds.PrevPage.ShortLabel, null, () => p.PrevPage()) + 8;
+        pageLabel = Ui.Text(fill, "PageLabel", px, py, 116, PagesH, t, 19f, Theme.GoldText, TextAlignmentOptions.Center);
+        px += 116 + 8;
+        KeyAction(px, pky, Keybinds.NextPage.ShortLabel, null, () => p.NextPage());
 
-        pageConfirm = Ui.Text(fill, "PageConfirm", iw - Pad - 260, py, 136, 30, t, 15f, Theme.Red, TextAlignmentOptions.MidlineRight);
+        removePage = Button(right - 88, pby, 88, 26, "Del page", t, 14f, () => p.RemovePage());
+        addPage = Button(right - 88 - 8 - 80, pby, 80, 26, "+ Page", t, 14f, () => { p.AddPage(); p.Notify?.Invoke($"Page {p.CurrentPage + 1} added", false); });
+        pageNo = Button(right - 56, pby, 56, 26, "No", t, 15f, () => p.ConfirmNo());
+        pageYes = Button(right - 56 - 6 - 56, pby, 56, 26, "Yes", t, 15f, () => p.ConfirmYes());
+        pageConfirm = Ui.Text(fill, "PageConfirm", right - 118 - 10 - 150, py, 150, PagesH, t, 15f, Theme.Red, TextAlignmentOptions.MidlineRight);
         pageConfirm.text = "Delete page?";
-        pageYes = Button(iw - Pad - 116, py + 2, 54, 26, "Yes", t, 15f, () => p.ConfirmYes());
-        pageNo = Button(iw - Pad - 56, py + 2, 54, 26, "No", t, 15f, () => p.ConfirmNo());
 
-        // --- Emplacements ---
-        float rx = 12, rw = iw - 24;
-        Ui.Image(fill, "RowsTopLine", rx, RowsTop - 1, rw, 1, Theme.Line);
+        // --- Emplacements : surbrillance sur toute la largeur, contenu à M des bords ---
         rows = new RowUi[Rows];
+        float quickX = right - 78 - 8 - 100, trashX = quickX - 10 - 30, pencilX = trashX - 4 - 30;
         for (int i = 0; i < Rows; i++)
         {
             int index = i;
             float y = RowsTop + i * RowH;
             var r = new RowUi { y = y };
-            r.highlight = Ui.Image(fill, $"Row{i}Highlight", rx, y, rw - 16, RowH, Theme.Crimson);
-            float tipSize = RowH * 0.707f;
-            r.tip = Ui.Image(fill, $"Row{i}Tip", rx + rw - 16 - tipSize / 2f, y + RowH / 2f - tipSize / 2f, tipSize, tipSize, Theme.Crimson);
-            r.tip.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            r.tip.rectTransform.anchoredPosition = new Vector2(rx + rw - 16, -(y + RowH / 2f));
-            r.tip.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
-            r.line = Ui.Image(fill, $"Row{i}Line", rx, y + RowH - 1, rw, 1, Theme.Line);
+            r.highlight = Ui.Image(fill, $"Row{i}Highlight", 0, y, iw, RowH, Theme.Crimson);
+            // Filet entre deux lignes seulement : le pied de page a le sien
+            if (i < Rows - 1) r.line = Ui.Image(fill, $"Row{i}Line", M - 10, y + RowH - 1, iw - 2 * (M - 10), 1, Theme.Line);
 
-            var d = Ui.Diamond(fill, $"Row{i}Diamond", rx + 26, y + RowH / 2f, 24, n, 22f);
+            var d = Ui.Diamond(fill, $"Row{i}Diamond", M + 12, y + RowH / 2f, 24, n, 22f);
             r.diaBorder = d.border; r.diaFill = d.fill; r.digit = d.label;
             r.digit.text = index.ToString();
 
-            float right = rx + rw - 22;
-            r.selection = Ui.Image(fill, $"Row{i}Selection", rx + 50, y + 7, 2, RowH - 14, Theme.Hex(0x3d6fb0, 0.85f)); // créée avant : sous le texte
+            r.selection = Ui.Image(fill, $"Row{i}Selection", NameX, y + 7, 2, RowH - 14, Theme.Hex(0x3d6fb0, 0.85f)); // créée avant : sous le texte
             r.selection.gameObject.SetActive(false);
-            r.name = Ui.Text(fill, $"Row{i}Name", rx + 50, y, rw - 50 - 290, RowH, b, 21f, Theme.Text);
-            r.caret = Ui.Image(fill, $"Row{i}Caret", rx + 50, y + 8, 2, RowH - 16, Theme.GoldText);
+            r.name = Ui.Text(fill, $"Row{i}Name", NameX, y, pencilX - 10 - NameX, RowH, b, 21f, Theme.Text);
+            r.caret = Ui.Image(fill, $"Row{i}Caret", NameX, y + 8, 2, RowH - 16, Theme.GoldText);
             r.caret.gameObject.SetActive(false);
-            r.confirm = Ui.Text(fill, $"Row{i}Confirm", right - 260, y, 140, RowH, t, 15f, Theme.Red, TextAlignmentOptions.MidlineRight);
+            r.confirm = Ui.Text(fill, $"Row{i}Confirm", right - 118 - 10 - 150, y, 150, RowH, t, 15f, Theme.Red, TextAlignmentOptions.MidlineRight);
 
             r.write = Button(right - 78, y + 5, 78, 28, "Write", t, 15f, () => p.ClickWrite(index));
-            r.read = Button(right - 78 - 6 - 78, y + 5, 78, 28, "Read", t, 15f, () => p.ClickRead(index));
-            // Renommer / supprimer : crayon et poubelle à gauche de Read
-            r.del = IconButton(right - 162 - 10 - 30, y + 5, "Delete", "ui_trash", () => p.ClickDelete(index));
-            r.rename = IconButton(right - 162 - 10 - 30 - 4 - 30, y + 5, "Rename", "ui_pencil", () => p.StartRename(index));
+            // Met cette savestate dans le quickslot (ancien « Read »)
+            r.read = Button(quickX, y + 5, 100, 28, "Quickslot", t, 15f, () => p.ClickRead(index));
+            r.del = IconButton(trashX, y + 5, "Delete", "ui_trash", () => p.ClickDelete(index));
+            r.rename = IconButton(pencilX, y + 5, "Rename", "ui_pencil", () => p.StartRename(index));
             // Confirmation
             r.no = Button(right - 56, y + 5, 56, 28, "No", t, 15f, () => p.ConfirmNo());
             r.yes = Button(right - 56 - 6 - 56, y + 5, 56, 28, "Yes", t, 15f, () => p.ConfirmYes());
             rows[i] = r;
         }
 
-        // --- Barre des raccourcis ---
-        float fy = RowsTop + Rows * RowH + 12;
-        Ui.Image(fill, "FooterLine", Pad, fy - 4, iw - Pad * 2, 1, Theme.LineGold);
-        float hx = Pad;
-        hx = AddHint(hx, fy, Keybinds.SaveToFile, "Save to", SelectOperation.SaveToFile);
-        hx = AddHint(hx, fy, Keybinds.LoadFromFile, "Load", SelectOperation.LoadFromFile);
-        hx = AddHint(hx, fy, Keybinds.FileToQuickslot, "Read", SelectOperation.FileToQuickslot);
+        // --- Pied de page : bande plus sombre, un seul filet doré, touches + action ---
+        Ui.Image(fill, "FootBand", 0, FootTop, iw, H - 2 - FootTop, Theme.Hex(0x120c0b));
+        Ui.Image(fill, "FootRule", 0, FootTop, iw, 1, Theme.Gold);
+        float fy = FootTop + (FootH - KeyH) / 2f;
+        float hx = M;
+        hx = AddHint(hx, fy, Keybinds.SaveToFile, "Save to slot", SelectOperation.SaveToFile);
+        hx = AddHint(hx, fy, Keybinds.LoadFromFile, "Load slot", SelectOperation.LoadFromFile);
+        hx = AddHint(hx, fy, Keybinds.FileToQuickslot, "Quickslot", SelectOperation.FileToQuickslot);
         hx = AddHint(hx, fy, Keybinds.QuickslotToFile, "Write", SelectOperation.QuickslotToFile);
-        var close = Ui.Text(fill, "CloseLabel", iw - Pad - 150, fy, 110, 30, t, 15f, Theme.GoldLabel, TextAlignmentOptions.MidlineRight);
-        close.text = "Close";
-        KeyBox(iw - Pad - 34, fy + 4, Keybinds.TogglePanel.ShortLabel, () => p.Visible = false);
+        KeyAction(right, fy, Keybinds.TogglePanel.ShortLabel, "Close", () => p.Visible = false, alignRight: true, textFirst: true);
+
+        // --- Cadre des cartes d'arcane du jeu, par-dessus tout ; à défaut, le filet doré du fond reste ---
+        if (CardFrame(container)) Ui.SetBorder(frameFill, new Color(0f, 0f, 0f, 0f));
 
         Plugin.Logger.LogInfo($"[Interface] panneau construit (polices du jeu : {(builtWithGameFonts ? "oui" : "non")})");
     }
@@ -217,12 +222,86 @@ public class SaveStatesView
     float AddHint(float x, float y, Bind bind, string text, SelectOperation op)
     {
         if (!bind.HasKeys) return x;
-        float kw = KeyBox(x, y + 4, bind.ShortLabel, () => p.EnterSelectState(op));
-        var label = Ui.Text(fill, "Hint" + text, x + kw + 6, y, 120, 30, GameFonts.Title, 15f, Theme.GoldLabel);
-        label.text = text;
-        float lw = Mathf.Max(40f, label.preferredWidth);
-        hints.Add(new Hint { bind = bind, op = op, label = label, go = label.gameObject });
-        return x + kw + 6 + lw + 22;
+        var labels = new List<TextMeshProUGUI>();
+        float w = KeyAction(x, y, bind.ShortLabel, text, () => p.EnterSelectState(op), labelSink: labels);
+        if (labels.Count > 0) hints.Add(new Hint { bind = bind, op = op, label = labels[0], go = labels[0].gameObject });
+        return x + w + 26;
+    }
+
+    // ---------- Touches de clavier cliquables (cadre de touche du jeu, comme le « T » de la carte) ----------
+
+    const float KeyH = 30f;
+
+    class KeyHit { public float x, y, w, h; public Action act; public TextMeshProUGUI key; }
+    readonly List<KeyHit> keyHits = new();
+
+    /// <summary>
+    /// Touche (cadre du jeu) et son action, cliquables ensemble. alignRight : l'ensemble se termine à x ;
+    /// textFirst : l'action avant la touche (« Close [F1] »). labelSink reçoit le libellé (couleur d'opération en cours).
+    /// Retourne la largeur totale.
+    /// </summary>
+    float KeyAction(float x, float y, string key, string text, Action onClick, bool alignRight = false, bool textFirst = false, List<TextMeshProUGUI> labelSink = null)
+    {
+        if (string.IsNullOrEmpty(key)) key = "?";
+        float kw = Mathf.Max(KeyH, 14f + 11f * key.Length);
+        TextMeshProUGUI label = null;
+        float lw = 0f, gap = 0f;
+        if (!string.IsNullOrEmpty(text))
+        {
+            label = Ui.Text(fill, "KeyLabel" + text, 0, y, 220, KeyH, GameFonts.Title, 16f, Theme.GoldLabel);
+            label.text = text;
+            label.margin = new Vector4(0f, 2f, 0f, 0f); // la ligne de base des polices du jeu tombe bas
+            lw = Mathf.Ceil(label.preferredWidth) + 2f;
+            gap = 8f;
+        }
+        float total = kw + gap + lw;
+        float x0 = alignRight ? x - total : x;
+        float kx = textFirst ? x0 + lw + gap : x0, lx = textFirst ? x0 : x0 + kw + gap;
+        var sprite = GameSprites.Icon("ui_key_frame", new Vector4(40, 40, 40, 40));
+        if (sprite != null) Skin.Sliced(fill, "Key" + key, kx, y, kw, KeyH, sprite, Color.white, 4f);
+        else Ui.Image(fill, "Key" + key, kx, y, kw, KeyH, Theme.BgSolid);
+        var kt = Ui.Label(fill, "KeyText" + key, kx, y, kw, KeyH, GameFonts.Title, 17f, Theme.GoldText);
+        kt.text = key;
+        if (label != null)
+        {
+            Ui.Place(label.rectTransform, lx, y, lw, KeyH);
+            labelSink?.Add(label);
+        }
+        keyHits.Add(new KeyHit { x = x0, y = y, w = total, h = KeyH, act = onClick, key = kt });
+        return total;
+    }
+
+    // ---------- Cadre des cartes d'arcane (texture du jeu 1127 × 2048, affichée à 40 %) ----------
+
+    const string CardFrameTex = "ui_card_frame";
+    const float CardScale = 0.4f;
+
+    /// <summary>
+    /// Pose le cadre des cartes d'arcane autour du panneau : coins arrondis, bords et pointes découpés dans la texture
+    /// du jeu (les bords droits sont étirés, les coins et les pointes gardent leurs proportions). False si la texture manque.
+    /// </summary>
+    bool CardFrame(RectTransform container)
+    {
+        const float s = CardScale;
+        Sprite P(float x, float y, float w, float h) => GameSprites.Part(CardFrameTex, x, y, w, h);
+        void I(string name, Sprite sp, float x, float y, float w, float h) { if (sp != null) Skin.Sprite(container, "Card" + name, x, y, w, h, sp, Color.white); }
+        var tl = P(0, 0, 130, 130);
+        if (tl == null) return false;
+        float c = 130 * s, e = 14 * s;
+        // Bords droits, puis pointes et coins par-dessus
+        I("Top", P(140, 0, 360, 14), c, 0, W - 2 * c, e);
+        I("Bottom", P(140, 2034, 360, 14), c, H - e, W - 2 * c, e);
+        I("Left", P(0, 140, 14, 800), 0, c, e, H - 2 * c);
+        I("Right", P(1113, 140, 14, 800), W - e, c, e, H - 2 * c);
+        I("NotchTop", P(525, 0, 77, 34), W / 2f - 77 * s / 2f, 0, 77 * s, 34 * s);
+        I("NotchBottom", P(525, 2014, 77, 34), W / 2f - 77 * s / 2f, H - 34 * s, 77 * s, 34 * s);
+        I("NotchLeft", P(0, 990, 36, 68), 0, H / 2f - 68 * s / 2f, 36 * s, 68 * s);
+        I("NotchRight", P(1091, 990, 36, 68), W - 36 * s, H / 2f - 68 * s / 2f, 36 * s, 68 * s);
+        I("TL", tl, 0, 0, c, c);
+        I("TR", P(997, 0, 130, 130), W - c, 0, c, c);
+        I("BL", P(0, 1918, 130, 130), 0, H - c, c, c);
+        I("BR", P(997, 1918, 130, 130), W - c, H - c, c, c);
+        return true;
     }
 
     void SmallDiamond(float cx, float cy)
@@ -247,37 +326,6 @@ public class SaveStatesView
         if (btn.Skinned) { btn.OrnamentL = btn.OrnamentR = null; } // trop petit pour porter des volutes
         btn.SetIcon(GameSprites.Icon(icon), 16f);
         return btn;
-    }
-
-    /// <summary>Bouton avec sa pastille de touche à droite (ex. « Load [F6] »).</summary>
-    void KeyButton(float x, float y, float w, float h, string text, Bind bind, Action onClick)
-    {
-        var btn = Button(x, y, w, h, "", GameFonts.Title, 16f, onClick);
-        var label = Ui.Text(btn.Fill.transform, "Text", 14, 0, w - 64, h, GameFonts.Title, 16f, btn.LabelColor, TextAlignmentOptions.MidlineLeft);
-        label.text = text;
-        label.margin = new Vector4(0f, 2f, 0f, 0f); // la ligne de base des polices du jeu tombe bas
-        string key = bind.ShortLabel;
-        if (key.Length > 0)
-        {
-            // Touche en simple texte doré à droite (sans pastille)
-            var k = Ui.Text(btn.Fill.transform, "Key", w - 70, 0, 56, h, GameFonts.Title, 15f, Theme.GoldText, TextAlignmentOptions.MidlineRight);
-            k.text = key;
-            k.margin = new Vector4(0f, 2f, 0f, 0f);
-        }
-    }
-
-    /// <summary>Pastille de touche cliquable ; retourne sa largeur.</summary>
-    float KeyBox(float x, float y, string key, Action onClick)
-    {
-        if (string.IsNullOrEmpty(key)) key = "?";
-        float kw = Mathf.Max(30f, 16f + 9f * key.Length);
-        var btn = Button(x, y - 3, kw, 28, key, GameFonts.Title, 15f, onClick);
-        if (btn.Skinned) { btn.OrnamentL = btn.OrnamentR = null; } // trop petite pour porter des volutes
-        else Ui.SetBorder(btn.Fill, Theme.GoldBright);
-        // Chiffre centré sur sa forme, sans risque de disparaître
-        btn.Label.alignment = TextAlignmentOptions.MidlineGeoAligned;
-        btn.Label.overflowMode = TextOverflowModes.Overflow;
-        return kw;
     }
 
     // ---------- Mise à jour (chaque frame) ----------
@@ -309,6 +357,7 @@ public class SaveStatesView
 
         Ui.SetText(pageLabel, $"Page {p.CurrentPage + 1} / {SlotStore.PageCount}");
         Ui.SetActive(removePage.Rt, !pageConfirmActive);
+        Ui.SetActive(addPage.Rt, !pageConfirmActive);
         Ui.SetActive(pageConfirm, pageConfirmActive);
         Ui.SetActive(pageYes.Rt, pageConfirmActive);
         Ui.SetActive(pageNo.Rt, pageConfirmActive);
@@ -331,7 +380,6 @@ public class SaveStatesView
 
             bool lit = hover || renaming || confirming;
             Ui.SetActive(r.highlight, lit);
-            Ui.SetActive(r.tip, lit);
 
             r.diaBorder.color = p.InSelectState ? Theme.Red : s == null ? Theme.Gold : (lit ? Theme.GoldText : Theme.GoldBright);
             r.diaFill.color = lit ? Theme.CrimsonDark : Theme.BgSolid;
@@ -361,7 +409,7 @@ public class SaveStatesView
 
     // ---------- Saisie du nom : sélection et curseur dessinés sous / sur le texte ----------
 
-    const float NameX = 12 + 50; // abscisse du nom dans le panneau (rx + 50)
+    const float NameX = M + 38; // abscisse du nom dans le panneau (après le losange du numéro)
 
     /// <summary>Abscisse (depuis le bord gauche du nom) de la limite avant le caractère k (k = longueur : après le dernier).</summary>
     static float CharX(TextMeshProUGUI t, int k)
@@ -464,6 +512,18 @@ public class SaveStatesView
                 catch (Exception ex) { Plugin.Logger.LogError("[Interface] " + ex); }
             }
         }
+        // Touches + action (quickslot, pages, pied de page) : survol = touche éclairée, clic = l'action
+        foreach (var k in keyHits)
+        {
+            bool hover = mx >= k.x && mx < k.x + k.w && my >= k.y && my < k.y + k.h;
+            k.key.color = hover ? Theme.TextSelected : Theme.GoldText;
+            if (click && hover && !handled)
+            {
+                handled = true;
+                try { k.act?.Invoke(); }
+                catch (Exception ex) { Plugin.Logger.LogError("[Interface] " + ex); }
+            }
+        }
 
         // Double-clic sur le nom d'un emplacement : chargement direct
         if (click && !handled && !p.IsTyping)
@@ -471,7 +531,7 @@ public class SaveStatesView
             for (int i = 0; i < Rows; i++)
             {
                 var r = rows[i];
-                if (my < r.y || my >= r.y + RowH || mx < 12 || mx >= W - 300) continue;
+                if (my < r.y || my >= r.y + RowH || mx < M || mx >= W - M - 270) continue;
                 if (Time.unscaledTime - r.lastClick < 0.35f) { r.lastClick = -10f; p.LoadSlot(i); }
                 else r.lastClick = Time.unscaledTime;
                 break;

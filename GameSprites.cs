@@ -39,4 +39,24 @@ public static class GameSprites
         catch (Exception ex) { Plugin.Logger.LogWarning($"[Icônes] {name} : {ex.Message}"); }
         return cache[name] = s;
     }
+
+    /// <summary>
+    /// Morceau d'une icône (x, y depuis le haut de l'image, en pixels de la texture), pour composer un cadre à partir
+    /// de ses coins et de ses bords sans les déformer.
+    /// </summary>
+    public static Sprite Part(string name, float x, float yTop, float w, float h)
+    {
+        string key = $"{name}@{x},{yTop},{w},{h}";
+        if (cache.TryGetValue(key, out var s)) return s;
+        var full = Icon(name);
+        if (full == null) return null;
+        try
+        {
+            var tex = full.texture;
+            s = Sprite.Create(tex, new Rect(x, tex.height - yTop - h, w, h), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+            s.hideFlags = HideFlags.HideAndDontSave;
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning($"[Icônes] {key} : {ex.Message}"); }
+        return cache[key] = s;
+    }
 }
