@@ -137,7 +137,7 @@ public class SaveStatesView
         float qx = M + 116;
         quickName = Ui.Text(fill, "QuickName", qx, qy, right - saveW - 24 - loadW - 20 - qx, QuickH, b, 21f, Theme.Text);
 
-        // Pages : [4] Page 1 / 7 [6] à gauche ; + Page, Del page à droite (ou la confirmation de suppression)
+        // Pages : [4] Page 1 / 7 [6] à gauche ; Add page, Del page à droite (ou la confirmation de suppression)
         float py = qy + QuickH, pky = py + (PagesH - KeyH) / 2f, pby = py + (PagesH - 26) / 2f;
         float px = M;
         px += KeyAction(px, pky, Keybinds.PrevPage.ShortLabel, null, () => p.PrevPage()) + 8;
@@ -146,14 +146,14 @@ public class SaveStatesView
         KeyAction(px, pky, Keybinds.NextPage.ShortLabel, null, () => p.NextPage());
 
         removePage = Button(right - 88, pby, 88, 26, "Del page", t, 14f, () => p.RemovePage());
-        addPage = Button(right - 88 - 8 - 80, pby, 80, 26, "+ Page", t, 14f, () => { p.AddPage(); p.Notify?.Invoke($"Page {p.CurrentPage + 1} added", false); });
+        addPage = Button(right - 88 - 8 - 88, pby, 88, 26, "Add page", t, 14f, () => { p.AddPage(); p.Notify?.Invoke($"Page {p.CurrentPage + 1} added", false); });
         // Rechargement complet forcé = chargement rapide coupé (option Chargement/Rapide de la config) : case + libellé cliquables
         const float fs = 24f;
         fullLabel = Ui.Text(fill, "FullReloadLabel", 0, py, 160, PagesH, t, 16f, Theme.GoldLabel);
         fullLabel.text = "Full reload";
         fullLabel.margin = new Vector4(0f, 2f, 0f, 0f); // la ligne de base des polices du jeu tombe bas
         float flw = Mathf.Ceil(fullLabel.preferredWidth) + 2f;
-        fullHit = new Rect(right - 88 - 8 - 80 - 20 - (fs + 8f + flw), py, fs + 8f + flw, PagesH);
+        fullHit = new Rect(right - 88 - 8 - 88 - 20 - (fs + 8f + flw), py, fs + 8f + flw, PagesH);
         fullCheck = UiCheck.Create(fill, "FullReloadCheck", fullHit.x, py + (PagesH - fs) / 2f, fs);
         Ui.Place(fullLabel.rectTransform, fullHit.x + fs + 8f, py, flw, PagesH);
         pageNo = Button(right - 56, pby, 56, 26, "No", t, 15f, () => p.ConfirmNo());
