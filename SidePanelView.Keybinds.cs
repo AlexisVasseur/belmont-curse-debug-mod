@@ -45,6 +45,8 @@ public partial class SidePanelView
             "In the same level, savestates load in place without a loading screen (a full load is still used when needed)."),
         new("Reload room", () => Plugin.ReloadRoom,
             "Fast load: the room is reloaded too, so its enemies and objects are reset."),
+        new("Room name", () => Plugin.ShowRoomName,
+            "Shows the area and the room id in the bottom-right corner of the screen while playing."),
     };
 
     static Key[] allKeys;

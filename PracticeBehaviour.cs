@@ -58,6 +58,7 @@ public class PracticeBehaviour : MonoBehaviour
         // l'ouvrir au menu principal ou pendant un chargement pouvait faire planter le jeu.
         bool inGame = sequence.Active || IsInGame();
         VersionLabel.Update(inGame && panel.Visible);
+        RoomLabel.Update(inGame, inGame && panel.Visible);
         if (!inGame)
         {
             panel.Visible = false;
