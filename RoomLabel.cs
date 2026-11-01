@@ -7,8 +7,8 @@ namespace BelmontPractice;
 
 /// <summary>
 /// Nom de la salle en bas à droite de l'écran, en jeu (option « Room name ») : la zone du jeu en titre, l'identifiant
-/// de la salle dessous (celui des savestates et des arènes). Masqué pendant les chargements et les cinématiques, il
-/// réapparaît en fondu quand le joueur reprend la main.
+/// de la salle dessous (celui des savestates et des arènes). Masqué pendant les chargements longs (jeu, savestates), il
+/// réapparaît en fondu quand le joueur reprend la main ; les passages d'une salle à l'autre ne le masquent pas.
 /// </summary>
 public static class RoomLabel
 {
@@ -21,14 +21,14 @@ public static class RoomLabel
     // Main rendue depuis ce délai avant de réapparaître : pas de clignotement entre deux transitions rapprochées
     const float ControlDelay = 0.3f;
 
-    /// <param name="controllable">Le joueur a la main (hors chargement, transition de salle et cinématique).</param>
+    /// <param name="playing">En jeu, hors chargement long.</param>
     /// <param name="panelOpen">Panneau latéral ouvert : l'encadré se décale à sa gauche pour rester visible.</param>
-    public static void Update(bool inGame, bool controllable, bool panelOpen)
+    public static void Update(bool playing, bool panelOpen)
     {
         try
         {
-            bool show = inGame && Plugin.ShowRoomName.Value;
-            if (!show || !controllable) { fade.Out(box); controlSince = -1f; return; }
+            bool show = playing && Plugin.ShowRoomName.Value;
+            if (!show) { fade.Out(box); controlSince = -1f; return; }
             if (controlSince < 0f) controlSince = Time.unscaledTime;
             if (Time.unscaledTime - controlSince < ControlDelay) return;
             if (box == null || (!builtWithGameFont && GameFonts.Body != null)) Build();

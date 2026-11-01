@@ -59,8 +59,7 @@ public class PracticeBehaviour : MonoBehaviour
         bool inGame = sequence.Active || IsInGame();
         // Versions : affichées aussi pendant les chargements du mod (au-dessus de l'écran noir)
         VersionLabel.Update(inGame && !sequence.Active, inGame && panel.Visible);
-        bool controllable = inGame && !sequence.Active && !GameBridge.RoomLoading() && !FastForward.CutscenePlaying();
-        RoomLabel.Update(inGame, controllable, inGame && panel.Visible);
+        RoomLabel.Update(inGame && !sequence.Active, inGame && panel.Visible);
         if (!inGame)
         {
             panel.Visible = false;
