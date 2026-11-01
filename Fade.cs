@@ -6,9 +6,10 @@ namespace BelmontPractice;
 /// Fondu d'ouverture / de fermeture d'une fenêtre du mod (CanvasGroup sur sa racine), en temps réel :
 /// le jeu peut être en pause.
 /// </summary>
-public sealed class Fade
+/// <param name="inTime">Durée de l'apparition ; 0 : instantanée.</param>
+/// <param name="outTime">Durée de la disparition.</param>
+public sealed class Fade(float inTime = 0.15f, float outTime = 0.12f)
 {
-    const float InTime = 0.15f, OutTime = 0.12f;
     // Une frame lente (construction de la fenêtre, chargement) ne doit pas sauter le fondu
     const float MaxStep = 1f / 30f;
 
@@ -21,14 +22,14 @@ public sealed class Fade
     {
         if (go == null) return;
         if (!go.activeSelf) go.SetActive(true);
-        Step(go, InTime);
+        Step(go, inTime);
     }
 
     /// <summary>Fenêtre fermée : la fait disparaître puis la désactive.</summary>
     public void Out(GameObject go)
     {
         if (go == null || !go.activeSelf) { t = 0f; return; }
-        Step(go, -OutTime);
+        Step(go, -outTime);
         if (t <= 0f) go.SetActive(false);
     }
 
@@ -39,7 +40,7 @@ public sealed class Fade
             target = go;
             group = go.GetComponent<CanvasGroup>() ?? go.AddComponent<CanvasGroup>();
         }
-        t = Mathf.Clamp01(t + Mathf.Min(Time.unscaledDeltaTime, MaxStep) / duration);
+        t = duration == 0f ? 1f : Mathf.Clamp01(t + Mathf.Min(Time.unscaledDeltaTime, MaxStep) / duration);
         group.alpha = t * t * (3f - 2f * t); // départ et arrivée en douceur
     }
 }

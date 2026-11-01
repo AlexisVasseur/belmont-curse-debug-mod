@@ -30,8 +30,9 @@ public class SaveStatesView
     TextMeshProUGUI quickName, pageLabel, pageConfirm, toastText;
     UiButton removePage, addPage, pageYes, pageNo;
     float toastUntil;
-    const float ToastW = 640f, ToastH = 42f;
-    Image toastAccent, toastFrame, toastBack;
+    const float ToastW = 640f, ToastH = 54f;
+    // Message : apparaît d'un coup, s'efface en fondu
+    readonly Fade toastFade = new(0f, 0.35f);
 
     class RowUi
     {
@@ -70,29 +71,11 @@ public class SaveStatesView
 
     void BuildToast()
     {
-        // En bas à gauche de l'écran (en haut, il recouvrait la barre de vie du HUD)
-        var bg = Ui.Frame(root.transform, "Toast", 0f, 0f, ToastW, ToastH, Theme.Gold, Theme.Bg);
-        var rt = bg.transform.parent.Cast<RectTransform>();
-        rt.anchorMin = rt.anchorMax = new Vector2(0f, 0f);
-        rt.pivot = new Vector2(0f, 0f);
+        // En bas à gauche de l'écran (en haut, il recouvrait la barre de vie du HUD), même encadré que les versions et la salle
+        var rt = CardFrame.SmallBox(root.transform, "Toast", ToastW, ToastH, new Vector2(0f, 0f), out var content);
         rt.anchoredPosition = new Vector2(44f, 28f);
         toast = rt.gameObject;
-        toastAccent = Ui.Image(bg.transform, "Accent", 0f, 0f, 4f, ToastH - 2f, Theme.GoldBright);
-        if (Skin.BarMana != null && Skin.BarLife != null)
-        {
-            // Contour des barres de vie / mana du HUD : liseré bleu pour les messages, rouge pour les erreurs
-            Ui.SetBorder(bg, new Color(0f, 0f, 0f, 0f));
-            bg.color = new Color(0f, 0f, 0f, 0f);
-            if (Skin.BarMask != null)
-            {
-                toastBack = Skin.Sliced(bg.transform, "Back", 4f, 6f, ToastW + 14f, ToastH - 12f, Skin.BarMask, Theme.Hex(0x120c0a, 0.92f), 1.6f);
-                toastBack.transform.SetAsFirstSibling();
-            }
-            // L'image a une marge transparente avant son liseré : on la décale pour que le texte soit à l'intérieur
-            toastFrame = Skin.Sliced(bg.transform, "Frame", -31f, -6f, ToastW + 96f, ToastH + 12f, Skin.BarMana, Color.white, 1.4f);
-            Ui.SetActive(toastAccent, false);
-        }
-        toastText = Ui.Text(bg.transform, "Text", 18f, 0f, ToastW - 30f, ToastH - 2f, GameFonts.Body, 20f, Theme.Text);
+        toastText = Ui.Text(content, "Text", 22f, 0f, ToastW - 44f, ToastH, GameFonts.Body, 20f, Theme.Text);
         toast.SetActive(false);
     }
 
@@ -533,15 +516,13 @@ public class SaveStatesView
         if (GameFonts.Body != null) toastText.font = GameFonts.Body;
         Ui.SetText(toastText, msg);
         toastText.color = error ? Theme.Red : Theme.Text;
-        if (toastAccent != null) toastAccent.color = error ? Theme.Red : Theme.GoldBright;
-        if (toastFrame != null) { toastFrame.sprite = error ? Skin.BarLife : Skin.BarMana; toastFrame.color = Color.white; }
         toastUntil = Time.unscaledTime + 3f;
     }
 
     void UpdateToast()
     {
         bool show = toastUntil > Time.unscaledTime;
-        if (toast != null && toast.activeSelf != show) toast.SetActive(show);
+        if (show) toastFade.In(toast); else toastFade.Out(toast);
         if (show && !GameFonts.Resolved) return;
         if (show && toastText.font != GameFonts.Body && GameFonts.Body != null) toastText.font = GameFonts.Body;
     }
