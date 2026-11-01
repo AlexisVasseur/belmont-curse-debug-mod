@@ -19,6 +19,7 @@ public class SaveStatesView
 
     readonly SaveStatesPanel p;
     GameObject root, panel, toast;
+    readonly Fade fade = new();
     Canvas canvas;
     Transform fill;
     bool builtWithGameFonts;
@@ -301,11 +302,11 @@ public class SaveStatesView
         UpdateToast();
 
         bool visible = p.ShouldBeVisible;
-        if (!visible) { if (panel != null && panel.activeSelf) panel.SetActive(false); return; }
+        if (!visible) { fade.Out(panel); return; }
 
         if (!GameFonts.Resolved) GameFonts.Resolve();
         if (panel == null || (!builtWithGameFonts && GameFonts.Resolved)) BuildPanel();
-        if (!panel.activeSelf) panel.SetActive(true);
+        fade.In(panel);
         HookTextInput();
 
         Refresh();

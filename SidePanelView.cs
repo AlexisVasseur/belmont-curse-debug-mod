@@ -22,6 +22,7 @@ public partial class SidePanelView
     public Action<string, bool> Notify;
 
     GameObject panel;
+    readonly Fade fade = new();
     Transform fill;
     bool builtWithGameFonts;
 
@@ -1120,7 +1121,7 @@ public partial class SidePanelView
 
     public void Update(bool visible)
     {
-        if (!visible) { if (panel != null && panel.activeSelf) panel.SetActive(false); wasVisible = false; Keybinds.Capturing = null; levelTyping = false; return; }
+        if (!visible) { fade.Out(panel); wasVisible = false; Keybinds.Capturing = null; levelTyping = false; return; }
         // À l'ouverture : relit les améliorations (Attack+, cœurs…)
         if (!wasVisible) { wasVisible = true; Upgrades.Refresh(true); }
 
@@ -1135,7 +1136,7 @@ public partial class SidePanelView
         if (panel == null || (!builtWithGameFonts && GameFonts.Resolved) || spellsBuiltFor != Arcana.Spells.Count
             || weaponsBuiltFor != Weapons.Families.Count || relicsBuiltFor != Relics.All.Count
             || bossesBuiltFor != BossesShown) Build();
-        if (!panel.activeSelf) panel.SetActive(true);
+        fade.In(panel);
 
         bool hasMouse = UiCanvas.Mouse(out float mx, out float my);
         mx -= UiCanvas.Width - W + 1f;
