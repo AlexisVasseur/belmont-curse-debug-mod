@@ -399,6 +399,18 @@ public partial class SidePanelView
         Row("Infinite jump", "Jump again in mid-air, as many times as you want", () => Cheats.InfiniteJump, v => Cheats.InfiniteJump = v);
         Row("Noclip", "Fly through walls with WASD / arrows, the D-pad or the stick; hold Shift to go faster. Rooms change as you fly, and traps respawn you where you are", () => Cheats.Noclip, v => Cheats.Noclip = v);
 
+        // Point de réapparition : nom, salle du point, puis Clear et Set à droite
+        {
+            float right = iw - Pad, by = y + (CheatRowH - 28) / 2f;
+            Ui.Text(fill, "RespawnName", Pad + 4, y, 170, CheatRowH, GameFonts.Title, 19f, Theme.Text).text = "Respawn point";
+            Button(right - 60, by, 60, 28, "Set", GameFonts.Title, 15f, () => Notify?.Invoke(RespawnPoint.Set(), false), "Respawn");
+            Button(right - 60 - 6 - 64, by, 64, 28, "Clear", GameFonts.Title, 15f, () => Notify?.Invoke(RespawnPoint.Clear(), false), "Respawn");
+            respawnValue = Ui.Text(fill, "RespawnVal", Pad + 4 + 170, y, right - 60 - 6 - 64 - 10 - (Pad + 4 + 170), CheatRowH, GameFonts.Body, 15f, Theme.GoldLabel, TextAlignmentOptions.Right);
+            Ui.Image(fill, "RespawnLine", 12, y + CheatRowH - 1, iw - 24, 1, Theme.Line);
+            Help(y, CheatRowH, "Respawn point", "Set: remembers where you stand and your whole state. When you die, once the game has brought you back, you return to that exact spot in that state. Clear: back to the game's normal respawn.");
+            y += CheatRowH;
+        }
+
         y += 6;
         // Vie et mana : nom, valeur et remplissage complet en haut ; jauge encadrée des boutons -50 -10 / +10 +50 en dessous
         GaugeUi GaugeRow(string name, string fullLabel, Func<int?, string> change, Color color)
@@ -472,7 +484,13 @@ public partial class SidePanelView
         UpdateGauge(manaGauge, Cheats.ManaValues(out float mc, out float mm), mc, mm);
         UpdatePotions(hasMouse, mx, my, click, ref handled);
         foreach (var r in cheatRows) UpdateCheatRow(r, hasMouse, mx, my, click, ref handled);
+        if (respawnValue != null)
+        {
+            Ui.SetText(respawnValue, RespawnPoint.Label);
+            respawnValue.color = RespawnPoint.State != null ? Theme.GoldText : Theme.TextDim;
+        }
     }
+    TextMeshProUGUI respawnValue;
 
     // ---------- Améliorations ----------
 

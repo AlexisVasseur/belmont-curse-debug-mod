@@ -52,7 +52,7 @@ public static class RoomLabel
     /// Identifiant raccourci : « World_Biome_01_Streets_Poor_StreetsPoorV2_Room17_uid101 » → « StreetsPoorV2 - Room17 » (le
     /// point médian n'existe pas dans la police du jeu). Sans « RoomNN » : préfixe World_Biome_NN_ et suffixe _uidNN retirés.
     /// </summary>
-    static string ShortRoom(string id)
+    public static string ShortRoom(string id)
     {
         string s = Regex.Replace(id, @"_uid\d+$", "");
         var parts = s.Split('_');
