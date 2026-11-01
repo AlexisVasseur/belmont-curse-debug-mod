@@ -28,6 +28,26 @@ public static class Bosses
         public bool IgnoreAbsorption;
         public string Name;
         public Sprite Icon;
+        float nextIconLoad;
+        public bool HasIcon; // portrait trouvé au premier chargement (sinon rien à recharger)
+
+        /// <summary>
+        /// Portrait du boss, rechargé s'il a été libéré par le jeu (chargement complet d'un niveau) : l'image gardée
+        /// n'existe plus, le portrait affiché disparaissait.
+        /// </summary>
+        public Sprite CurrentIcon()
+        {
+            if (Icon != null) return Icon;
+            if (!HasIcon || Time.unscaledTime < nextIconLoad) return null;
+            nextIconLoad = Time.unscaledTime + 2f;
+            try
+            {
+                Icon = Id != null ? Id.LoadCharacterUIDisplayData()?.defaultCharacterIcon : null;
+                Plugin.Logger.LogInfo($"[Boss] portrait de {Name} libéré par le jeu : {(Icon != null ? "rechargé" : "introuvable")}");
+            }
+            catch (Exception ex) { Plugin.Logger.LogWarning($"[Boss] portrait de {Name} : {ex.Message}"); }
+            return Icon;
+        }
 
         /// <summary>Le jeu note-t-il ce boss « vaincu » ? (Dracula, boss de fin : non)</summary>
         public bool HasDefeatFlag => KeyGuid != null;
@@ -155,6 +175,7 @@ public static class Bosses
                 // la progression (« ??? » ou « The Fallen » tant que le personnage n'est pas rencontré)
                 if (string.IsNullOrEmpty(b.Name)) b.Name = Known(Loc.Get(ui.GetDefaultCharacterDisplayName()));
                 b.Icon = ui.defaultCharacterIcon;
+                b.HasIcon = b.Icon != null;
             }
         }
         catch { }

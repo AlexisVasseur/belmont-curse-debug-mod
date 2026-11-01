@@ -17,7 +17,7 @@ public partial class SidePanelView
         public Bosses.Boss boss;
         public string key; // rencontre (arène) : null tant qu'aucune arène n'est connue
         public string label; // « Isaac II »
-        public Image highlight;
+        public Image highlight, icon;
         public TextMeshProUGUI name;
         public UiButton fight, tp, alive, defeated;
         public float y;
@@ -66,10 +66,13 @@ public partial class SidePanelView
             r.highlight = Ui.Image(fill, "BossHl" + i, 12, y, iw - 24, BossRowH - 2, Theme.Hex(0x5e1418, 0.55f));
             Ui.Image(fill, "BossLine" + i, 12, y + BossRowH - 1, iw - 24, 1, Theme.Line);
             float nx = Pad + 4;
-            if (b.Icon != null)
+            if (b.HasIcon)
             {
-                var icon = Skin.Sprite(fill, "BossIcon" + i, nx, y + (BossRowH - BossIcon) / 2f - 1, BossIcon, BossIcon, b.Icon, UnityEngine.Color.white);
-                icon.preserveAspect = true;
+                // Portrait libéré par le jeu (chargement complet) : la place reste, l'image revient dès qu'il est rechargé
+                var sprite = b.CurrentIcon();
+                r.icon = Skin.Sprite(fill, "BossIcon" + i, nx, y + (BossRowH - BossIcon) / 2f - 1, BossIcon, BossIcon, sprite, UnityEngine.Color.white);
+                r.icon.preserveAspect = true;
+                r.icon.enabled = sprite != null;
                 nx += BossIcon + 10;
             }
             r.name = Ui.Text(fill, "BossName" + i, nx, y, BossFightX - nx - 6, BossRowH, GameFonts.Title, 18f, Theme.Text);
@@ -187,6 +190,7 @@ public partial class SidePanelView
         {
             bool hover = hasMouse && my >= r.y && my < r.y + BossRowH && mx >= 12 && mx < W - 14;
             Ui.SetActive(r.highlight, hover);
+            if (r.icon != null && r.icon.sprite == null) { var sp = r.boss.CurrentIcon(); r.icon.sprite = sp; r.icon.enabled = sp != null; }
             bool? defeated = Bosses.IsDefeated(r.boss);
             bool known = Arenas.Get(r.key) != null;
             bool overFight = Over(BossFightX, BossFightW, r.y), overTp = Over(BossTpX, BossTpW, r.y), overAlive = Over(BossAliveX, BossStateW, r.y), overDefeated = Over(BossDefeatedX, BossStateW, r.y);
