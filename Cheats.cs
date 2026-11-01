@@ -10,7 +10,8 @@ namespace BelmontPractice;
 /// <summary>Utilitaires : PV / mana / potions / sauts infinis, noclip.</summary>
 public static class Cheats
 {
-    public static bool InfiniteHealth, InfiniteMana, InfinitePotions, InfiniteJump, Noclip;
+    public static bool InfiniteHealth, LockHealth, InfiniteMana, InfinitePotions, InfiniteJump, Noclip;
+    static int? lockedHealth; // PV figés (LockHealth), relevés à l'activation
 
     static bool clampApplied;
     static float savedClampMin;
@@ -38,16 +39,19 @@ public static class Cheats
         if (!Player(out var e)) { noclipActive = false; clampApplied = false; return; }
         var stats = e.GetComponent<StatsStateComponent>();
 
-        // --- PV infinis : plancher de PV à 1 (pas de mort) + remplissage ---
+        // --- PV infinis : plancher de PV à 1 (pas de mort) + remplissage ; PV figés : plancher + retour à la valeur relevée ---
         try
         {
             var clampType = Il2CppType.Of<HealthClampMin>();
-            if (InfiniteHealth && stats != null && stats.HasStat(clampType))
+            var dmg = e.GetComponent<Damageable>();
+            if (!LockHealth) lockedHealth = null;
+            else if (dmg != null && lockedHealth == null) lockedHealth = dmg.currentHealth;
+            if ((InfiniteHealth || LockHealth) && stats != null && stats.HasStat(clampType))
             {
                 if (!clampApplied) { savedClampMin = stats.GetStatObject(clampType).GetFloat(e); clampApplied = true; }
                 stats.SetFloat(clampType, 1f);
-                var dmg = e.GetComponent<Damageable>();
-                if (dmg != null && dmg.currentHealth < dmg.maxHealth) dmg.SetCurrentHealth(e, dmg.maxHealth, true);
+                if (dmg != null && lockedHealth.HasValue) { if (dmg.currentHealth != lockedHealth.Value) dmg.SetCurrentHealth(e, lockedHealth.Value, true); }
+                else if (dmg != null && dmg.currentHealth < dmg.maxHealth) dmg.SetCurrentHealth(e, dmg.maxHealth, true);
             }
             else if (clampApplied)
             {
@@ -55,7 +59,7 @@ public static class Cheats
                 clampApplied = false;
             }
         }
-        catch (Exception ex) { Warn("PV", ex); InfiniteHealth = false; }
+        catch (Exception ex) { Warn("PV", ex); InfiniteHealth = LockHealth = false; }
 
         // --- Mana infinie ---
         try
@@ -234,7 +238,8 @@ public static class Cheats
             if (stats != null && stats.HasStat(hc)) stats.SetFloat(hc, target);
             RefreshBars(e);
             string msg = delta == null ? $"Healed: {target} / {dmg.maxHealth}" : $"Health: {target} / {dmg.maxHealth}";
-            if (InfiniteHealth && target < dmg.maxHealth) msg += " (Infinite HP will refill it)";
+            if (LockHealth) { lockedHealth = target; msg += " (locked)"; } // les boutons fixent la valeur figée
+            else if (InfiniteHealth && target < dmg.maxHealth) msg += " (Infinite HP will refill it)";
             return msg;
         }
         catch (Exception ex) { return "Health change failed: " + ex.Message; }

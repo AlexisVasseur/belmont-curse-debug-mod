@@ -26,7 +26,8 @@ public partial class SidePanelView
     readonly List<(UiButton btn, float x, float y, float w, float h)> bossButtons = new();
     const float BossRowH = 46f, BossIcon = 36f, BossFightW = 56f, BossTpW = 40f, BossStateW = 74f, BossBtnH = 26f, BossGap = 4f;
     int bossesBuiltFor = -1;
-    CheatUi bossHpRow;
+    CheatUi bossHpRow, bossLockRow;
+    const string BossLockHelp = "Boss health is frozen at its current value: hits deal no damage and the bar never moves (the boss stays in its current phase). Overrides Boss infinite HP. Click the row to turn it on or off.";
     const string BossHpHelp = "Bosses can't die: their health drops as usual (phases still change) and is refilled when it reaches the bottom. Practice a fight as long as you want. Click the row to turn it on or off.";
     // La liste n'est affichée qu'une fois complète ; reconstruite quand une arène est apprise (une ligne par rencontre)
     static int BossesShown => Bosses.Done ? Bosses.All.Count * 1000 + Arenas.Version : -2;
@@ -47,6 +48,8 @@ public partial class SidePanelView
 
         y = SectionTitle("Bosses", y);
         bossHpRow = CheatRow("Boss infinite HP", BossHpHelp, () => BossHealth.Infinite, v => BossHealth.Infinite = v, y);
+        y += CheatRowH;
+        bossLockRow = CheatRow("Lock boss HP", BossLockHelp, () => BossHealth.Lock, v => BossHealth.Lock = v, y);
         y += CheatRowH + 6;
         if (!Bosses.Done || Bosses.All.Count == 0)
         {
@@ -176,6 +179,7 @@ public partial class SidePanelView
         }
 
         if (bossHpRow != null && UpdateCheatRow(bossHpRow, hasMouse, mx, my, click, ref handled)) { title = bossHpRow.name; text = BossHpHelp; }
+        if (bossLockRow != null && UpdateCheatRow(bossLockRow, hasMouse, mx, my, click, ref handled)) { title = bossLockRow.name; text = BossLockHelp; }
 
         bool Over(float x, float w, float rowY) { float by = BossBtnY(rowY); return hasMouse && mx >= x && mx < x + w && my >= by && my < by + BossBtnH; }
 

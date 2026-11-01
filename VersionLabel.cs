@@ -5,8 +5,8 @@ using UnityEngine;
 namespace BelmontPractice;
 
 /// <summary>
-/// Versions du jeu et du mod, en haut à droite du menu principal.
-/// Toujours affiché hors jeu (aucune option pour le masquer) ; en jeu, le panneau latéral occupe ce coin.
+/// Versions du jeu et du mod, en haut à droite de l'écran, tout le temps (menu principal et en jeu) ;
+/// à gauche du panneau latéral quand celui-ci est ouvert.
 /// </summary>
 public static class VersionLabel
 {
@@ -14,7 +14,8 @@ public static class VersionLabel
     static bool builtWithGameFont;
     static float nextFontTry;
 
-    public static void Update(bool inGame)
+    /// <param name="panelOpen">Panneau latéral ouvert : l'encadré se décale à sa gauche pour rester visible.</param>
+    public static void Update(bool panelOpen)
     {
         try
         {
@@ -22,8 +23,10 @@ public static class VersionLabel
             // Polices du jeu : recherche au plus une fois par seconde (coûteuse)
             if (!GameFonts.Resolved && Time.unscaledTime >= nextFontTry) { nextFontTry = Time.unscaledTime + 1f; GameFonts.Resolve(); }
             if (text == null || (!builtWithGameFont && GameFonts.Body != null)) Build();
-            bool show = !inGame;
-            if (box.activeSelf != show) box.SetActive(show);
+            if (!box.activeSelf) box.SetActive(true);
+            var rt = box.GetComponent<RectTransform>();
+            var pos = new Vector2(panelOpen ? -(SidePanelView.PanelWidth + 14f) : -18f, -14f);
+            if (rt.anchoredPosition != pos) rt.anchoredPosition = pos;
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Version] " + ex.Message); }
     }

@@ -15,6 +15,7 @@ namespace BelmontPractice;
 public partial class SidePanelView
 {
     const float W = 470f, Pad = 14f, TabsH = 38f, BarH = 30f;
+    public const float PanelWidth = W;
     const int Cols = 5;
     const float Gap = 6f, TileH = 124f, IconSize = 58f;
 
@@ -392,6 +393,7 @@ public partial class SidePanelView
             y += CheatRowH;
         }
         Row("Infinite HP", "Health never drops below 1 and is refilled at once: you can't die", () => Cheats.InfiniteHealth, v => Cheats.InfiniteHealth = v);
+        Row("Lock HP", "Health is frozen at its value when you turn this on: hits take nothing off and you can't die. Overrides Infinite HP", () => Cheats.LockHealth, v => Cheats.LockHealth = v);
         Row("Infinite mana", "Mana stays full: cast spells as often as you want", () => Cheats.InfiniteMana, v => Cheats.InfiniteMana = v);
         Row("Infinite potions", "Healing potions are refilled right after you drink one", () => Cheats.InfinitePotions, v => Cheats.InfinitePotions = v);
         Row("Infinite jump", "Jump again in mid-air, as many times as you want", () => Cheats.InfiniteJump, v => Cheats.InfiniteJump = v);
