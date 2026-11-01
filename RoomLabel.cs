@@ -1,4 +1,5 @@
 using System;
+using System.Text.RegularExpressions;
 using TMPro;
 using UnityEngine;
 
@@ -35,9 +36,24 @@ public static class RoomLabel
             shownLevel = level;
             shownRoom = id;
             area.text = level.Length > 0 ? Arenas.AreaLabel(level) : "—";
-            room.text = id.Length > 0 ? id : "—";
+            room.text = id.Length > 0 ? ShortRoom(id) : "—";
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Salle] affichage : " + ex.Message); }
+    }
+
+    /// <summary>
+    /// Identifiant raccourci : « World_Biome_01_Streets_Poor_StreetsPoorV2_Room17_uid101 » → « StreetsPoorV2 - Room17 » (le
+    /// point médian n'existe pas dans la police du jeu). Sans « RoomNN » : préfixe World_Biome_NN_ et suffixe _uidNN retirés.
+    /// </summary>
+    static string ShortRoom(string id)
+    {
+        string s = Regex.Replace(id, @"_uid\d+$", "");
+        var parts = s.Split('_');
+        int r = Array.FindLastIndex(parts, p => Regex.IsMatch(p, @"^Room\d+$"));
+        if (r > 0) return parts[r - 1] + " - " + parts[r];
+        if (r == 0) return parts[0];
+        s = Regex.Replace(s, @"^World_Biome_\d+_", "").Replace('_', ' ');
+        return s.Length > 0 ? s : id;
     }
 
     static void Build()
@@ -46,19 +62,14 @@ public static class RoomLabel
         builtWithGameFont = GameFonts.Body != null;
         shownLevel = shownRoom = null;
 
-        // Même encadré que les versions (en haut à droite) : cadre doré, fond sombre, filet bordeaux à gauche
-        const float W = 440f, H = 62f; // plus large que les versions : les identifiants de salle sont longs
-        var fill = Ui.Frame(UiCanvas.Root.transform, "RoomBox", 0, 0, W, H, Theme.Gold, Theme.Bg);
-        var rt = fill.transform.parent.Cast<RectTransform>();
-        rt.anchorMin = new Vector2(1f, 0f);
-        rt.anchorMax = new Vector2(1f, 0f);
-        rt.pivot = new Vector2(1f, 0f);
+        // Même encadré que les versions (en haut à droite) : cadre de carte réduit
+        const float W = 380f, H = 72f;
+        var rt = CardFrame.SmallBox(UiCanvas.Root.transform, "RoomBox", W, H, new Vector2(1f, 0f), out var content);
         rt.anchoredPosition = new Vector2(-18f, 14f);
         box = rt.gameObject;
-        Ui.Image(fill.transform, "Accent", 0, 0, 4, H - 2, Theme.Crimson);
 
-        area = Ui.Text(fill.transform, "Area", 14, 5, W - 26, 26, GameFonts.Title, 17f, Theme.GoldText);
-        room = Ui.Text(fill.transform, "Room", 14, 31, W - 26, 24, GameFonts.Body, 17f, Theme.Text);
+        area = Ui.Text(content, "Area", 20, 12, W - 40, 24, GameFonts.Title, 17f, Theme.GoldText);
+        room = Ui.Text(content, "Room", 20, 37, W - 40, 24, GameFonts.Body, 17f, Theme.Text);
         room.enableAutoSizing = true; // identifiant trop long : rapetisse au lieu de déborder
         room.fontSizeMin = 11f;
         room.fontSizeMax = 17f;

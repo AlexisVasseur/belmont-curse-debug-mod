@@ -41,20 +41,15 @@ public static class VersionLabel
         string game = $"Castlevania: Belmont's Curse v{Application.version}";
         string mod = $"{Plugin.Name} v{Plugin.Version}";
 
-        // Encadré comme les fenêtres du mod : cadre doré, fond sombre, filet bordeaux à gauche
-        const float W = 360f, H = 62f;
-        var fill = Ui.Frame(UiCanvas.Root.transform, "VersionBox", 0, 0, W, H, Theme.Gold, Theme.Bg);
-        var rt = fill.transform.parent.Cast<RectTransform>();
-        rt.anchorMin = new Vector2(1f, 1f);
-        rt.anchorMax = new Vector2(1f, 1f);
-        rt.pivot = new Vector2(1f, 1f);
+        // Petit encadré au cadre de carte, comme les fenêtres du mod
+        const float W = 380f, H = 72f;
+        var rt = CardFrame.SmallBox(UiCanvas.Root.transform, "VersionBox", W, H, new Vector2(1f, 1f), out var content);
         rt.anchoredPosition = new Vector2(-18f, -14f);
         box = rt.gameObject;
-        Ui.Image(fill.transform, "Accent", 0, 0, 4, H - 2, Theme.Crimson);
 
-        var title = Ui.Text(fill.transform, "Game", 14, 5, W - 26, 26, GameFonts.Title, 17f, Theme.GoldText);
+        var title = Ui.Text(content, "Game", 20, 12, W - 40, 24, GameFonts.Title, 17f, Theme.GoldText);
         title.text = game;
-        text = Ui.Text(fill.transform, "Mod", 14, 31, W - 26, 24, GameFonts.Body, 17f, Theme.Text);
+        text = Ui.Text(content, "Mod", 20, 37, W - 40, 24, GameFonts.Body, 17f, Theme.Text);
         text.text = mod;
     }
 }

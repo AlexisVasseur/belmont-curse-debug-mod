@@ -55,10 +55,10 @@ public static class CardFrame
     /// Pose le cadre par-dessus le contenu du conteneur (à appeler en dernier). Bords droits étirés à partir de la colonne
     /// ou de la ligne qui touche les coins, pour un raccord sans couture. False si la texture manque.
     /// </summary>
-    public static bool Add(RectTransform container)
+    public static bool Add(RectTransform container, float scale = Scale)
     {
         if (Part(0, 0, Corner, Corner) == null) return false;
-        float s = Scale, c = Corner * s, e = Edge * s;
+        float s = scale, c = Corner * s, e = Edge * s;
         float nw = 77 * s, nh = 34 * s, sw = 36 * s, sh = 68 * s;
         Vector2 V(float x, float y) => new(x, y);
         // Bords droits (1 px pris juste après le coin), puis pointes et coins par-dessus
@@ -82,7 +82,7 @@ public static class CardFrame
     /// pas entre l'arc des coins et le bord. outset : débord sur le parent (fond décalé de 1 px dans le cadre). À créer avant
     /// le contenu, dans le fond, pour être dessiné dessous. Null si la texture manque (les fonds se posent alors directement).
     /// </summary>
-    public static RectTransform Clip(Transform parent, float outset = 0f)
+    public static RectTransform Clip(Transform parent, float outset = 0f, float scale = Scale)
     {
         var inner = GameSprites.Icon(InnerTex, new Vector4(Corner, Corner, Corner, Corner));
         if (inner == null) return null;
@@ -96,9 +96,36 @@ public static class CardFrame
         var img = go.AddComponent<Image>();
         img.sprite = inner;
         img.type = Image.Type.Sliced;
-        img.pixelsPerUnitMultiplier = 1f / Scale;
+        img.pixelsPerUnitMultiplier = 1f / scale;
         img.raycastTarget = false;
         go.AddComponent<Mask>().showMaskGraphic = false;
         return rt;
+    }
+
+    /// <summary>Échelle du cadre des petits encadrés (versions, salle) : coins de 23 px.</summary>
+    public const float SmallScale = 0.18f;
+
+    /// <summary>
+    /// Petit encadré accroché à un coin de l'écran (anchor : coin, ex. (1, 1) = en haut à droite) : fond sombre découpé à la
+    /// forme du cadre, cadre de carte réduit par-dessus. Le contenu se place dans « content » (repère du haut à gauche), créé
+    /// avant le cadre pour passer dessous. Sans les textures : ancien encadré à filet doré.
+    /// </summary>
+    public static RectTransform SmallBox(Transform parent, string name, float w, float h, Vector2 anchor, out RectTransform content)
+    {
+        var box = Ui.Rect(parent, name, 0, 0, w, h);
+        box.anchorMin = anchor;
+        box.anchorMax = anchor;
+        box.pivot = anchor;
+        var clip = Clip(box, 0f, SmallScale);
+        if (clip == null)
+        {
+            content = Ui.Frame(box, "Frame", 0, 0, w, h, Theme.Gold, Theme.Bg).rectTransform;
+            return box;
+        }
+        var bg = Ui.Image(clip, "Bg", 0, 0, w, h, Theme.Bg);
+        bg.raycastTarget = false;
+        content = Ui.Rect(box, "Content", 0, 0, w, h);
+        Add(box, SmallScale);
+        return box;
     }
 }
