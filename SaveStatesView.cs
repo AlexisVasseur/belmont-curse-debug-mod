@@ -28,7 +28,10 @@ public class SaveStatesView
     readonly List<(UiButton btn, float x, float y, float w, float h)> buttons = new();
 
     TextMeshProUGUI quickName, pageLabel, pageConfirm, toastText;
-    UiButton removePage, addPage, pageYes, pageNo, fullReload;
+    UiButton removePage, addPage, pageYes, pageNo;
+    UiCheck fullCheck;
+    TextMeshProUGUI fullLabel;
+    Rect fullHit;
     float toastUntil;
     const float ToastW = 640f, ToastH = 54f;
     // Message : apparaît d'un coup, s'efface en fondu
@@ -144,12 +147,15 @@ public class SaveStatesView
 
         removePage = Button(right - 88, pby, 88, 26, "Del page", t, 14f, () => p.RemovePage());
         addPage = Button(right - 88 - 8 - 80, pby, 80, 26, "+ Page", t, 14f, () => { p.AddPage(); p.Notify?.Invoke($"Page {p.CurrentPage + 1} added", false); });
-        // Rechargement complet forcé = chargement rapide coupé (même option que « Fast load » dans Keybinds)
-        fullReload = Button(right - 88 - 8 - 80 - 8 - 150, pby, 150, 26, "Full reload: Off", t, 14f, () =>
-        {
-            Plugin.FastLoad.Value = !Plugin.FastLoad.Value;
-            p.Notify?.Invoke(Plugin.FastLoad.Value ? "Full reload: off (fast load in the same level)" : "Full reload: on (every load reloads the whole level)", false);
-        });
+        // Rechargement complet forcé = chargement rapide coupé (option Chargement/Rapide de la config) : case + libellé cliquables
+        const float fs = 24f;
+        fullLabel = Ui.Text(fill, "FullReloadLabel", 0, py, 160, PagesH, t, 16f, Theme.GoldLabel);
+        fullLabel.text = "Full reload";
+        fullLabel.margin = new Vector4(0f, 2f, 0f, 0f); // la ligne de base des polices du jeu tombe bas
+        float flw = Mathf.Ceil(fullLabel.preferredWidth) + 2f;
+        fullHit = new Rect(right - 88 - 8 - 80 - 20 - (fs + 8f + flw), py, fs + 8f + flw, PagesH);
+        fullCheck = UiCheck.Create(fill, "FullReloadCheck", fullHit.x, py + (PagesH - fs) / 2f, fs);
+        Ui.Place(fullLabel.rectTransform, fullHit.x + fs + 8f, py, flw, PagesH);
         pageNo = Button(right - 56, pby, 56, 26, "No", t, 15f, () => p.ConfirmNo());
         pageYes = Button(right - 56 - 6 - 56, pby, 56, 26, "Yes", t, 15f, () => p.ConfirmYes());
         pageConfirm = Ui.Text(fill, "PageConfirm", right - 118 - 10 - 150, py, 150, PagesH, t, 15f, Theme.Red, TextAlignmentOptions.MidlineRight);
@@ -313,16 +319,17 @@ public class SaveStatesView
         Ui.SetText(pageLabel, $"Page {p.CurrentPage + 1} / {SlotStore.PageCount}");
         Ui.SetActive(removePage.Rt, !pageConfirmActive);
         Ui.SetActive(addPage.Rt, !pageConfirmActive);
-        Ui.SetActive(fullReload.Rt, !pageConfirmActive);
-        bool full = !Plugin.FastLoad.Value;
-        Ui.SetText(fullReload.Label, full ? "Full reload: On" : "Full reload: Off");
-        fullReload.BaseColor = full ? Theme.Crimson : fullReload.Skinned ? Skin.ButtonIdle : Theme.BgButton;
-        fullReload.LabelColor = full ? Theme.GoldText : fullReload.Skinned ? Skin.ButtonText : Theme.KeyText;
         Ui.SetActive(pageConfirm, pageConfirmActive);
         Ui.SetActive(pageYes.Rt, pageConfirmActive);
         Ui.SetActive(pageNo.Rt, pageConfirmActive);
 
         GetMouse(out float mx, out float my, out bool hasMouse);
+
+        Ui.SetActive(fullCheck.Rt, !pageConfirmActive);
+        Ui.SetActive(fullLabel, !pageConfirmActive);
+        bool full = !Plugin.FastLoad.Value, fullHover = hasMouse && fullHit.Contains(new Vector2(mx, my));
+        fullCheck.Set(full, fullHover);
+        fullLabel.color = fullHover ? Theme.TextSelected : full ? Theme.GoldText : Theme.GoldLabel;
 
         for (int i = 0; i < Rows; i++)
         {
@@ -471,6 +478,12 @@ public class SaveStatesView
                 try { btn.OnClick?.Invoke(); }
                 catch (Exception ex) { Plugin.Logger.LogError("[Interface] " + ex); }
             }
+        }
+        if (click && !handled && p.Confirm != ConfirmKind.RemovePage && fullHit.Contains(new Vector2(mx, my)))
+        {
+            handled = true;
+            Plugin.FastLoad.Value = !Plugin.FastLoad.Value;
+            p.Notify?.Invoke(Plugin.FastLoad.Value ? "Full reload: off (fast load in the same level)" : "Full reload: on (every load reloads the whole level)", false);
         }
         // Touches + action (quickslot, pages, pied de page) : survol = touche éclairée, clic = l'action
         foreach (var k in keyHits)

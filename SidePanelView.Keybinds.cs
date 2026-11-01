@@ -21,6 +21,7 @@ public partial class SidePanelView
         public Option option;       // option activée / désactivée (null pour un raccourci)
         public Image highlight, chipFill;
         public TextMeshProUGUI name, chip;
+        public UiCheck check;       // case des options (à la place de la pastille)
         public float y;
     }
     readonly List<KeyRowUi> keyRows = new();
@@ -41,10 +42,9 @@ public partial class SidePanelView
             "Lets the fast-forward shortcut (F7 / gamepad Y) speed up cutscenes. Off: the shortcut does nothing and a fast-forward in progress stops."),
         new("Short boss intro", () => Plugin.BossShortIntro,
             "Fight: the boss arrives with the short intro the game plays after a defeat, instead of its full entrance cutscene."),
-        new("Fast load", () => Plugin.FastLoad,
-            "In the same level, savestates load in place without a loading screen (a full load is still used when needed)."),
+        // Chargement rapide : interrupteur « Full reload » de la fenêtre Savestates
         new("Reload room", () => Plugin.ReloadRoom,
-            "Fast load: the room is reloaded too, so its enemies and objects are reset."),
+            "Fast load (Full reload unchecked in the Savestates window): the room is reloaded too, so its enemies and objects are reset."),
         new("Room name", () => Plugin.ShowRoomName,
             "Shows the area and the room id in the bottom-right corner of the screen while playing."),
     };
@@ -64,8 +64,13 @@ public partial class SidePanelView
             Ui.Image(fill, "KeyLine" + name, 12, y + KeyRowH - 1, iw - 24, 1, Theme.Line);
             r.name = Ui.Text(fill, "KeyName" + name, Pad + 4, y, iw - Pad * 2 - ChipW - 12, KeyRowH, GameFonts.Title, 18f, Theme.Text);
             r.name.text = name;
-            r.chipFill = Ui.Frame(fill, "KeyChip" + name, iw - Pad - ChipW - 4, y + (KeyRowH - 28) / 2f, ChipW, 26, Theme.Gold, Theme.BgButton);
-            r.chip = Ui.Label(r.chipFill.transform, "Text", 0, 0, ChipW - 2, 26, GameFonts.Title, 15f, Theme.KeyText);
+            if (option != null)
+                r.check = UiCheck.Create(fill, "KeyCheck" + name, iw - Pad - 4 - CheckSize, y + (KeyRowH - CheckSize) / 2f, CheckSize);
+            else
+            {
+                r.chipFill = Ui.Frame(fill, "KeyChip" + name, iw - Pad - ChipW - 4, y + (KeyRowH - 28) / 2f, ChipW, 26, Theme.Gold, Theme.BgButton);
+                r.chip = Ui.Label(r.chipFill.transform, "Text", 0, 0, ChipW - 2, 26, GameFonts.Title, 15f, Theme.KeyText);
+            }
             keyRows.Add(r);
             y += KeyRowH;
         }
@@ -135,7 +140,7 @@ public partial class SidePanelView
         // Clic ailleurs pendant la saisie : annule
         if (Keybinds.Capturing != null && click) Keybinds.Capturing = null;
 
-        string title = "Keybinds", text = "Options: click to switch on / off. Shortcuts: click one, then press the new key. Backspace: no key. Esc: cancel. Right-click: back to default. Changes are saved at once.";
+        string title = "Keybinds", text = "Options: click to check / uncheck. Shortcuts: click one, then press the new key. Backspace: no key. Esc: cancel. Right-click: back to default. Changes are saved at once.";
 
         foreach (var (btn, x, y, w, h) in keyButtons)
         {
@@ -157,12 +162,10 @@ public partial class SidePanelView
             {
                 var entry = r.option.Entry();
                 bool on = entry?.Value ?? false;
-                chip = on ? "On" : "Off";
-                custom = entry != null && on != (bool)entry.DefaultValue;
                 if (hover)
                 {
                     title = r.option.Name;
-                    text = $"{r.option.Help}  Default: {(entry != null && (bool)entry.DefaultValue ? "On" : "Off")}.  Click: switch on / off. Right-click: default.";
+                    text = $"{r.option.Help}  Default: {(entry != null && (bool)entry.DefaultValue ? "checked" : "unchecked")}.  Click: check / uncheck. Right-click: default.";
                 }
                 if (entry != null && hover && (click || rightClick) && !handled)
                 {
@@ -170,7 +173,11 @@ public partial class SidePanelView
                     Keybinds.Capturing = null;
                     entry.Value = click ? !on : (bool)entry.DefaultValue;
                     Notify?.Invoke($"{r.option.Name}: {(entry.Value ? "on" : "off")}", false);
+                    on = entry.Value;
                 }
+                r.check.Set(on, hover);
+                r.name.color = on ? Theme.GoldText : Theme.Text;
+                continue;
             }
             else if (r.bind == null)
             {
@@ -209,7 +216,7 @@ public partial class SidePanelView
             }
 
             Ui.SetText(r.chip, chip);
-            r.chip.color = capturing ? Theme.GoldText : chip == "—" || (r.option != null && chip == "Off") ? Theme.TextDim : Theme.KeyText;
+            r.chip.color = capturing ? Theme.GoldText : chip == "—" ? Theme.TextDim : Theme.KeyText;
             r.chipFill.color = capturing ? Theme.Crimson : Theme.BgButton;
             Ui.SetBorder(r.chipFill, capturing ? Theme.GoldText : custom ? Theme.GoldBright : Theme.Gold);
             r.name.color = capturing ? Theme.GoldText : custom ? Theme.GoldLabel : Theme.Text;

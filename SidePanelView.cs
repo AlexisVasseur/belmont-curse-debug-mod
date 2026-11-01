@@ -262,7 +262,7 @@ public partial class SidePanelView
         public Func<bool> get;
         public Action<bool> set;
         public Image highlight;
-        public UiButton pill;
+        public UiCheck check;
         public TextMeshProUGUI label;
         public float y;
     }
@@ -346,7 +346,10 @@ public partial class SidePanelView
     }
     const float CheatRowH = 42f;
 
-    /// <summary>Ligne On / Off (nom à gauche, pastille à droite), toute la ligne est cliquable.</summary>
+    /// <summary>Taille des cases à cocher du panneau latéral.</summary>
+    const float CheckSize = 28f;
+
+    /// <summary>Ligne à cocher (nom à gauche, case à droite), toute la ligne est cliquable.</summary>
     CheatUi CheatRow(string name, string desc, Func<bool> get, Action<bool> set, float y)
     {
         float iw = W - 1;
@@ -355,21 +358,17 @@ public partial class SidePanelView
         Ui.Image(fill, "CheatLine" + name, 12, y + CheatRowH - 1, iw - 24, 1, Theme.Line);
         r.label = Ui.Text(fill, "CheatName" + name, Pad + 4, y, iw - Pad * 2 - 90, CheatRowH, GameFonts.Title, 19f, Theme.Text);
         r.label.text = name;
-        r.pill = UiButton.CreateSkinned(fill, "CheatPill" + name, iw - Pad - 76, y + (CheatRowH - 30) / 2f, 70, 30, "", GameFonts.Title, 15f, null);
+        r.check = UiCheck.Create(fill, "CheatCheck" + name, iw - Pad - 4 - CheckSize, y + (CheatRowH - CheckSize) / 2f, CheckSize);
         return r;
     }
 
-    /// <summary>Affiche l'état d'une ligne On / Off et la bascule au clic. True si la ligne est survolée.</summary>
+    /// <summary>Affiche l'état d'une ligne à cocher et la bascule au clic. True si la ligne est survolée.</summary>
     bool UpdateCheatRow(CheatUi r, bool hasMouse, float mx, float my, bool click, ref bool handled)
     {
         bool on = r.get();
         bool hover = hasMouse && my >= r.y && my < r.y + CheatRowH && mx >= 12 && mx < W - 14;
         Ui.SetActive(r.highlight, hover);
-        Ui.SetText(r.pill.Label, on ? "On" : "Off");
-        r.pill.BaseColor = on ? Theme.Crimson : r.pill.Skinned ? Skin.ButtonIdle : Theme.BgButton;
-        r.pill.LabelColor = on ? Theme.GoldText : Theme.TextDim;
-        r.pill.SetHover(false);
-        if (!r.pill.Skinned) Ui.SetBorder(r.pill.Fill, on ? Theme.GoldBright : Theme.Gold);
+        r.check.Set(on, hover);
         r.label.color = on ? Theme.GoldText : Theme.Text;
         if (click && hover && !handled)
         {

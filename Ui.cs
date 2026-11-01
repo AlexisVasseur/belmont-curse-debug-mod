@@ -293,3 +293,43 @@ public class UiButton
         if (OrnamentL != null && OrnamentL.activeSelf != orn) { OrnamentL.SetActive(orn); OrnamentR.SetActive(orn); }
     }
 }
+
+/// <summary>
+/// Case à cocher des options du jeu (V-Sync…) : fond sombre, cadre au pinceau, coche. Sans les icônes : cadre à filet et
+/// carré plein.
+/// </summary>
+public class UiCheck
+{
+    public RectTransform Rt;
+    Image frame, mark;
+
+    public static UiCheck Create(Transform parent, string name, float x, float y, float size)
+    {
+        var c = new UiCheck { Rt = Ui.Rect(parent, name, x, y, size, size) };
+        var box = GameSprites.Icon("ui_check_box");
+        var tick = GameSprites.Icon("ui_check_mark");
+        if (box != null && tick != null)
+        {
+            Ui.Image(c.Rt, "Back", 2f, 2f, size - 4f, size - 4f, Theme.Hex(0x0b0806, 0.9f));
+            c.frame = Skin.Sprite(c.Rt, "Frame", 0f, 0f, size, size, box, Theme.Gold);
+            float m = Mathf.Round(size * 0.12f);
+            c.mark = Skin.Sprite(c.Rt, "Mark", m, m, size - 2f * m, size - 2f * m, tick, Skin.ButtonText);
+        }
+        else
+        {
+            c.frame = Ui.Image(c.Rt, "Frame", 0f, 0f, size, size, Theme.Gold);
+            Ui.Image(c.Rt, "Back", 1f, 1f, size - 2f, size - 2f, Theme.BgSolid);
+            float m = Mathf.Round(size * 0.28f);
+            c.mark = Ui.Image(c.Rt, "Mark", m, m, size - 2f * m, size - 2f * m, Skin.ButtonText);
+        }
+        return c;
+    }
+
+    /// <summary>Coche selon on ; cadre éclairé au survol de la ligne.</summary>
+    public void Set(bool on, bool hover)
+    {
+        Ui.SetActive(mark, on);
+        var c = hover ? Theme.GoldText : on ? Theme.GoldLabel : Theme.Gold;
+        if (!Theme.Same(frame.color, c)) frame.color = c;
+    }
+}
