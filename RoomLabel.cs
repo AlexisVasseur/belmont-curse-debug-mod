@@ -7,25 +7,32 @@ namespace BelmontPractice;
 
 /// <summary>
 /// Nom de la salle en bas à droite de l'écran, en jeu (option « Room name ») : la zone du jeu en titre, l'identifiant
-/// de la salle dessous (celui des savestates et des arènes).
+/// de la salle dessous (celui des savestates et des arènes). Masqué pendant les chargements et les cinématiques, il
+/// réapparaît en fondu quand le joueur reprend la main.
 /// </summary>
 public static class RoomLabel
 {
     static GameObject box;
     static TextMeshProUGUI area, room;
     static bool builtWithGameFont;
-    static float nextRefresh;
+    static float nextRefresh, controlSince = -1f;
     static string shownLevel, shownRoom;
+    static readonly Fade fade = new(0.4f, 0f);
+    // Main rendue depuis ce délai avant de réapparaître : pas de clignotement entre deux transitions rapprochées
+    const float ControlDelay = 0.3f;
 
+    /// <param name="controllable">Le joueur a la main (hors chargement, transition de salle et cinématique).</param>
     /// <param name="panelOpen">Panneau latéral ouvert : l'encadré se décale à sa gauche pour rester visible.</param>
-    public static void Update(bool inGame, bool panelOpen)
+    public static void Update(bool inGame, bool controllable, bool panelOpen)
     {
         try
         {
             bool show = inGame && Plugin.ShowRoomName.Value;
-            if (!show) { if (box != null && box.activeSelf) box.SetActive(false); return; }
+            if (!show || !controllable) { fade.Out(box); controlSince = -1f; return; }
+            if (controlSince < 0f) controlSince = Time.unscaledTime;
+            if (Time.unscaledTime - controlSince < ControlDelay) return;
             if (box == null || (!builtWithGameFont && GameFonts.Body != null)) Build();
-            if (!box.activeSelf) box.SetActive(true);
+            fade.In(box);
             var rt = box.GetComponent<RectTransform>();
             var pos = new Vector2(panelOpen ? -(SidePanelView.PanelWidth + 14f) : -18f, 14f);
             if (rt.anchoredPosition != pos) rt.anchoredPosition = pos;

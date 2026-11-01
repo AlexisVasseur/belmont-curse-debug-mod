@@ -210,6 +210,13 @@ public static class GameBridge
         catch { return false; }
     }
 
+    /// <summary>Changement ou rechargement de salle en cours (chargement, fondu de transition).</summary>
+    public static bool RoomLoading()
+    {
+        try { return RoomManagerSystem.IsLoadingNextRoom || RoomReloadInProgress || RoomTransitionHudActive(); }
+        catch { return false; }
+    }
+
     /// <summary>L'UI des potions n'écoute que des événements : on lui renvoie un événement d'initialisation.</summary>
     static void RefreshPotionUI(Entity entity)
     {

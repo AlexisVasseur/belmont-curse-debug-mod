@@ -5,8 +5,8 @@ using UnityEngine;
 namespace BelmontPractice;
 
 /// <summary>
-/// Versions du jeu et du mod, en haut à droite de l'écran : dans les menus et quand le panneau latéral est ouvert
-/// (à sa gauche), masquées pendant le jeu.
+/// Versions du jeu et du mod, en haut à droite de l'écran : dans les menus, pendant les chargements et quand le panneau
+/// latéral est ouvert (à sa gauche), masquées pendant le jeu.
 /// </summary>
 public static class VersionLabel
 {
@@ -14,15 +14,16 @@ public static class VersionLabel
     static bool builtWithGameFont;
     static float nextFontTry;
 
+    /// <param name="playing">En jeu, hors chargement : encadré masqué (sauf panneau ouvert).</param>
     /// <param name="panelOpen">Panneau latéral ouvert : l'encadré se décale à sa gauche pour rester visible.</param>
-    public static void Update(bool inGame, bool panelOpen)
+    public static void Update(bool playing, bool panelOpen)
     {
         try
         {
             UiCanvas.Ensure();
             // Polices du jeu : recherche au plus une fois par seconde (coûteuse)
             if (!GameFonts.Resolved && Time.unscaledTime >= nextFontTry) { nextFontTry = Time.unscaledTime + 1f; GameFonts.Resolve(); }
-            if (inGame && !panelOpen) { if (box != null && box.activeSelf) box.SetActive(false); return; }
+            if (playing && !panelOpen) { if (box != null && box.activeSelf) box.SetActive(false); return; }
             if (text == null || (!builtWithGameFont && GameFonts.Body != null)) Build();
             if (!box.activeSelf) box.SetActive(true);
             var rt = box.GetComponent<RectTransform>();
@@ -47,6 +48,10 @@ public static class VersionLabel
         var rt = CardFrame.SmallBox(UiCanvas.Root.transform, "VersionBox", W, H, new Vector2(1f, 1f), out var content);
         rt.anchoredPosition = new Vector2(-18f, -14f);
         box = rt.gameObject;
+        // Au-dessus de l'écran noir des chargements (FadeOverlay) et des écrans de chargement du jeu
+        var layer = box.AddComponent<Canvas>();
+        layer.overrideSorting = true;
+        layer.sortingOrder = short.MaxValue;
 
         var title = Ui.Text(content, "Game", 20, 12, W - 40, 24, GameFonts.Title, 17f, Theme.GoldText);
         title.text = game;

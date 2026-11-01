@@ -57,8 +57,10 @@ public class PracticeBehaviour : MonoBehaviour
         // Le mod n'est utilisable qu'en jeu (personnage chargé, hors chargement) :
         // l'ouvrir au menu principal ou pendant un chargement pouvait faire planter le jeu.
         bool inGame = sequence.Active || IsInGame();
-        VersionLabel.Update(inGame, inGame && panel.Visible);
-        RoomLabel.Update(inGame, inGame && panel.Visible);
+        // Versions : affichées aussi pendant les chargements du mod (au-dessus de l'écran noir)
+        VersionLabel.Update(inGame && !sequence.Active, inGame && panel.Visible);
+        bool controllable = inGame && !sequence.Active && !GameBridge.RoomLoading() && !FastForward.CutscenePlaying();
+        RoomLabel.Update(inGame, controllable, inGame && panel.Visible);
         if (!inGame)
         {
             panel.Visible = false;

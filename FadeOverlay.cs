@@ -26,7 +26,7 @@ public static class FadeOverlay
             UnityEngine.Object.DontDestroyOnLoad(root);
             var canvas = root.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = short.MaxValue; // au-dessus de toutes les interfaces du jeu
+            canvas.sortingOrder = short.MaxValue - 1; // au-dessus de toutes les interfaces du jeu ; seules les versions du mod passent devant
 
             var child = new GameObject("Noir");
             child.transform.SetParent(root.transform, false);
