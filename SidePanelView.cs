@@ -240,7 +240,7 @@ public partial class SidePanelView
             StyleTab(tabButtons[i], pages[i], (int)tab == i, over);
         }
         if (tab != Tab.Keybinds) Keybinds.Capturing = null; // onglet quitté pendant la saisie d'une touche
-        if (tab != Tab.General) levelTyping = false; // … ou du niveau
+        if (tab != Tab.General) editField = null; // … ou d'un nombre (niveau, Attack+, Defense+)
     }
 
     /// <summary>Onglet actif : fond bordeaux et volutes dorées ; les autres : fond sombre, sans volutes.</summary>
@@ -500,10 +500,11 @@ public partial class SidePanelView
     float BuildUpgrades(float y)
     {
         upgradeRows.Clear();
+        numFields.Clear();
         float iw = W - 1, right = iw - Pad;
         y = SectionTitle("Upgrades", y);
 
-        // Livres : icône, nom, puis « −  valeur  + » à droite
+        // Livres : icône, nom, puis « −  valeur  + » à droite (valeur cliquable : saisie du nombre exact)
         void BookRow(Upgrades.Kind kind)
         {
             var r = new UpgradeUi { kind = kind };
@@ -512,13 +513,15 @@ public partial class SidePanelView
             Ui.Text(fill, "UpgName" + kind, Pad + 46, y, 180, BookRowH, GameFonts.Title, 19f, Theme.Text).text = Upgrades.Label(kind);
             float by = y + (BookRowH - 28) / 2f;
             Button(right - 34, by, 34, 28, "+", GameFonts.Title, 18f, () => ChangeUpgrade(kind, +1), kind.ToString());
-            r.value = Ui.Label(fill, "UpgVal" + kind, right - 34 - 6 - 56, by, 56, 28, GameFonts.Numbers, 22f, Theme.GoldText);
+            NumberField(kind.ToString(), right - 34 - 6 - 56, by, 0,
+                () => Upgrades.Known ? Upgrades.Get(kind) : -1, v => Upgrades.Change(kind, v - Upgrades.Get(kind)));
             Button(right - 34 - 6 - 56 - 6 - 34, by, 34, 28, "-", GameFonts.Title, 18f, () => ChangeUpgrade(kind, -1), kind.ToString());
             Ui.Image(fill, "UpgLine" + kind, 12, y + BookRowH - 1, iw - 24, 1, Theme.Line);
             upgradeRows.Add(r);
-            Help(y, BookRowH, Upgrades.Label(kind), kind == Upgrades.Kind.Attack
-                ? "Attack upgrades, given by the red Attack books found in the castle. - / + remove or add one."
-                : "Defense upgrades, given by the blue Defense books found in the castle. - / + remove or add one.");
+            Help(y, BookRowH, Upgrades.Label(kind), (kind == Upgrades.Kind.Attack
+                ? "Attack upgrades, given by the red Attack books found in the castle."
+                : "Defense upgrades, given by the blue Defense books found in the castle.")
+                + " Click the number to type the exact count (Enter: apply, Esc: cancel). - / + remove or add one.");
             y += BookRowH;
         }
 
@@ -568,10 +571,7 @@ public partial class SidePanelView
             Button(right - 44, by, 44, 28, "+10", GameFonts.Title, 15f, () => ChangeLevel(+10), "Level");
             Button(right - 44 - 6 - 34, by, 34, 28, "+", GameFonts.Title, 18f, () => ChangeLevel(+1), "Level");
             // Valeur cliquable : champ de saisie du niveau exact
-            var field = Button(right - 44 - 6 - 34 - 6 - 56, by, 56, 28, "", GameFonts.Numbers, 22f, StartLevelEdit, "Level");
-            if (field.Skinned) { field.OrnamentL = field.OrnamentR = null; }
-            field.LabelColor = Theme.GoldText;
-            levelValue = field.Label;
+            NumberField("Level", right - 44 - 6 - 34 - 6 - 56, by, Upgrades.MinLevel, () => Upgrades.ReadLevel(), Upgrades.SetLevel);
             Button(right - 44 - 6 - 34 - 6 - 56 - 6 - 34, by, 34, 28, "-", GameFonts.Title, 18f, () => ChangeLevel(-1), "Level");
             Button(right - 44 - 6 - 34 - 6 - 56 - 6 - 34 - 6 - 44, by, 44, 28, "-10", GameFonts.Title, 15f, () => ChangeLevel(-10), "Level");
             Ui.Image(fill, "LevelLine", 12, y + BookRowH - 1, iw - 24, 1, Theme.Line);
@@ -585,79 +585,136 @@ public partial class SidePanelView
         return y;
     }
 
-    void ChangeUpgrade(Upgrades.Kind kind, int delta) => Notify?.Invoke(Upgrades.Change(kind, delta), false);
+    void ChangeUpgrade(Upgrades.Kind kind, int delta)
+    {
+        editField = null;
+        Notify?.Invoke(Upgrades.Change(kind, delta), false);
+        nextFieldRead = 0f;
+    }
 
-    TextMeshProUGUI levelValue;
-    float nextLevelRead;
+    /// <summary>Valeur saisissable (niveau, Attack+, Defense+) : cadre des touches du jeu, clic = saisie du nombre exact.</summary>
+    class NumField
+    {
+        public string id;
+        public int min;
+        public Func<int> read;           // valeur actuelle, négative si indisponible (pas de partie chargée)
+        public Func<int, string> apply;  // applique la valeur saisie, retourne le message
+        public Image frame;
+        public TextMeshProUGUI text;
+        public Rect hit;
+    }
+    readonly List<NumField> numFields = new();
+    const float FieldW = 56f, FieldH = 28f;
+    float nextFieldRead;
 
-    // Saisie du niveau exact (clic sur la valeur)
-    static bool levelTyping;
-    string levelText = "";
-    int levelEditFrame;
+    // Saisie en cours (un seul champ à la fois)
+    static NumField editField;
+    string editText = "";
+    int editFrame;
 
-    /// <summary>Niveau en cours de saisie : clavier coupé pour le jeu et pour les raccourcis du mod.</summary>
-    public static bool Typing => levelTyping;
+    /// <summary>Nombre en cours de saisie : clavier coupé pour le jeu et pour les raccourcis du mod.</summary>
+    public static bool Typing => editField != null;
+
+    void NumberField(string id, float x, float y, int min, Func<int> read, Func<int, string> apply)
+    {
+        var f = new NumField { id = id, min = min, read = read, apply = apply, hit = new Rect(x, y, FieldW, FieldH) };
+        var sprite = GameSprites.Icon("ui_key_frame", new Vector4(40, 40, 40, 40));
+        f.frame = sprite != null ? Skin.Sliced(fill, "Field" + id, x, y, FieldW, FieldH, sprite, Color.white, 4f)
+            : Ui.Image(fill, "Field" + id, x, y, FieldW, FieldH, Theme.BgSolid);
+        f.text = Ui.Label(fill, "FieldText" + id, x, y, FieldW, FieldH, GameFonts.Numbers, 20f, Theme.GoldText);
+        f.text.margin = new Vector4(0f, 0f, 0f, 5f); // chiffres remontés : ils touchaient le bas du cadre
+        numFields.Add(f);
+    }
 
     void ChangeLevel(int delta)
     {
-        levelTyping = false;
+        editField = null;
         int cur = Upgrades.ReadLevel();
         if (cur <= 0) { Notify?.Invoke("Unavailable (load a game first)", true); return; }
         Notify?.Invoke(Upgrades.SetLevel(cur + delta), false);
+        nextFieldRead = 0f;
     }
 
-    void StartLevelEdit()
+    void StartEdit(NumField f)
     {
-        if (Upgrades.ReadLevel() <= 0) { Notify?.Invoke("Unavailable (load a game first)", true); return; }
-        levelTyping = true;
-        levelText = "";
-        levelEditFrame = Time.frameCount;
+        if (f.read() < 0 || (f.min > 0 && f.read() == 0)) { Notify?.Invoke("Unavailable (load a game first)", true); return; }
+        editField = f;
+        editText = "";
+        editFrame = Time.frameCount;
     }
 
-    void CommitLevelEdit()
+    void CommitEdit()
     {
-        levelTyping = false;
-        if (levelText.Length == 0) return; // rien tapé : niveau inchangé
-        Notify?.Invoke(Upgrades.SetLevel(int.Parse(levelText)), false);
-        nextLevelRead = 0f;
+        var f = editField;
+        editField = null;
+        nextFieldRead = 0f;
+        if (f == null || editText.Length == 0) return; // rien tapé : valeur inchangée
+        Notify?.Invoke(f.apply(int.Parse(editText)), false);
     }
 
-    /// <summary>Chiffres (rangée du haut ou pavé), Retour arrière, Entrée (valide), Échap (annule), clic ailleurs (valide).</summary>
-    void UpdateLevelEdit(bool click)
+    /// <summary>
+    /// Chiffres (rangée du haut ou pavé), Retour arrière, Entrée (valide), Échap (annule), clic ailleurs que sur le champ
+    /// (valide). Deux chiffres au plus ; pas de zéro en tête.
+    /// </summary>
+    void UpdateEdit(bool click, bool onField)
     {
         var kb = UnityEngine.InputSystem.Keyboard.current;
         if (kb == null) return;
-        if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) { CommitLevelEdit(); return; }
-        if (kb.escapeKey.wasPressedThisFrame) { levelTyping = false; nextLevelRead = 0f; return; }
-        if (click && Time.frameCount != levelEditFrame) { CommitLevelEdit(); return; }
-        if (kb.backspaceKey.wasPressedThisFrame && levelText.Length > 0) levelText = levelText.Substring(0, levelText.Length - 1);
+        if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) { CommitEdit(); return; }
+        if (kb.escapeKey.wasPressedThisFrame) { editField = null; nextFieldRead = 0f; return; }
+        if (click && !onField && Time.frameCount != editFrame) { CommitEdit(); return; }
+        if (kb.backspaceKey.wasPressedThisFrame && editText.Length > 0) editText = editText.Substring(0, editText.Length - 1);
         for (int d = 0; d <= 9; d++)
         {
             // Dans l'enum, Digit0 vient APRÈS Digit9 (voir Keybinds.DigitPressed)
             var top = kb[d == 0 ? UnityEngine.InputSystem.Key.Digit0 : UnityEngine.InputSystem.Key.Digit1 + (d - 1)];
             var pad = kb[UnityEngine.InputSystem.Key.Numpad0 + d];
             if (!top.wasPressedThisFrame && !pad.wasPressedThisFrame) continue;
-            if (levelText.Length >= 2 || (levelText.Length == 0 && d == 0)) continue; // 1 à 99
-            levelText += d;
+            if (editText == "0") editText = "";
+            if (editText.Length >= 2 || (editText.Length == 0 && d == 0 && editField.min > 0)) continue;
+            editText += d;
         }
-        Ui.SetText(levelValue, levelText + ((Time.unscaledTime % 1f) < 0.5f ? "_" : " "));
+        Ui.SetText(editField.text, editText + ((Time.unscaledTime % 1f) < 0.5f ? "_" : " "));
+    }
+
+    void UpdateNumFields(bool hasMouse, float mx, float my, bool click, ref bool handled)
+    {
+        // Valeurs relues régulièrement (le niveau monte aussi en jouant)
+        bool read = Time.unscaledTime >= nextFieldRead;
+        if (read) nextFieldRead = Time.unscaledTime + 0.5f;
+        foreach (var f in numFields)
+        {
+            bool hover = hasMouse && f.hit.Contains(new Vector2(mx, my));
+            if (f == editField)
+            {
+                UpdateEdit(click, hover);
+                if (click && hover) handled = true;
+            }
+            else if (click && hover && !handled)
+            {
+                handled = true;
+                StartEdit(f);
+            }
+            bool typing = f == editField;
+            if (!typing && read)
+            {
+                int v = f.read();
+                Ui.SetText(f.text, v >= 0 && (f.min == 0 || v > 0) ? v.ToString() : "—");
+            }
+            var fc = typing ? Theme.Hex(0xffc890) : hover ? Theme.Hex(0xffe2b8) : Color.white;
+            if (!Theme.Same(f.frame.color, fc)) f.frame.color = fc;
+            f.text.color = typing || hover ? Theme.TextSelected : Theme.GoldText;
+        }
     }
 
     void UpdateUpgrades(bool hasMouse, float mx, float my, bool click, ref bool handled)
     {
-        if (levelTyping && levelValue != null) UpdateLevelEdit(click);
-        // Niveau relu régulièrement (il monte aussi en jouant)
-        else if (levelValue != null && Time.unscaledTime >= nextLevelRead)
-        {
-            nextLevelRead = Time.unscaledTime + 0.5f;
-            int lvl = Upgrades.ReadLevel();
-            Ui.SetText(levelValue, lvl > 0 ? lvl.ToString() : "—");
-        }
+        UpdateNumFields(hasMouse, mx, my, click, ref handled);
         foreach (var r in upgradeRows)
         {
             if (r.icon.sprite == null) r.icon.sprite = UpgradeIcon(r.kind);
             Ui.SetActive(r.icon, r.icon.sprite != null);
-            if (r.hearts.Count == 0) { Ui.SetText(r.value, Upgrades.Display(r.kind)); continue; }
+            if (r.hearts.Count == 0) continue; // livres : valeur dans leur champ de saisie
 
             int v = Upgrades.Get(r.kind);
             int full = v / Upgrades.FragmentsPerHeart, frags = v % Upgrades.FragmentsPerHeart;
@@ -1120,7 +1177,7 @@ public partial class SidePanelView
 
     public void Update(bool visible)
     {
-        if (!visible) { fade.Out(panel); wasVisible = false; Keybinds.Capturing = null; levelTyping = false; return; }
+        if (!visible) { fade.Out(panel); wasVisible = false; Keybinds.Capturing = null; editField = null; return; }
         // À l'ouverture : relit les améliorations (Attack+, cœurs…)
         if (!wasVisible) { wasVisible = true; Upgrades.Refresh(true); }
 
