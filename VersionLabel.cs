@@ -5,8 +5,8 @@ using UnityEngine;
 namespace BelmontPractice;
 
 /// <summary>
-/// Versions du jeu et du mod, en haut à droite de l'écran : dans les menus, pendant les chargements et quand le panneau
-/// latéral est ouvert (à sa gauche), masquées pendant le jeu.
+/// Versions du jeu et du mod, en haut à droite de l'écran : dans les menus et pendant les chargements, masquées en jeu
+/// (fenêtres F1 ouvertes comprises).
 /// </summary>
 public static class VersionLabel
 {
@@ -14,21 +14,17 @@ public static class VersionLabel
     static bool builtWithGameFont;
     static float nextFontTry;
 
-    /// <param name="playing">En jeu, hors chargement : encadré masqué (sauf panneau ouvert).</param>
-    /// <param name="panelOpen">Panneau latéral ouvert : l'encadré se décale à sa gauche pour rester visible.</param>
-    public static void Update(bool playing, bool panelOpen)
+    /// <param name="playing">En jeu, hors chargement : encadré masqué.</param>
+    public static void Update(bool playing)
     {
         try
         {
             UiCanvas.Ensure();
             // Polices du jeu : recherche au plus une fois par seconde (coûteuse)
             if (!GameFonts.Resolved && Time.unscaledTime >= nextFontTry) { nextFontTry = Time.unscaledTime + 1f; GameFonts.Resolve(); }
-            if (playing && !panelOpen) { if (box != null && box.activeSelf) box.SetActive(false); return; }
+            if (playing) { if (box != null && box.activeSelf) box.SetActive(false); return; }
             if (text == null || (!builtWithGameFont && GameFonts.Body != null)) Build();
             if (!box.activeSelf) box.SetActive(true);
-            var rt = box.GetComponent<RectTransform>();
-            var pos = new Vector2(panelOpen ? -(SidePanelView.PanelWidth + 14f) : -18f, -14f);
-            if (rt.anchoredPosition != pos) rt.anchoredPosition = pos;
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Version] " + ex.Message); }
     }

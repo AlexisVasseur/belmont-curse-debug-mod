@@ -58,7 +58,7 @@ public class PracticeBehaviour : MonoBehaviour
         // l'ouvrir au menu principal ou pendant un chargement pouvait faire planter le jeu.
         bool inGame = sequence.Active || IsInGame();
         // Versions : affichées aussi pendant les chargements du mod (au-dessus de l'écran noir)
-        VersionLabel.Update(inGame && !sequence.Active, inGame && panel.Visible);
+        VersionLabel.Update(inGame && !sequence.Active);
         RoomLabel.Update(inGame && !sequence.Active, inGame && panel.Visible);
         if (!inGame)
         {
