@@ -47,7 +47,7 @@ public static class RoomLabel
         shownLevel = shownRoom = null;
 
         // Même encadré que les versions (en haut à droite) : cadre doré, fond sombre, filet bordeaux à gauche
-        const float W = 360f, H = 62f;
+        const float W = 440f, H = 62f; // plus large que les versions : les identifiants de salle sont longs
         var fill = Ui.Frame(UiCanvas.Root.transform, "RoomBox", 0, 0, W, H, Theme.Gold, Theme.Bg);
         var rt = fill.transform.parent.Cast<RectTransform>();
         rt.anchorMin = new Vector2(1f, 0f);
@@ -59,5 +59,8 @@ public static class RoomLabel
 
         area = Ui.Text(fill.transform, "Area", 14, 5, W - 26, 26, GameFonts.Title, 17f, Theme.GoldText);
         room = Ui.Text(fill.transform, "Room", 14, 31, W - 26, 24, GameFonts.Body, 17f, Theme.Text);
+        room.enableAutoSizing = true; // identifiant trop long : rapetisse au lieu de déborder
+        room.fontSizeMin = 11f;
+        room.fontSizeMax = 17f;
     }
 }
