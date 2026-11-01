@@ -28,7 +28,7 @@ public class SaveStatesView
     readonly List<(UiButton btn, float x, float y, float w, float h)> buttons = new();
 
     TextMeshProUGUI quickName, pageLabel, pageConfirm, toastText;
-    UiButton removePage, addPage, pageYes, pageNo;
+    UiButton removePage, addPage, pageYes, pageNo, fullReload;
     float toastUntil;
     const float ToastW = 640f, ToastH = 54f;
     // Message : apparaît d'un coup, s'efface en fondu
@@ -144,6 +144,12 @@ public class SaveStatesView
 
         removePage = Button(right - 88, pby, 88, 26, "Del page", t, 14f, () => p.RemovePage());
         addPage = Button(right - 88 - 8 - 80, pby, 80, 26, "+ Page", t, 14f, () => { p.AddPage(); p.Notify?.Invoke($"Page {p.CurrentPage + 1} added", false); });
+        // Rechargement complet forcé = chargement rapide coupé (même option que « Fast load » dans Keybinds)
+        fullReload = Button(right - 88 - 8 - 80 - 8 - 150, pby, 150, 26, "Full reload: Off", t, 14f, () =>
+        {
+            Plugin.FastLoad.Value = !Plugin.FastLoad.Value;
+            p.Notify?.Invoke(Plugin.FastLoad.Value ? "Full reload: off (fast load in the same level)" : "Full reload: on (every load reloads the whole level)", false);
+        });
         pageNo = Button(right - 56, pby, 56, 26, "No", t, 15f, () => p.ConfirmNo());
         pageYes = Button(right - 56 - 6 - 56, pby, 56, 26, "Yes", t, 15f, () => p.ConfirmYes());
         pageConfirm = Ui.Text(fill, "PageConfirm", right - 118 - 10 - 150, py, 150, PagesH, t, 15f, Theme.Red, TextAlignmentOptions.MidlineRight);
@@ -307,6 +313,11 @@ public class SaveStatesView
         Ui.SetText(pageLabel, $"Page {p.CurrentPage + 1} / {SlotStore.PageCount}");
         Ui.SetActive(removePage.Rt, !pageConfirmActive);
         Ui.SetActive(addPage.Rt, !pageConfirmActive);
+        Ui.SetActive(fullReload.Rt, !pageConfirmActive);
+        bool full = !Plugin.FastLoad.Value;
+        Ui.SetText(fullReload.Label, full ? "Full reload: On" : "Full reload: Off");
+        fullReload.BaseColor = full ? Theme.Crimson : fullReload.Skinned ? Skin.ButtonIdle : Theme.BgButton;
+        fullReload.LabelColor = full ? Theme.GoldText : fullReload.Skinned ? Skin.ButtonText : Theme.KeyText;
         Ui.SetActive(pageConfirm, pageConfirmActive);
         Ui.SetActive(pageYes.Rt, pageConfirmActive);
         Ui.SetActive(pageNo.Rt, pageConfirmActive);
