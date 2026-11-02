@@ -48,7 +48,7 @@ public static class Cheats
         {
             var clampType = Il2CppType.Of<HealthClampMin>();
             var dmg = e.GetComponent<Damageable>();
-            if (!LockHealth) lockedHealth = null;
+            if (!LockHealth) { lockedHealth = null; lockSeenHealth = -1; }
             else if (dmg != null && lockedHealth == null) lockedHealth = dmg.currentHealth;
             if ((InfiniteHealth || LockHealth) && stats != null && stats.HasStat(clampType))
             {
@@ -57,13 +57,25 @@ public static class Cheats
                 if (dmg != null && lockedHealth.HasValue)
                 {
                     // Le soin d'une potion (ou des dégâts) s'applique normalement ; une fois les PV stables depuis
-                    // LockRestoreDelay, ils sont remis à la valeur figée
+                    // LockRestoreDelay, ils sont remis à la valeur figée. Figés au maximum : gardés à 1 de moins, le jeu
+                    // refusant la potion à PV pleins
+                    int hold = lockedHealth.Value >= dmg.maxHealth && dmg.maxHealth > 1 ? dmg.maxHealth - 1 : lockedHealth.Value;
                     int hp = dmg.currentHealth;
-                    if (hp != lockSeenHealth) { lockSeenHealth = hp; lockChangedAt = Time.unscaledTime; }
-                    if (hp != lockedHealth.Value && Time.unscaledTime - lockChangedAt >= LockRestoreDelay)
+                    if (hp != lockSeenHealth)
                     {
-                        dmg.SetCurrentHealth(e, lockedHealth.Value, true);
-                        lockSeenHealth = lockedHealth.Value;
+                        if (lockSeenHealth >= 0) Plugin.Logger.LogInfo($"[PV figés] {lockSeenHealth} → {hp} (max {dmg.maxHealth}, figés à {hold})");
+                        lockSeenHealth = hp;
+                        lockChangedAt = Time.unscaledTime;
+                    }
+                    if (hp != hold && Time.unscaledTime - lockChangedAt >= LockRestoreDelay)
+                    {
+                        dmg.SetCurrentHealth(e, hold, true);
+                        // Comme les boutons du panneau : stat lue par le HUD et barres mises à jour aussi
+                        var hc = Il2CppType.Of<HealthCurrent>();
+                        if (stats.HasStat(hc)) stats.SetFloat(hc, hold);
+                        RefreshBars(e);
+                        Plugin.Logger.LogInfo($"[PV figés] remis à {hold} (lu ensuite : {dmg.currentHealth})");
+                        lockSeenHealth = dmg.currentHealth;
                     }
                 }
                 else if (dmg != null && dmg.currentHealth < dmg.maxHealth) dmg.SetCurrentHealth(e, dmg.maxHealth, true);
