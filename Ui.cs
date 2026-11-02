@@ -173,15 +173,8 @@ public class UiButton
         var label = Ui.Text(fill.transform, "Label", 0, 0, w - 2, h - 2, font, fontSize, Theme.KeyText, TextAlignmentOptions.Center);
         label.text = text;
         var rt = fill.transform.parent.Cast<RectTransform>();
-        IgnoreFade(rt);
         return new UiButton { Rt = rt, Fill = fill, Label = label, OnClick = onClick };
     }
-
-    /// <summary>
-    /// Bouton hors du fondu des fenêtres (voir Fade) : à demi transparent, le fond laisse voir les copies dorées
-    /// de son contour et le bouton paraît doré pendant l'animation.
-    /// </summary>
-    static void IgnoreFade(RectTransform rt) => rt.gameObject.AddComponent<CanvasGroup>().ignoreParentGroups = true;
 
     /// <summary>
     /// Bouton habillé avec les assets du jeu (panneau latéral) : fond arrondi du jeu, fin contour doré,
@@ -210,7 +203,6 @@ public class UiButton
             if (text == "+") barV = Ui.Image(fill.transform, "SignV", (w - bt) / 2f, (h - bw) / 2f, bt, bw, Skin.ButtonText);
         }
         var (l, r) = Skin.Ornaments(rt, w, h);
-        IgnoreFade(rt);
         return new UiButton
         {
             Rt = rt, Fill = fill, Label = label, OnClick = onClick, Skinned = true, OrnamentL = l, OrnamentR = r, SignH = barH, SignV = barV,

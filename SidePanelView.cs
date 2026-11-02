@@ -58,6 +58,7 @@ public partial class SidePanelView
 
     void Build()
     {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
         if (panel != null) UnityEngine.Object.Destroy(panel);
         tiles.Clear();
         buttons.Clear();
@@ -203,7 +204,7 @@ public partial class SidePanelView
         fill = root;
 
         if (CardFrame.Add(container)) edgeGold.gameObject.SetActive(false);
-        Plugin.Logger.LogInfo("[Interface] panneau latéral construit");
+        Plugin.Logger.LogInfo($"[Interface] panneau latéral construit en {watch.ElapsedMilliseconds} ms");
     }
 
     // ---------- Onglets ----------
@@ -1193,12 +1194,12 @@ public partial class SidePanelView
         Notify?.Invoke(allOn ? "All movement disabled" : "All movement enabled", false);
     }
 
-    public void Update(bool visible)
+    /// <summary>
+    /// Résout les listes du jeu (sorts, armes, reliques, boss) ; vrai s'il faut (re)construire le panneau : polices ou
+    /// listes devenues disponibles. arenas : une arène apprise compte aussi (lignes de l'onglet Bosses).
+    /// </summary>
+    bool NeedsBuild(bool arenas = true)
     {
-        if (!visible) { fade.Out(panel); wasVisible = false; Keybinds.Capturing = null; editField = null; return; }
-        // À l'ouverture : relit les améliorations (Attack+, cœurs…)
-        if (!wasVisible) { wasVisible = true; Upgrades.Refresh(true); }
-
         UiCanvas.Ensure();
         if (!GameFonts.Resolved) GameFonts.Resolve();
         Abilities.Resolve();
@@ -1206,10 +1207,41 @@ public partial class SidePanelView
         Weapons.Resolve();
         Relics.Resolve();
         Bosses.Resolve();
-        // Reconstruit quand les polices ou les listes (sorts, armes, boss) deviennent disponibles
-        if (panel == null || (!builtWithGameFonts && GameFonts.Resolved) || spellsBuiltFor != Arcana.Spells.Count
-            || weaponsBuiltFor != Weapons.Families.Count || relicsBuiltFor != Relics.All.Count
-            || bossesBuiltFor != BossesShown) Build();
+        // BossesShown : nombre de boss × 1000 + version des arènes
+        bool bosses = arenas ? bossesBuiltFor != BossesShown : bossesBuiltFor / 1000 != BossesShown / 1000;
+        return panel == null || (!builtWithGameFonts && GameFonts.Resolved) || spellsBuiltFor != Arcana.Spells.Count
+            || weaponsBuiltFor != Weapons.Families.Count || relicsBuiltFor != Relics.All.Count || bosses;
+    }
+
+    float nextPrebuild;
+
+    /// <summary>
+    /// Construction d'avance, fenêtre cachée : la première ouverture (F1) n'attend plus. Une arène apprise en jeu ne
+    /// reconstruit pas (pas d'à-coup en entrant dans l'arène) : ce sera fait à l'ouverture.
+    /// </summary>
+    void Prebuild()
+    {
+        if (Time.unscaledTime < nextPrebuild) return;
+        nextPrebuild = Time.unscaledTime + 0.5f;
+        if (!NeedsBuild(arenas: false) || !GameFonts.Resolved) return; // polices du jeu d'abord : pas deux constructions
+        Build();
+        panel.SetActive(false);
+    }
+
+    /// <param name="prebuild">En jeu, fenêtre fermée : construite d'avance (cachée), la première ouverture est immédiate.</param>
+    public void Update(bool visible, bool prebuild = false)
+    {
+        if (!visible)
+        {
+            fade.Out(panel);
+            wasVisible = false; Keybinds.Capturing = null; editField = null;
+            if (prebuild && (panel == null || !panel.activeSelf)) Prebuild();
+            return;
+        }
+        // À l'ouverture : relit les améliorations (Attack+, cœurs…)
+        if (!wasVisible) { wasVisible = true; Upgrades.Refresh(true); }
+
+        if (NeedsBuild()) Build();
         fade.In(panel);
 
         bool hasMouse = UiCanvas.Mouse(out float mx, out float my);

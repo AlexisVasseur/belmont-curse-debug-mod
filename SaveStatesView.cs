@@ -84,6 +84,7 @@ public class SaveStatesView
 
     void BuildPanel()
     {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
         if (panel != null) UnityEngine.Object.Destroy(panel);
         buttons.Clear();
         hints.Clear();
@@ -214,7 +215,7 @@ public class SaveStatesView
         // --- Cadre des cartes d'arcane du jeu, par-dessus tout ; à défaut, le filet doré du fond reste ---
         if (CardFrame.Add(container)) Ui.SetBorder(frameFill, new Color(0f, 0f, 0f, 0f));
 
-        Plugin.Logger.LogInfo($"[Interface] panneau construit (polices du jeu : {(builtWithGameFonts ? "oui" : "non")})");
+        Plugin.Logger.LogInfo($"[Interface] panneau construit en {watch.ElapsedMilliseconds} ms (polices du jeu : {(builtWithGameFonts ? "oui" : "non")})");
     }
 
     /// <summary>Séparateur commun (CardFrame.Rule), d'un bord du cadre à l'autre (le cadre le recouvre à ses extrémités).</summary>
@@ -291,16 +292,34 @@ public class SaveStatesView
 
     // ---------- Mise à jour (chaque frame) ----------
 
-    public void Update()
+    float nextPrebuild;
+
+    bool NeedsBuild()
+    {
+        if (!GameFonts.Resolved) GameFonts.Resolve();
+        return panel == null || (!builtWithGameFonts && GameFonts.Resolved);
+    }
+
+    /// <param name="prebuild">En jeu, fenêtre fermée : construite d'avance (cachée), la première ouverture est immédiate.</param>
+    public void Update(bool prebuild = false)
     {
         EnsureRoot();
         UpdateToast();
 
         bool visible = p.ShouldBeVisible;
-        if (!visible) { fade.Out(panel); return; }
+        if (!visible)
+        {
+            fade.Out(panel);
+            // Vérifié deux fois par seconde : la recherche des polices du jeu parcourt toutes les ressources chargées
+            if (prebuild && (panel == null || !panel.activeSelf) && Time.unscaledTime >= nextPrebuild)
+            {
+                nextPrebuild = Time.unscaledTime + 0.5f;
+                if (NeedsBuild() && GameFonts.Resolved) { BuildPanel(); panel.SetActive(false); }
+            }
+            return;
+        }
 
-        if (!GameFonts.Resolved) GameFonts.Resolve();
-        if (panel == null || (!builtWithGameFonts && GameFonts.Resolved)) BuildPanel();
+        if (NeedsBuild()) BuildPanel();
         fade.In(panel);
         HookTextInput();
 

@@ -108,10 +108,10 @@ public class PracticeBehaviour : MonoBehaviour
             catch (Exception ex) { Plugin.Logger.LogError("[Raccourcis] " + ex); }
         }
 
-        try { view.Update(); }
+        try { view.Update(prebuild: inGame); }
         catch (Exception ex) { Plugin.Logger.LogError("[Interface] " + ex); }
         // F1 ouvre tout ; le choix d'un emplacement (Pavé 9/3/2) n'ouvre que la fenêtre des savestates.
-        try { side.Update(panel.Visible); }
+        try { side.Update(panel.Visible, prebuild: inGame); }
         catch (Exception ex) { Plugin.Logger.LogError("[Panneau latéral] " + ex); }
 
         // Clics et molette sur les fenêtres du mod : rien n'est transmis au jeu
