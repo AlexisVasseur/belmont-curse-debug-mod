@@ -50,7 +50,13 @@ public static class Cheats
             {
                 if (!clampApplied) { savedClampMin = stats.GetStatObject(clampType).GetFloat(e); clampApplied = true; }
                 stats.SetFloat(clampType, 1f);
-                if (dmg != null && lockedHealth.HasValue) { if (dmg.currentHealth != lockedHealth.Value) dmg.SetCurrentHealth(e, lockedHealth.Value, true); }
+                if (dmg != null && lockedHealth.HasValue)
+                {
+                    // Figés au maximum : le jeu refuse la potion à PV pleins. Gardés à 1 de moins, la potion se boit
+                    // et son soin est annulé à la frame suivante (il compte pour 0)
+                    int hold = lockedHealth.Value >= dmg.maxHealth && dmg.maxHealth > 1 ? dmg.maxHealth - 1 : lockedHealth.Value;
+                    if (dmg.currentHealth != hold) dmg.SetCurrentHealth(e, hold, true);
+                }
                 else if (dmg != null && dmg.currentHealth < dmg.maxHealth) dmg.SetCurrentHealth(e, dmg.maxHealth, true);
             }
             else if (clampApplied)
