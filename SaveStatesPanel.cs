@@ -67,17 +67,19 @@ public class SaveStatesPanel
     public void Init()
     {
         SlotStore.LoadAll();
-        Quickslot = SlotStore.LoadQuickslot();
+        SlotStore.DeleteOldQuickslot();
     }
 
     void SetQuickslot(SaveState s)
     {
         if (s == null) return;
         Quickslot = s.Clone();
-        SlotStore.SaveQuickslot(Quickslot);
     }
 
     // ---------- Quickslot ----------
+
+    /// <summary>Retour au menu principal : le quickslot appartenait à la partie quittée.</summary>
+    public void ClearQuickslot() => Quickslot = null;
 
     public void QuickSave()
     {

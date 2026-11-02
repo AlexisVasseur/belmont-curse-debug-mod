@@ -62,6 +62,7 @@ public class PracticeBehaviour : MonoBehaviour
         RoomLabel.Update(inGame && !sequence.Active, inGame && panel.Visible);
         // Point de réapparition choisi : rechargé après une mort, une fois le personnage revenu
         RespawnPoint.Update(inGame && !sequence.Active, s => Load(s, savestate: true));
+        try { UpdateMainMenu(inGame); } catch (Exception ex) { Plugin.Logger.LogWarning("[Menu] " + ex.Message); }
         if (!inGame)
         {
             panel.Visible = false;
@@ -124,6 +125,23 @@ public class PracticeBehaviour : MonoBehaviour
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
         }
+    }
+
+    float nextMenuCheck;
+
+    /// <summary>
+    /// Retour au menu principal : le quickslot et le point de réapparition appartenaient à la partie quittée, ils sont
+    /// vidés (le menu du jeu n'existe qu'hors partie ; vérifié une fois par seconde, recherche coûteuse).
+    /// </summary>
+    void UpdateMainMenu(bool inGame)
+    {
+        if (inGame || (panel.Quickslot == null && RespawnPoint.State == null) || Time.unscaledTime < nextMenuCheck) return;
+        nextMenuCheck = Time.unscaledTime + 1f;
+        var menu = UnityEngine.Object.FindObjectOfType<MainMenu>();
+        if (menu == null || !menu.isActiveAndEnabled) return;
+        panel.ClearQuickslot();
+        RespawnPoint.Clear();
+        Plugin.Logger.LogInfo("[Menu] menu principal : quickslot et point de réapparition vidés");
     }
 
     static bool IsInGame()

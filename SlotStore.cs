@@ -10,7 +10,7 @@ namespace BelmontPractice;
 
 /// <summary>
 /// Collection de savestates organisée comme DebugMod : des pages de 10 emplacements,
-/// stockées dans Savestates/&lt;page&gt;/savestate&lt;i&gt;.json. Le quickslot est dans Savestates/quickslot.json.
+/// stockées dans Savestates/&lt;page&gt;/savestate&lt;i&gt;.json. Le quickslot reste en mémoire.
 /// </summary>
 public static class SlotStore
 {
@@ -159,16 +159,11 @@ public static class SlotStore
 
     // ---------- Quickslot ----------
 
-    public static SaveState LoadQuickslot() => File.Exists(QuickslotPath) ? ReadFile(QuickslotPath) : null;
-
-    public static void SaveQuickslot(SaveState state)
+    // Le quickslot ne vit que le temps d'une partie, en mémoire (vidé en quittant le jeu ou au menu principal) :
+    // le fichier des anciennes versions est supprimé
+    public static void DeleteOldQuickslot()
     {
-        try
-        {
-            Directory.CreateDirectory(Folder);
-            if (state == null) { if (File.Exists(QuickslotPath)) File.Delete(QuickslotPath); }
-            else File.WriteAllText(QuickslotPath, JsonSerializer.Serialize(state, JsonOptions));
-        }
+        try { if (File.Exists(QuickslotPath)) File.Delete(QuickslotPath); }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Quickslot] " + ex.Message); }
     }
 }
