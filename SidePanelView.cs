@@ -394,7 +394,7 @@ public partial class SidePanelView
             y += CheatRowH;
         }
         Row("Infinite HP", "Health never drops below 1 and is refilled at once: you can't die", () => Cheats.InfiniteHealth, v => Cheats.InfiniteHealth = v);
-        Row("Lock HP", "Health is frozen at its value when you turn this on: hits take nothing off and you can't die. Overrides Infinite HP", () => Cheats.LockHealth, v => Cheats.LockHealth = v);
+        Row("Lock HP", "Health is locked at its value when you turn this on: hits and heals apply, then health goes back to the locked value a second later. You can't die. Overrides Infinite HP", () => Cheats.LockHealth, v => Cheats.LockHealth = v);
         Row("Infinite mana", "Mana stays full: cast spells as often as you want", () => Cheats.InfiniteMana, v => Cheats.InfiniteMana = v);
         Row("Infinite potions", "Healing potions are refilled right after you drink one", () => Cheats.InfinitePotions, v => Cheats.InfinitePotions = v);
         Row("Infinite jump", "Jump again in mid-air, as many times as you want", () => Cheats.InfiniteJump, v => Cheats.InfiniteJump = v);

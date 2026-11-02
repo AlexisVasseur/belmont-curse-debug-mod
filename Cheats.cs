@@ -12,6 +12,10 @@ public static class Cheats
 {
     public static bool InfiniteHealth, LockHealth, InfiniteMana, InfinitePotions, InfiniteJump, Noclip;
     static int? lockedHealth; // PV figés (LockHealth), relevés à l'activation
+    // PV figés : un changement (soin, dégâts) s'applique, puis les PV reviennent à la valeur figée une fois stables
+    const float LockRestoreDelay = 1f;
+    static int lockSeenHealth = -1;
+    static float lockChangedAt;
 
     static bool clampApplied;
     static float savedClampMin;
@@ -52,10 +56,15 @@ public static class Cheats
                 stats.SetFloat(clampType, 1f);
                 if (dmg != null && lockedHealth.HasValue)
                 {
-                    // Figés au maximum : le jeu refuse la potion à PV pleins. Gardés à 1 de moins, la potion se boit
-                    // et son soin est annulé à la frame suivante (il compte pour 0)
-                    int hold = lockedHealth.Value >= dmg.maxHealth && dmg.maxHealth > 1 ? dmg.maxHealth - 1 : lockedHealth.Value;
-                    if (dmg.currentHealth != hold) dmg.SetCurrentHealth(e, hold, true);
+                    // Le soin d'une potion (ou des dégâts) s'applique normalement ; une fois les PV stables depuis
+                    // LockRestoreDelay, ils sont remis à la valeur figée
+                    int hp = dmg.currentHealth;
+                    if (hp != lockSeenHealth) { lockSeenHealth = hp; lockChangedAt = Time.unscaledTime; }
+                    if (hp != lockedHealth.Value && Time.unscaledTime - lockChangedAt >= LockRestoreDelay)
+                    {
+                        dmg.SetCurrentHealth(e, lockedHealth.Value, true);
+                        lockSeenHealth = lockedHealth.Value;
+                    }
                 }
                 else if (dmg != null && dmg.currentHealth < dmg.maxHealth) dmg.SetCurrentHealth(e, dmg.maxHealth, true);
             }
