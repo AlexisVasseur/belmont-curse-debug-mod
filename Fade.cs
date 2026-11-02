@@ -6,9 +6,10 @@ namespace BelmontPractice;
 
 /// <summary>
 /// Fondu d'ouverture / de fermeture d'une fenêtre du mod (CanvasGroup sur sa racine), en temps réel :
-/// le jeu peut être en pause. Toute la fenêtre a la même opacité, boutons compris : leurs contours dorés
-/// (copies dessinées sous le fond) sont coupés tant qu'elle est transparente, sinon ils se voient à travers et le bouton
-/// paraît doré.
+/// le jeu peut être en pause. Toute la fenêtre a la même opacité, boutons compris. Leurs contours dorés
+/// sont des copies dessinées sous le fond : à la même opacité, elles se verraient à travers et le bouton paraîtrait doré.
+/// Ils suivent donc une courbe plus raide (opacité à la puissance 4) : présents en même temps que la fenêtre, à peine
+/// visibles tant qu'elle est transparente.
 /// </summary>
 /// <param name="inTime">Durée de l'apparition ; 0 : instantanée.</param>
 /// <param name="outTime">Durée de la disparition ; 0 : instantanée.</param>
@@ -20,7 +21,8 @@ public sealed class Fade(float inTime = 0.15f, float outTime = 0.12f)
     GameObject target;
     CanvasGroup group;
     float t; // 0 : invisible, 1 : opaque
-    readonly List<Shadow> muted = new(); // contours coupés pendant le fondu
+    readonly List<(Shadow s, float a)> outlines = new(); // contours de la fenêtre et leur opacité d'origine
+    bool outlinesFaded;
 
     /// <summary>Fenêtre ouverte : l'active et la fait apparaître.</summary>
     public void In(GameObject go)
@@ -44,24 +46,31 @@ public sealed class Fade(float inTime = 0.15f, float outTime = 0.12f)
         {
             target = go;
             group = go.GetComponent<CanvasGroup>() ?? go.AddComponent<CanvasGroup>();
-            muted.Clear(); // fenêtre reconstruite : ses contours sont neufs
+            outlines.Clear(); // fenêtre reconstruite : ses contours sont neufs
+            outlinesFaded = false;
         }
         float step = duration <= 0f ? 1f : Mathf.Min(Time.unscaledDeltaTime, MaxStep) / duration;
         t = Mathf.Clamp01(appear ? t + step : t - step);
         group.alpha = t * t * (3f - 2f * t); // départ et arrivée en douceur
-        MuteOutlines(go, group.alpha < 1f);
+        FadeOutlines(go, group.alpha);
     }
 
-    void MuteOutlines(GameObject go, bool mute)
+    void FadeOutlines(GameObject go, float alpha)
     {
-        if (!mute)
+        if (alpha >= 1f && !outlinesFaded) return;
+        if (!outlinesFaded)
         {
-            foreach (var s in muted) if (s != null) s.enabled = true;
-            muted.Clear();
-            return;
+            outlines.Clear();
+            foreach (var s in go.GetComponentsInChildren<Shadow>(true)) outlines.Add((s, s.effectColor.a));
         }
-        if (muted.Count > 0) return;
-        foreach (var s in go.GetComponentsInChildren<Shadow>(true))
-            if (s.enabled) { s.enabled = false; muted.Add(s); }
+        float k = alpha * alpha * alpha * alpha;
+        foreach (var (s, a) in outlines)
+        {
+            if (s == null) continue;
+            var c = s.effectColor;
+            c.a = a * k;
+            s.effectColor = c;
+        }
+        outlinesFaded = alpha < 1f;
     }
 }
