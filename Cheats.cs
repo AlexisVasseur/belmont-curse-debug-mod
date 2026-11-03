@@ -15,6 +15,7 @@ public static class Cheats
     // PV figés : un changement (soin, dégâts) s'applique, puis les PV reviennent à la valeur figée une fois stables
     const float LockRestoreDelay = 1f;
     static int lockSeenHealth = -1;
+    static int lockSeenPotions = -1; // diagnostic : potion bue pendant le verrouillage ?
     static float lockChangedAt;
 
     static bool clampApplied;
@@ -76,7 +77,8 @@ public static class Cheats
                 // PV figés : plancher à 1 / max. Avec 1, les PV remontaient au maximum dès l'activation (le plancher semble
                 // être une part du maximum) ; PV infinis : 1 (remplis de toute façon)
                 float floor = lockedHealth.HasValue && dmg != null && dmg.maxHealth > 0 ? 1f / dmg.maxHealth : 1f;
-                stats.SetFloat(clampType, floor);
+                // Écrit seulement s'il change : réécrire une stat à chaque frame la signale modifiée en permanence
+                if (Mathf.Abs(stats.GetStatObject(clampType).GetFloat(e) - floor) > 1e-5f) stats.SetFloat(clampType, floor);
                 if (dmg != null && lockedHealth.HasValue)
                 {
                     // Le soin d'une potion (ou des dégâts) s'applique normalement ; une fois les PV stables depuis
@@ -84,6 +86,12 @@ public static class Cheats
                     // refusant la potion à PV pleins
                     int hold = lockedHealth.Value >= dmg.maxHealth && dmg.maxHealth > 1 ? dmg.maxHealth - 1 : lockedHealth.Value;
                     int hp = dmg.currentHealth; // PV affichés (HUD, panneau)
+                    int potions = Mathf.RoundToInt(stats.HasStat(Il2CppType.Of<HealthPotionCurrent>()) ? stats.GetStatObject(Il2CppType.Of<HealthPotionCurrent>()).GetFloat(e) : -1);
+                    if (potions != lockSeenPotions)
+                    {
+                        if (lockSeenPotions >= 0) Plugin.Logger.LogInfo($"[PV figés] potions {lockSeenPotions} → {potions} (PV {hp})");
+                        lockSeenPotions = potions;
+                    }
                     if (hp != lockSeenHealth)
                     {
                         if (lockSeenHealth >= 0) Plugin.Logger.LogInfo($"[PV figés] {lockSeenHealth} → {hp} (stat {Health(e, stats, null)}, max {dmg.maxHealth}, figés à {hold})");
