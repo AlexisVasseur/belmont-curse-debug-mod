@@ -445,6 +445,9 @@ public static class FastForward
     }
 
     /// <summary>Fenêtres d'acquisition ouvertes (carte d'arcane, objet, objectif…) ; dryRun : seulement les compter.</summary>
+    /// <summary>Ferme les fenêtres d'acquisition ouvertes (avant un chargement) ; true si une l'était.</summary>
+    public static bool CloseAcquisitionWindowsNow() => CloseAcquisitionWindows(dryRun: false);
+
     static bool CloseAcquisitionWindows(bool dryRun)
     {
         bool any = false;

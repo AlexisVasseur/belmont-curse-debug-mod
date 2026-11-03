@@ -15,6 +15,8 @@ public static class BossHelper
     /// <summary>Raison pour laquelle un rechargement rapide n'est pas sûr (null = sûr).</summary>
     public static string UnsafeForFastLoad()
     {
+        // Cinématique interrompue : son scénario (dans la salle) doit être détruit, sinon il continue après le chargement
+        if (interrupted != null) { var why = interrupted; interrupted = null; return why; }
         try
         {
             var boss = BossManager.Get()?.currentBossVariable?.CurrentValue;
@@ -62,6 +64,56 @@ public static class BossHelper
             gsm.PopState(top.Item1, gsm);
             if (states.Count > 0 && states.Peek().Item1 == top.Item1) return; // refusé par le jeu
         }
+    }
+
+    static string interrupted;
+
+    // États qu'une cinématique ou une fin de combat pose puis retire elle-même (absorption de l'orbe, dialogue…)
+    static readonly HashSet<string> SequenceStates = new()
+    {
+        "GameplayAbsorptionState", "DialogueState", "SequenceState", "TimelineLockInputState", "CinematicState", "RecoveryState",
+    };
+
+    /// <summary>États de jeu empilés, du plus récent au plus ancien (trace des chargements).</summary>
+    public static string StateStack()
+    {
+        try
+        {
+            var states = GameStateManager.GetInstance()?._states;
+            if (states == null) return "?";
+            var names = new List<string>();
+            foreach (var t in states.ToArray()) names.Add($"{t?.Item2?.name}#{t?.Item1}");
+            return string.Join(", ", names);
+        }
+        catch (Exception ex) { return "? " + ex.Message; }
+    }
+
+    /// <summary>
+    /// Chargement pendant une cinématique ou une fin de combat (absorption après Medusa…) : le scénario qui devait retirer
+    /// ses états est détruit par le chargement, ils restaient pour toujours (joueur bloqué). On les retire avant.
+    /// </summary>
+    public static void ClearSequenceStates()
+    {
+        interrupted = null;
+        try
+        {
+            var gsm = GameStateManager.GetInstance();
+            var states = gsm?._states;
+            if (states == null) return;
+            foreach (var t in states.ToArray())
+            {
+                var st = t?.Item2;
+                if (st == null || !SequenceStates.Contains(st.name)) continue;
+                gsm.PopState(t.Item1, gsm);
+                bool still = false;
+                foreach (var u in gsm._states.ToArray()) if (u?.Item1 == t.Item1) still = true;
+                interrupted = $"cutscene interrupted ({st.name})";
+                string msg = $"état de cinématique '{st.name}' (id {t.Item1}) {(still ? "refusé par le jeu" : "retiré avant le chargement")}";
+                Plugin.Logger.LogInfo("[État] " + msg);
+                LoadSequence.Trace(msg);
+            }
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[État] états de cinématique : " + ex.Message); }
     }
 
     static IEnumerable<BossFightTrigger> TriggersInRoom(List<Transform> roots)

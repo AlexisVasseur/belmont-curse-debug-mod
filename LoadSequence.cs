@@ -49,6 +49,7 @@ public class LoadSequence
         // Raisons « occupé » déjà présentes avant le chargement : considérées comme normales.
         baseline = new HashSet<string>(GameBridge.BusyReasons());
         Trace($"début '{s.Name}' niveau={s.Level} salle={s.Room} pos={s.Position} baseline=[{string.Join(",", baseline)}]");
+        Trace($"états de jeu : {BossHelper.StateStack()}");
 
         if (Plugin.FadeToBlack.Value) { Pause(); Enter(Phase.FadeIn); }
         else Enter(Phase.Loading);
@@ -80,6 +81,8 @@ public class LoadSequence
             case Phase.Loading:
                 Resume();
                 GameBridge.SpeedUpRoomTransitions();
+                // Chargé pendant une cinématique ou une fin de combat : ses états partiraient avec le scénario qui doit les retirer
+                BossHelper.ClearSequenceStates();
                 try
                 {
                     fastLoad = GameBridge.Restore(state);
@@ -203,6 +206,7 @@ public class LoadSequence
         SaveGuard.ReleaseSoon();
         Bosses.LogTriggers("après chargement");
         Enter(Phase.Idle);
+        Trace($"états de jeu : {BossHelper.StateStack()}");
         Trace($"terminé en {Time.unscaledTime - sequenceStart:0.00}s");
         Plugin.Logger.LogInfo($"[Chargement] terminé en {Time.unscaledTime - sequenceStart:0.00}s");
         try { File.WriteAllText(Path.Combine(SlotStore.Folder, "..", "trace_dernier_chargement.txt"), trace.ToString()); }

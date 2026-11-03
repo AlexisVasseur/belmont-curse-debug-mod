@@ -228,7 +228,9 @@ public class PracticeBehaviour : MonoBehaviour
         panel.CancelRename();
         Keybinds.Capturing = null;
         // Menu du jeu ouvert : on le ferme d'abord, le chargement suit dès qu'il est fermé
-        if (GameBridge.CloseGameMenu()) { deferredLoad = state; deferredUntil = Time.unscaledTime + 2f; return; }
+        // Fin de combat : la fenêtre de l'arcane obtenue (menu plein écran elle aussi) est fermée d'abord
+        bool acquisition = FastForward.CloseAcquisitionWindowsNow();
+        if (GameBridge.CloseGameMenu() || acquisition) { deferredLoad = state; deferredUntil = Time.unscaledTime + 2f; return; }
         sequence.Start(state);
     }
 
