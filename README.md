@@ -42,5 +42,5 @@ Conventions :
 - jamais toucher aux saves avec le jeu ouvert.
 
 Documentation :
-- spécification : [docs/SPEC.md](docs/SPEC.md) ;
+- spécification (OpenSpec) : [openspec/specs](openspec/specs), contexte et backlog dans [openspec/project.md](openspec/project.md) ; toute évolution passe par `openspec/changes/` ;
 - notes techniques : [docs/notes](docs/notes).
