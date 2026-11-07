@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Maquette Movement</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bona+Nova+SC:wght@400;700&family=IM+Fell+Great+Primer&display=block');
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0c0807 radial-gradient(ellipse at 30% 20%, #3b3a2a 0%, #1d1a12 45%, #0c0807 100%); color: #e6d3b0; font-family: 'IM Fell Great Primer', serif; padding: 26px; }
+h1 { font-family: 'Bona Nova SC', serif; color: #e2c27e; font-size: 30px; margin-bottom: 4px; }
+.sub { color: #c9a865; font-size: 17px; margin-bottom: 22px; max-width: 1500px; }
+.cols { display: flex; gap: 34px; align-items: flex-start; }
+.col h2 { font-family: 'Bona Nova SC', serif; color: #c9a865; font-size: 20px; margin-bottom: 10px; }
+.note { font-size: 15px; color: #b9a582; margin-top: 10px; width: 470px; line-height: 1.35; }
+.panel { width: 470px; background: rgba(20,14,12,.9); border-left: 1px solid #8a6d3b; padding: 0 0 16px; }
+.banner { height: 70px; background: url(assets/ui_banner_plain.png) center / 100% 100%; display: flex; align-items: center; justify-content: center;
+  font-family: 'Bona Nova SC', serif; color: #e2c27e; font-size: 25px; margin-bottom: 10px; }
+.btn { position: relative; height: 32px; margin: 0 14px 14px; display: flex; align-items: center; justify-content: center; font-family: 'Bona Nova SC', serif; color: #f4dfa8; font-size: 16px; }
+.btn::before { content: ''; position: absolute; inset: 0; background: #3b2a1f; -webkit-mask-box-image: url(assets/ui_button.png) 0 25 fill / 0 12px stretch; filter: drop-shadow(0 0 1px #a8864a); }
+.btn span { position: relative; }
+.btn .ind { position: absolute; right: 18px; width: 11px; height: 11px; background: #e2c27e; transform: rotate(45deg); }
+/* Actuel */
+.tiles { display: flex; gap: 6px; padding: 0 14px; }
+.tile { flex: 1; height: 124px; border: 1px solid #a8864a; background: rgba(51,36,26,.95); display: flex; flex-direction: column; align-items: center; padding-top: 8px; }
+.tile.off { border-color: #2e2019; background: rgba(18,12,10,.9); }
+.tile.off img { opacity: .35; filter: grayscale(.6); }
+.tile.hover { background: #5e1418; }
+.tile img { width: 58px; height: 58px; }
+.tile span { text-align: center; font-size: 15px; margin-top: 4px; }
+/* Proposition A : écus sur la ceinture */
+.beltrow { position: relative; height: 150px; margin: 0 4px; }
+.belt { position: absolute; left: -10px; right: -10px; top: 6px; height: 100px; background: url(assets/vania_belt.png) center / 100% 100% no-repeat; opacity: .95; }
+.shields { position: absolute; inset: 0; display: flex; justify-content: space-around; padding: 0 6px; }
+.sh { width: 82px; display: flex; flex-direction: column; align-items: center; }
+.shield { width: 80px; height: 88px; position: relative; }
+.shield .slot { position: absolute; inset: 0; background: url(assets/vania_slot.png) center / 100% 100%; }
+.shield .ic { position: absolute; left: 14px; top: 14px; width: 52px; height: 52px; background-size: contain; background-position: center; background-repeat: no-repeat; }
+.shield .glow { position: absolute; inset: -16px; background: #ff8a2a; -webkit-mask: url(assets/vania_glow.png) center / 100% 100%; display: none; }
+.sh.hover .glow { display: block; }
+.sh.off .slot { background-image: url(assets/vania_slotmask.png); filter: brightness(.9); }
+.sh.off .slot::after { content: ''; position: absolute; inset: 0; background: url(assets/vania_slot.png) center / 100% 100%; opacity: .35; filter: grayscale(1); }
+.sh.off .ic { opacity: .3; filter: grayscale(.7); }
+.sh .nm { margin-top: 6px; font-size: 15px; text-align: center; line-height: 1.1; color: #e6d3b0; text-shadow: 0 1px 2px #000; }
+.sh.off .nm { color: #6b5640; }
+/* Proposition B : tuiles actuelles + écu */
+.tiles.b .tile { border-color: #5a3a22; background: rgba(14,10,8,.9); padding-top: 4px; }
+.tiles.b .tile .shield { width: 66px; height: 72px; }
+.tiles.b .tile .shield .ic { left: 11px; top: 11px; width: 44px; height: 44px; }
+.tiles.b .tile.hover .glow { display: block; inset: -12px; }
+.tiles.b .tile.off .slot { background-image: url(assets/vania_slotmask.png); }
+.tiles.b .tile.off .ic { opacity: .3; filter: grayscale(.7); }
+.tiles.b .tile.off span { color: #6b5640; }
+</style></head><body>
+<h1>Maquette 3 — Movement</h1>
+<div class="sub">Écus dorés du menu Progression du jeu, mariés à la section du mod. États montrés : Holy Light verrouillée, Double Jump survolé (lueur orange en forme d'écu), les autres débloquées.</div>
+<div class="cols">
+  <div class="col"><h2>Actuel</h2><div class="panel">
+    <div class="banner">Movement</div>
+    <div class="btn"><span>All movement</span><i class="ind"></i></div>
+    <div class="tiles">
+      <div class="tile"><img src="assets/vania_whip.png"><span>Arcane<br>Whip</span></div>
+      <div class="tile off"><img src="assets/vania_light.png"><span>Holy Light</span></div>
+      <div class="tile hover"><img src="assets/vania_jump.png"><span>Double<br>Jump</span></div>
+      <div class="tile"><img src="assets/vania_dash.png"><span>Aerial Rush</span></div>
+      <div class="tile"><img src="assets/vania_smash.png"><span>Smash</span></div>
+    </div></div></div>
+
+  <div class="col"><h2>Proposition A — écus sur la ceinture</h2><div class="panel">
+    <div class="banner">Movement</div>
+    <div class="btn"><span>All movement</span><i class="ind"></i></div>
+    <div class="beltrow"><div class="belt"></div><div class="shields">
+      <div class="sh"><div class="shield"><div class="glow"></div><div class="slot"></div><div class="ic" style="background-image:url(assets/vania_whip.png)"></div></div><div class="nm">Arcane<br>Whip</div></div>
+      <div class="sh off"><div class="shield"><div class="glow"></div><div class="slot"></div><div class="ic" style="background-image:url(assets/vania_light.png)"></div></div><div class="nm">Holy<br>Light</div></div>
+      <div class="sh hover"><div class="shield"><div class="glow"></div><div class="slot"></div><div class="ic" style="background-image:url(assets/vania_jump.png)"></div></div><div class="nm">Double<br>Jump</div></div>
+      <div class="sh"><div class="shield"><div class="glow"></div><div class="slot"></div><div class="ic" style="background-image:url(assets/vania_dash.png)"></div></div><div class="nm">Aerial<br>Rush</div></div>
+      <div class="sh"><div class="shield"><div class="glow"></div><div class="slot"></div><div class="ic" style="background-image:url(assets/vania_smash.png)"></div></div><div class="nm">Smash</div></div>
+    </div></div></div>
+    <div class="note">Comme l'écran Progression : la ceinture traverse la ligne, chaque compétence dans son écu doré, nom en dessous. Verrouillée : écu vide assombri, icône éteinte.</div></div>
+
+  <div class="col"><h2>Proposition B — tuiles + écus</h2><div class="panel">
+    <div class="banner">Movement</div>
+    <div class="btn"><span>All movement</span><i class="ind"></i></div>
+    <div class="tiles b">
+      <div class="tile"><div class="shield"><div class="glow"></div><div class="slot"></div><div class="ic" style="background-image:url(assets/vania_whip.png)"></div></div><span>Arcane<br>Whip</span></div>
+      <div class="tile off"><div class="shield"><div class="glow"></div><div class="slot"></div><div class="ic" style="background-image:url(assets/vania_light.png)"></div></div><span>Holy Light</span></div>
+      <div class="tile hover"><div class="shield"><div class="glow"></div><div class="slot"></div><div class="ic" style="background-image:url(assets/vania_jump.png)"></div></div><span>Double<br>Jump</span></div>
+      <div class="tile"><div class="shield"><div class="glow"></div><div class="slot"></div><div class="ic" style="background-image:url(assets/vania_dash.png)"></div></div><span>Aerial Rush</span></div>
+      <div class="tile"><div class="shield"><div class="glow"></div><div class="slot"></div><div class="ic" style="background-image:url(assets/vania_smash.png)"></div></div><span>Smash</span></div>
+    </div></div>
+    <div class="note">Plus proche de l'actuel : on garde les cases et leur zone cliquable, l'icône passe dans l'écu du jeu, cadres des cases plus discrets.</div></div>
+</div>
+</body></html>

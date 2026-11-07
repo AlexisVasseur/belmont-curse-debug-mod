@@ -65,7 +65,7 @@ Lance le jeu et charge une partie.
 Dans le panneau latéral (F1) :
   General   PV / mana / potions infinis, noclip, améliorations...
   Skills    capacités et arcanes
-  Weapons   armes et reliques
+  Items     armes, reliques et équipements
   Bosses    remettre un boss en vie et le refaire (bouton Fight)
   Keybinds  options On / Off et tous les raccourcis (clic sur un raccourci,
             puis appuie sur la nouvelle touche)

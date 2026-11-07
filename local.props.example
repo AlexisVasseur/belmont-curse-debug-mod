@@ -1,0 +1,7 @@
+<!-- Copie ce fichier en "local.props" (non versionné) et mets le chemin de TON dossier du jeu.
+     Exemple Steam : C:\Program Files (x86)\Steam\steamapps\common\Castlevania Belmont's Curse -->
+<Project>
+  <PropertyGroup>
+    <GameDir>C:\Games\Castlevania Belmont's Curse (Modded)</GameDir>
+  </PropertyGroup>
+</Project>

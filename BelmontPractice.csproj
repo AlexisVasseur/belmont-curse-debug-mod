@@ -8,15 +8,29 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <!-- Dossier de la copie moddée du jeu -->
-    <GameDir>C:\Games\Castlevania Belmont's Curse (Modded)</GameDir>
+    <!-- tools\ (outil inspect, projet séparé) et docs\ ne font pas partie du mod -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);tools\**;docs\**</DefaultItemExcludes>
   </PropertyGroup>
+
+  <!-- Dossier du jeu (avec BepInEx installé et lancé une fois).
+       Ordre de priorité : -p:GameDir=... en ligne de commande, puis local.props (non versionné,
+       voir local.props.example), puis la valeur par défaut ci-dessous. -->
+  <Import Project="local.props" Condition="Exists('local.props')" />
+  <PropertyGroup>
+    <GameDir Condition="'$(GameDir)' == ''">C:\Games\Castlevania Belmont's Curse (Modded)</GameDir>
+  </PropertyGroup>
+
+  <Target Name="CheckGameDir" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(GameDir)\BepInEx\interop')"
+           Text="BepInEx\interop introuvable dans '$(GameDir)'. Indique le dossier du jeu (local.props ou -p:GameDir=...), installe BepInEx 6.0.0-be.791 et lance le jeu une fois pour générer les DLL interop." />
+  </Target>
 
   <ItemGroup>
     <Reference Include="$(GameDir)\BepInEx\core\BepInEx.Core.dll" Private="false" />
     <Reference Include="$(GameDir)\BepInEx\core\BepInEx.Unity.IL2CPP.dll" Private="false" />
     <Reference Include="$(GameDir)\BepInEx\core\Il2CppInterop.Runtime.dll" Private="false" />
-    <Reference Include="$(GameDir)\BepInEx\core\Il2CppInterop.Common.dll" Private="false" />    <Reference Include="$(GameDir)\BepInEx\interop\*.dll" Private="false" />
+    <Reference Include="$(GameDir)\BepInEx\core\Il2CppInterop.Common.dll" Private="false" />
+    <Reference Include="$(GameDir)\BepInEx\interop\*.dll" Private="false" />
   </ItemGroup>
 
   <ItemGroup>

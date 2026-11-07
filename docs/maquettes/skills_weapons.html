@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Maquette Skills et Weapons</title><link rel="stylesheet" href="style.css">
+<style>
+  .states { display: flex; justify-content: space-around; margin: 16px 0 4px; }
+  .cap { font-size: 14px; color: var(--gold-label); text-align: center; margin-top: 10px; }
+  .wrow { display: flex; gap: 8px; justify-content: center; margin: 10px 0; position: relative; }
+  .wrow::before { content: ''; position: absolute; left: 0; right: 0; top: 30px; height: 1px; background: #5a3a22; }
+  .wrow .tile { z-index: 1; }
+</style></head>
+<body>
+<h1>Maquette 2 — Spells, Weapons et Relics</h1>
+<div class="sub">Disposition inchangée. Cadres, flèches d'équipement, losanges et gemmes repris du jeu ; le survol imite les flammes animées. Icônes d'objets provisoires.</div>
+<div class="cols">
+  <div class="col"><h2>Actuel</h2><div class="panel old" id="a"></div></div>
+  <div class="col"><h2>Proposition (assets du jeu)</h2><div class="panel new" id="b"></div>
+    <div class="note">Les flammes du jeu sont des particules animées (shader spécial, pas d'image à extraire) : ici une lueur orangée fixe, en jeu elle pourrait pulser doucement.</div></div>
+</div>
+
+<template id="t">
+  <div class="section"><span>Spells</span></div>
+  <div class="spell">
+    <div class="dia eq"><div class="b"></div><div class="art"></div><div class="sp"></div></div>
+    <div class="line"><div class="gem on"></div><div class="gem on"></div><div class="gem"></div></div>
+  </div>
+  <div class="spell">
+    <div class="dia hover"><div class="b"></div><div class="art" style="background:radial-gradient(circle,#ffe9a8 0%,#d4a032 50%,#4a2a08 100%)"></div></div>
+    <div class="line"><div class="gem on"></div><div class="gem hover"></div><div class="gem"></div></div>
+  </div>
+  <div class="spell">
+    <div class="dia"><div class="b"></div><div class="art" style="background:radial-gradient(circle,#ffb36b 0%,#c0401a 50%,#2a0805 100%)"></div></div>
+    <div class="line"><div class="gem"></div><div class="gem"></div><div class="gem"></div></div>
+  </div>
+  <div class="legend"><span>équipé</span><span>gemme débloquée / survolée / verrouillée</span></div>
+
+  <div class="section" style="margin-top:18px"><span>Weapons</span></div>
+  <div class="states">
+    <div class="tilebox"><div class="tile"><img class="ic" src="assets/T_UI_Items_GenericCharmIcon.png"></div><div class="cap">neutre</div></div>
+    <div class="tilebox"><div class="tile hover"><img class="ic" src="assets/T_UI_Items_GenericCharmIcon.png"></div><div class="cap">survol</div></div>
+    <div class="tilebox"><div class="tile eq"><img class="ic" src="assets/T_UI_Items_GenericCharmIcon.png"><div class="spikes"></div></div><div class="cap">équipée</div></div>
+  </div>
+  <div class="wrow">
+    <div class="tile"><img class="ic" src="assets/T_UI_Items_GenericCharmIcon.png"></div>
+    <div class="tile eq"><img class="ic" src="assets/T_UI_Items_GenericCharmIcon.png"><div class="spikes"></div></div>
+    <div class="tile"><img class="ic" src="assets/T_UI_Items_GenericCharmIcon.png" style="opacity:.3"></div>
+    <div class="tile"><img class="ic" src="assets/T_UI_Items_GenericCharmIcon.png" style="opacity:.3"></div>
+  </div>
+
+  <div class="section" style="margin-top:18px"><span>Relics</span></div>
+  <div class="wrow">
+    <div class="tile eq"><img class="ic" src="assets/T_UI_Items_GenericCharmIcon.png"><div class="spikes"></div></div>
+    <div class="tile hover"><img class="ic" src="assets/T_UI_Items_GenericCharmIcon.png"></div>
+    <div class="tile"><img class="ic" src="assets/T_UI_Items_GenericCharmIcon.png"></div>
+    <div class="tile"><img class="ic" src="assets/T_UI_Items_GenericCharmIcon.png" style="opacity:.3"></div>
+  </div>
+</template>
+<script>
+  const t = document.getElementById('t').content;
+  for (const id of ['a', 'b']) document.getElementById(id).appendChild(t.cloneNode(true));
+</script>
+</body></html>

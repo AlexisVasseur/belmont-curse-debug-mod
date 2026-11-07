@@ -1,14 +1,16 @@
 # Crée dist\BelmontPractice-<version>.zip, à décompresser dans le dossier du jeu par-dessus BepInEx 6.0.0-be.791.
 # Contenu : BepInEx\plugins\BelmontPractice (DLL + icônes), LISEZMOI_BelmontPractice.txt et, sauf -SansDonneesBoss,
 # les conditions des boss et les entrées d'arène déjà apprises (BelmontPractice\scenarios_boss.json, arenes.json).
-param([switch]$SansDonneesBoss)
+# Dossier du jeu : -GameDir, sinon celui du projet (local.props ou valeur par défaut du .csproj).
+param([switch]$SansDonneesBoss, [string]$GameDir)
 $ErrorActionPreference = 'Stop'
 
 $proj = $PSScriptRoot
+if (-not $GameDir) { $GameDir = (dotnet msbuild "$proj\BelmontPractice.csproj" -getProperty:GameDir -nologo).Trim() }
 $version = [regex]::Match((Get-Content "$proj\Plugin.cs" -Raw), 'Version = "([^"]+)"').Groups[1].Value
 if (-not $version) { throw "Version introuvable dans Plugin.cs" }
 
-dotnet build "$proj\BelmontPractice.csproj" -c Release -p:SkipGameCopy=true --nologo -v q
+dotnet build "$proj\BelmontPractice.csproj" -c Release -p:SkipGameCopy=true "-p:GameDir=$GameDir" --nologo -v q
 if ($LASTEXITCODE -ne 0) { throw "La compilation a échoué" }
 
 $stage = Join-Path ([IO.Path]::GetTempPath()) "BelmontPractice-package"
@@ -21,7 +23,7 @@ Copy-Item "$proj\icons\*.png" "$plugin\icons"
     Set-Content "$stage\LISEZMOI_BelmontPractice.txt" -Encoding utf8BOM  # BOM : accents corrects dans le Bloc-notes
 
 if (-not $SansDonneesBoss) {
-    $gameData = "C:\Games\Castlevania Belmont's Curse (Modded)\BelmontPractice"
+    $gameData = "$GameDir\BelmontPractice"
     $data = New-Item -ItemType Directory -Force "$stage\BelmontPractice"
     foreach ($f in 'scenarios_boss.json', 'arenes.json') {
         if (Test-Path "$gameData\$f") { Copy-Item "$gameData\$f" $data } else { Write-Warning "$f absent, non inclus" }

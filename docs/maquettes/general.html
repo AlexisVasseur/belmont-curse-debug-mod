@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Maquette General</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Maquette 1 — Onglet General</h1>
+<div class="sub">Même disposition, mêmes tailles. Seuls les cadres, onglets, boutons et titres utilisent les assets du jeu.</div>
+<div class="cols">
+  <div class="col"><h2>Actuel</h2><div class="panel old" id="a"></div></div>
+  <div class="col"><h2>Proposition (assets du jeu)</h2><div class="panel new" id="b"></div>
+    <div class="note">Ornements du jeu seulement sur l'onglet actif et sur le bouton survolé (passez la souris sur un bouton), coupés aux côtés. Onglet actif sur fond rouge. Boutons agrandis et plus contrastés. Titres de section : ruban bordeaux de l'Armurerie.</div></div>
+</div>
+
+<template id="t">
+  <div class="tabs">
+    <div class="tab on"><i class="orn l"></i><i class="orn r"></i><span>General</span></div>
+    <div class="tab"><i class="orn l"></i><i class="orn r"></i><span>Skills</span></div>
+    <div class="tab"><i class="orn l"></i><i class="orn r"></i><span>Weapons</span></div>
+    <div class="tab"><i class="orn l"></i><i class="orn r"></i><span>Keybinds</span></div>
+  </div>
+  <div class="tabsline"></div>
+
+  <div class="section"><span>Utilities</span></div>
+  <div class="row"><span class="name">Infinite HP</span><span class="btn pill on"><i class="orn l"></i><i class="orn r"></i><span>On</span></span></div>
+  <div class="row hl"><span class="name">Infinite mana</span><span class="btn pill"><i class="orn l"></i><i class="orn r"></i><span>Off</span></span></div>
+  <div class="row"><span class="name">Infinite potions</span><span class="btn pill"><i class="orn l"></i><i class="orn r"></i><span>Off</span></span></div>
+  <div class="row"><span class="name">Noclip</span><span class="btn pill"><i class="orn l"></i><i class="orn r"></i><span>Off</span></span></div>
+  <div class="gauge2">
+    <div class="top"><span class="name">Health</span><span class="num" style="margin-right:12px">140 / 200</span>
+      <span class="btn" style="width:70px"><i class="orn l"></i><i class="orn r"></i><span>Heal</span></span></div>
+    <div class="bot"><span class="btn"><i class="orn l"></i><i class="orn r"></i><span>-50</span></span><span class="btn"><i class="orn l"></i><i class="orn r"></i><span>-10</span></span>
+      <div class="bar"><i style="width:70%;background:#a3262b"></i></div>
+      <span class="btn"><i class="orn l"></i><i class="orn r"></i><span>+10</span></span><span class="btn"><i class="orn l"></i><i class="orn r"></i><span>+50</span></span></div>
+  </div>
+  <div class="gauge2">
+    <div class="top"><span class="name">Mana</span><span class="num" style="margin-right:12px">200 / 200</span>
+      <span class="btn" style="width:70px"><i class="orn l"></i><i class="orn r"></i><span>Refill</span></span></div>
+    <div class="bot"><span class="btn"><i class="orn l"></i><i class="orn r"></i><span>-50</span></span><span class="btn"><i class="orn l"></i><i class="orn r"></i><span>-10</span></span>
+      <div class="bar"><i style="width:99%;background:#2f72b8"></i></div>
+      <span class="btn"><i class="orn l"></i><i class="orn r"></i><span>+10</span></span><span class="btn"><i class="orn l"></i><i class="orn r"></i><span>+50</span></span></div>
+  </div>
+
+  <div class="section"><span>Upgrades</span></div>
+  <div class="row" style="height:46px"><img class="icon34" src="assets/attack_book.png"><span class="name">Attack+</span>
+    <span class="btn big" style="width:38px;height:28px"><i class="orn l"></i><i class="orn r"></i><span>-</span></span><span class="num" style="width:56px;text-align:center">4</span>
+    <span class="btn big" style="width:38px;height:28px"><i class="orn l"></i><i class="orn r"></i><span>+</span></span></div>
+  <div class="gauge2" style="padding-bottom:10px">
+    <div class="top"><img class="icon34" src="assets/life_heart.png" style="width:30px;height:30px"><span class="name">Life hearts</span><span class="num">5 / 6</span></div>
+    <div class="bot"><span class="btn big" style="width:38px;height:30px"><i class="orn l"></i><i class="orn r"></i><span>-</span></span>
+      <div class="hearts"><img src="assets/life_heart.png"><img src="assets/life_heart.png"><img src="assets/life_heart.png"><img src="assets/life_heart.png"><img src="assets/life_heart.png"><img class="part" src="assets/life_heart.png"></div>
+      <span class="btn big" style="width:38px;height:30px"><i class="orn l"></i><i class="orn r"></i><span>+</span></span><span style="flex:1;text-align:right;color:var(--gold-label);font-size:15px">+2/4 pieces</span></div>
+  </div>
+</template>
+<script>
+  const t = document.getElementById('t').content;
+  for (const id of ['a', 'b']) document.getElementById(id).appendChild(t.cloneNode(true));
+</script>
+</body></html>

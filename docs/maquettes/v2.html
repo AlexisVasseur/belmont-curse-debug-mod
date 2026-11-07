@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Maquettes v2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bona+Nova+SC:wght@400;700&family=IM+Fell+Great+Primer&family=Pirata+One&display=block');
+:root { --gold:#8a6d3b; --goldb:#a8864a; --goldt:#e2c27e; --goldl:#c9a865; --text:#e6d3b0; --dim:#6b5640; --crimson:#5e1418; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0c0807 radial-gradient(ellipse at 30% 10%, #3b3a2a 0%, #1d1a12 40%, #0c0807 100%); color: var(--text); font-family: 'IM Fell Great Primer', serif; padding: 26px; width: 1760px; }
+h1 { font-family: 'Bona Nova SC', serif; color: var(--goldt); font-size: 30px; }
+.sub { color: var(--goldl); font-size: 16px; margin: 4px 0 20px; }
+.grid { display: flex; gap: 30px; align-items: flex-start; }
+.colh { font-family: 'Bona Nova SC', serif; color: var(--goldl); font-size: 19px; margin-bottom: 8px; }
+.legend { font-size: 14px; color: #b9a582; margin-top: 8px; line-height: 1.35; }
+.legend b { color: var(--goldt); font-weight: normal; }
+
+/* Panneau latéral */
+.panel { width: 470px; background: rgba(20,14,12,.92); border-left: 1px solid var(--gold); padding: 8px 0 14px; }
+.tabs { display: flex; gap: 4px; padding: 0 14px; }
+.tab { flex: 1; height: 38px; position: relative; display: flex; align-items: center; justify-content: center; font-family: 'Bona Nova SC', serif; font-size: 18px; color: var(--goldl); }
+.tab::before, .btn::before { content: ''; position: absolute; inset: 0; background: #241914; -webkit-mask-box-image: url(assets/ui_button.png) 0 25 fill / 0 14px stretch; filter: drop-shadow(0 0 1px #8a6d3b); }
+.tab.on::before { background: var(--crimson); } .tab.on { color: var(--goldt); }
+.tab span, .btn span { position: relative; z-index: 2; }
+.orn { position: absolute; top: -3px; bottom: -3px; width: 17px; z-index: 1; background: url(assets/ui_button_ornament.png) left center / auto 100% no-repeat; }
+.orn.l { left: -3px; } .orn.r { right: -3px; transform: scaleX(-1); }
+.tabline { height: 1px; background: #5a3a22; margin: 6px 14px 6px; }
+.banner { height: 70px; background: url(assets/ui_banner_plain.png) center / 100% 100%; display: flex; align-items: center; justify-content: center; font-family: 'Bona Nova SC', serif; font-size: 25px; color: var(--goldt); margin: 0 0 6px; }
+
+/* 1. Lignes en bandes sombres + 2. sélecteur à flèches */
+.row { position: relative; height: 40px; margin: 5px 14px; display: flex; align-items: center; padding: 0 12px;
+  background: linear-gradient(90deg, rgba(0,0,0,.72) 0%, rgba(0,0,0,.6) 70%, rgba(0,0,0,.15) 100%); }
+.row .name { font-family: 'Bona Nova SC', serif; font-size: 18px; flex: 1; }
+.row.sel { background: linear-gradient(90deg, rgba(0,0,0,.9), rgba(0,0,0,.75) 70%, rgba(0,0,0,.35)); }
+.row.sel .name { color: var(--goldt); }
+.row.sel::before, .row.sel::after { content: ''; position: absolute; top: -4px; bottom: -4px; width: 96px; background: url(assets/selector.png) center / 100% 100% no-repeat; pointer-events: none; }
+.row.sel::before { left: -20px; transform: scaleX(-1); }
+.row.sel::after { right: -20px; }
+/* 3. Cases à cocher */
+.check { width: 24px; height: 24px; border: 1px solid var(--goldb); background: rgba(0,0,0,.6); position: relative; margin-right: 6px; }
+.check.on::after { content: ''; position: absolute; inset: 1px; background: var(--goldt); -webkit-mask: url(assets/CommonUI_Checkmark.png) center / 90% 90% no-repeat; }
+/* 4. Curseur à losange */
+.slider { flex: 1; position: relative; height: 18px; margin: 0 10px; }
+.slider .track { position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: linear-gradient(90deg, var(--goldb), var(--goldt)); }
+.slider .rest { position: absolute; right: 0; top: 8px; height: 2px; background: #4a3a26; }
+.slider .knob { position: absolute; top: 2px; width: 14px; height: 14px; background: var(--goldt); transform: rotate(45deg); box-shadow: 0 0 0 2px #2a1d16, 0 0 6px rgba(226,194,126,.6); }
+.slider.red .track { background: linear-gradient(90deg, #8a1f22, #d0443c); } .slider.blue .track { background: linear-gradient(90deg, #1f4f8a, #4a9be0); }
+.val { font-family: 'Pirata One', cursive; color: var(--goldt); font-size: 22px; min-width: 86px; text-align: right; }
+.row.tall { height: 76px; flex-wrap: wrap; align-content: center; row-gap: 6px; }
+.row.tall .line1, .row.tall .line2 { width: 100%; display: flex; align-items: center; }
+.btn { position: relative; height: 28px; display: inline-flex; align-items: center; justify-content: center; font-family: 'Bona Nova SC', serif; font-size: 14px; color: #f4dfa8; }
+.btn::before { background: #3b2a1f; -webkit-mask-box-image: url(assets/ui_button.png) 0 25 fill / 0 12px stretch; filter: drop-shadow(0 0 1px #a8864a); }
+.btn.hover::before { background: #050302; } .btn.hover { color: var(--goldt); }
+.btn.sign { width: 34px; font-size: 20px; }
+.small { width: 46px; margin: 0 2px; }
+/* 5. Sélecteur ◄ valeur ► */
+.picker { display: flex; align-items: center; gap: 14px; font-family: 'Bona Nova SC', serif; color: var(--goldt); font-size: 16px; }
+.arrow { width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; }
+.arrow.l { border-right: 12px solid var(--goldt); } .arrow.r { border-left: 12px solid var(--goldt); }
+/* 6. Touches en carrés dorés */
+.key { min-width: 30px; height: 28px; padding: 0 6px; border: 1px solid var(--goldb); background: rgba(10,7,6,.85); display: inline-flex; align-items: center; justify-content: center;
+  font-family: 'Bona Nova SC', serif; color: var(--goldt); font-size: 16px; }
+.hint { display: inline-flex; align-items: center; gap: 8px; font-family: 'Bona Nova SC', serif; font-size: 14px; color: var(--goldl); letter-spacing: .5px; margin-right: 18px; }
+/* 7. Bouton orné complet */
+.big { position: relative; height: 40px; margin: 6px 40px 10px; display: flex; align-items: center; justify-content: center; font-family: 'Bona Nova SC', serif; font-size: 17px; color: var(--goldt); }
+.big::before { content: ''; position: absolute; inset: 4px 18px; background: #0b0706; border-top: 1px solid #5a3a22; border-bottom: 1px solid #5a3a22; }
+.big .ol, .big .or { position: absolute; top: -2px; bottom: -2px; width: 60px; background: url(assets/T_CommonUI_SystemButtonHighlighted.png) left center / auto 125% no-repeat; }
+.big .ol { left: 0; } .big .or { right: 0; transform: scaleX(-1); }
+.big span { position: relative; }
+.vials { display: flex; align-items: center; gap: 4px; flex: 1; margin: 0 8px; }
+.vials img { width: 22px; height: 23px; } .vials img.e { opacity: .45; } .vials .sep { width: 10px; height: 20px; }
+.hearts { display: flex; gap: 6px; flex: 1; margin: 0 8px; }
+.heart { width: 28px; height: 28px; position: relative; } .heart img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.heart.empty img { opacity: .45; }
+.book { width: 32px; height: 32px; object-fit: contain; margin-right: 10px; }
+
+/* Fenêtre savestates */
+.window { width: 780px; background: rgba(20,14,12,.93); border: 1px solid var(--gold); padding-bottom: 10px; }
+.window .wbanner { height: 64px; background: url(assets/ui_banner_plain.png) center / 100% 132%; display: flex; align-items: center; justify-content: center; font-family: 'Bona Nova SC', serif; font-size: 30px; color: var(--goldt); }
+.wrow { display: flex; align-items: center; padding: 0 16px; height: 44px; gap: 10px; }
+.slot { position: relative; height: 36px; margin: 4px 16px; display: flex; align-items: center; padding: 0 10px; gap: 12px;
+  background: linear-gradient(90deg, rgba(0,0,0,.72), rgba(0,0,0,.55) 75%, rgba(0,0,0,.15)); }
+.slot .dia { width: 22px; height: 22px; transform: rotate(45deg); border: 1.5px solid var(--goldb); display: flex; align-items: center; justify-content: center; margin: 0 6px; }
+.slot .dia span { transform: rotate(-45deg); font-family: 'Pirata One'; color: #e8cf95; font-size: 17px; }
+.slot .nm { flex: 1; font-size: 21px; } .slot.empty .nm, .slot.empty .dia span { color: var(--dim); } .slot.empty .dia { border-color: var(--gold); }
+.slot.sel { background: linear-gradient(90deg, rgba(0,0,0,.9), rgba(0,0,0,.78) 75%, rgba(0,0,0,.35)); } .slot.sel .nm { color: #f2e2c0; }
+.slot.sel::before, .slot.sel::after { content: ''; position: absolute; top: -4px; bottom: -4px; width: 88px; background: url(assets/selector.png) center / 100% 100% no-repeat; }
+.slot.sel::before { left: -20px; transform: scaleX(-1); } .slot.sel::after { right: -20px; }
+.slot .btn { width: 78px; }
+.footer { display: flex; align-items: center; padding: 10px 16px 0; border-top: 1px solid #5a3a22; margin: 8px 16px 0; }
+.footer .spacer { flex: 1; }
+
+/* Arcanes / armes */
+.spell { position: relative; height: 54px; margin: 4px 14px; display: flex; align-items: center; padding: 0 8px; gap: 10px; background: linear-gradient(90deg, rgba(0,0,0,.72), rgba(0,0,0,.5) 75%, rgba(0,0,0,.1)); }
+.sdia { width: 44px; height: 44px; position: relative; flex: none; }
+.sdia .f { position: absolute; inset: 0; background: url(assets/ui_diamond.png) center / 100% 100%; }
+.sdia .a { position: absolute; inset: 13px; transform: rotate(45deg); }
+.sdia .g { position: absolute; inset: -26px; background: #4aa8ff; -webkit-mask: url(assets/ui_glow_diamond.png) center / 100% 100%; }
+.spell .sn { width: 130px; font-family: 'Bona Nova SC', serif; font-size: 16px; }
+.gline { flex: 1; height: 1px; background: var(--goldb); display: flex; justify-content: space-around; align-items: center; }
+.gem { width: 26px; height: 26px; background: url(assets/ui_gem_locked.png) center / 100% 100%; } .gem.on { background-image: url(assets/ui_gem_unlocked.png); }
+.spell.sel::before, .spell.sel::after { content: ''; position: absolute; top: -2px; bottom: -2px; width: 92px; background: url(assets/selector.png) center / 100% 100% no-repeat; }
+.spell.sel::before { left: -20px; transform: scaleX(-1); } .spell.sel::after { right: -20px; }
+.beltrow { position: relative; height: 140px; }
+.belt { position: absolute; left: -10px; right: -10px; top: 4px; height: 96px; background: url(assets/ui_vania_belt.png) center / 100% 100%; }
+.shields { position: absolute; inset: 0; display: flex; justify-content: space-around; }
+.sh { width: 82px; display: flex; flex-direction: column; align-items: center; }
+.shd { width: 72px; height: 80px; position: relative; } .shd .s { position: absolute; inset: 0; background: url(assets/ui_vania_slot.png) center / 100% 100%; }
+.shd .c { position: absolute; left: 18px; top: 16px; width: 36px; height: 36px; border-radius: 50%; }
+.sh .n { font-family: 'Bona Nova SC', serif; font-size: 14px; text-align: center; margin-top: 4px; line-height: 1.1; }
+
+/* Sélecteur : flèches entièrement dans la bande, même hauteur ; contenu décalé d'autant */
+.row.sel, .slot.sel, .spell.sel { padding-left: 54px; padding-right: 54px; }
+.row.sel::before, .slot.sel::before, .spell.sel::before, .row.sel::after, .slot.sel::after, .spell.sel::after { top: 0; bottom: 0; width: 50px; }
+.row.sel::before, .slot.sel::before, .spell.sel::before { left: 0; }
+.row.sel::after, .slot.sel::after, .spell.sel::after { right: 0; }
+</style></head><body>
+<h1>Maquettes v2 — inspirées des menus Options du jeu</h1>
+<div class="sub">v3 : flèches du sélecteur dans les bandes, bandeaux rouges inchangés. Numéros = idées proposées : ① bandes sombres ② sélecteur à flèches ornées (élément survolé) ③ cases à cocher ④ curseurs à losange ⑤ sélecteur ◄ valeur ► ⑥ touches en carrés dorés ⑦ bouton orné complet. Disposition du mod inchangée.</div>
+
+<div class="grid">
+<!-- ===================== GENERAL ===================== -->
+<div>
+  <div class="colh">Onglet General</div>
+  <div class="panel">
+    <div class="tabs">
+      <div class="tab on"><i class="orn l"></i><i class="orn r"></i><span>General</span></div>
+      <div class="tab"><span>Skills</span></div><div class="tab"><span>Weapons</span></div><div class="tab"><span>Keybinds</span></div>
+    </div>
+    <div class="tabline"></div>
+    <div class="banner">Utilities</div>
+    <div class="row"><span class="name">Infinite HP</span><div class="check on"></div></div>
+    <div class="row sel"><span class="name">Infinite mana</span><div class="check"></div></div>
+    <div class="row"><span class="name">Infinite potions</span><div class="check"></div></div>
+    <div class="row"><span class="name">Infinite jump</span><div class="check on"></div></div>
+    <div class="row"><span class="name">Noclip</span><div class="check"></div></div>
+    <div class="row tall"><div class="line1"><span class="name">Health</span><span class="val">140 / 200</span></div>
+      <div class="line2"><span class="btn small"><span>-50</span></span><span class="btn small"><span>-10</span></span>
+      <div class="slider red"><div class="track" style="right:30%"></div><div class="rest" style="left:70%"></div><div class="knob" style="left:calc(70% - 7px)"></div></div>
+      <span class="btn small"><span>+10</span></span><span class="btn small hover"><i class="orn l"></i><i class="orn r"></i><span>+50</span></span></div></div>
+    <div class="row tall"><div class="line1"><span class="name">Mana</span><span class="val">200 / 200</span></div>
+      <div class="line2"><span class="btn small"><span>-50</span></span><span class="btn small"><span>-10</span></span>
+      <div class="slider blue"><div class="track"></div><div class="knob" style="left:calc(100% - 9px)"></div></div>
+      <span class="btn small"><span>+10</span></span><span class="btn small"><span>+50</span></span></div></div>
+    <div class="row tall"><div class="line1"><span class="name">Potions</span><span class="val">3 / 3 + 1</span></div>
+      <div class="line2"><span class="btn sign"><span>−</span></span><div class="vials"><img src="assets/ui_potion.png"><img src="assets/ui_potion.png"><img src="assets/ui_potion.png"><img class="sep" src="assets/ui_potion_separator.png"><img src="assets/ui_potion_bonus.png"><img class="e" src="assets/ui_potion_empty.png"><img class="e" src="assets/ui_potion_empty.png"></div><span class="btn sign"><span>+</span></span></div></div>
+    <div class="banner" style="margin-top:10px">Upgrades</div>
+    <div class="row"><img class="book" src="assets/attack_book.png"><span class="name">Attack+</span><span class="btn sign"><span>−</span></span><span class="val" style="min-width:50px;text-align:center">12</span><span class="btn sign"><span>+</span></span></div>
+    <div class="row tall"><div class="line1"><img class="book" src="assets/life_heart.png" style="width:26px;height:26px"><span class="name">Life hearts</span><span class="val">5 / 6</span></div>
+      <div class="line2"><span class="btn sign"><span>−</span></span><div class="hearts">
+        <div class="heart"><img src="assets/ui_heart_bg.png"><img src="assets/ui_heart_life_1.png"><img src="assets/ui_heart_life_2.png"><img src="assets/ui_heart_life_3.png"><img src="assets/ui_heart_life_4.png"><img src="assets/ui_heart_frame.png"></div>
+        <div class="heart"><img src="assets/ui_heart_bg.png"><img src="assets/ui_heart_life_1.png"><img src="assets/ui_heart_life_2.png"><img src="assets/ui_heart_life_3.png"><img src="assets/ui_heart_life_4.png"><img src="assets/ui_heart_frame.png"></div>
+        <div class="heart"><img src="assets/ui_heart_bg.png"><img src="assets/ui_heart_life_1.png"><img src="assets/ui_heart_life_2.png"><img src="assets/ui_heart_life_3.png"><img src="assets/ui_heart_life_4.png"><img src="assets/ui_heart_frame.png"></div>
+        <div class="heart"><img src="assets/ui_heart_bg.png"><img src="assets/ui_heart_life_1.png"><img src="assets/ui_heart_life_2.png"><img src="assets/ui_heart_life_3.png"><img src="assets/ui_heart_life_4.png"><img src="assets/ui_heart_frame.png"></div>
+        <div class="heart"><img src="assets/ui_heart_bg.png"><img src="assets/ui_heart_life_1.png"><img src="assets/ui_heart_life_2.png"><img src="assets/ui_heart_life_3.png"><img src="assets/ui_heart_life_4.png"><img src="assets/ui_heart_frame.png"></div>
+        <div class="heart"><img src="assets/ui_heart_bg.png"><img src="assets/ui_heart_life_1.png"><img src="assets/ui_heart_life_2.png"><img src="assets/ui_heart_frame.png"></div>
+      </div><span class="btn sign"><span>+</span></span></div></div>
+  </div>
+  <div class="legend"><b>① ②</b> chaque ligne sur une bande sombre ; la ligne survolée (Infinite mana) encadrée des flèches dorées du jeu.<br><b>③</b> cases à cocher dorées au lieu des pastilles On/Off.<br><b>④</b> Health / Mana : curseur doré à losange, déplaçable à la souris ; boutons conservés.</div>
+</div>
+
+<!-- ===================== KEYBINDS ===================== -->
+<div>
+  <div class="colh">Onglet Keybinds</div>
+  <div class="panel">
+    <div class="tabs">
+      <div class="tab"><span>General</span></div><div class="tab"><span>Skills</span></div><div class="tab"><span>Weapons</span></div>
+      <div class="tab on"><i class="orn l"></i><i class="orn r"></i><span>Keybinds</span></div>
+    </div>
+    <div class="tabline"></div>
+    <div class="big"><i class="ol"></i><i class="or"></i><span>Reset all to default</span></div>
+    <div class="banner">Savestates</div>
+    <div class="row"><span class="name">Toggle panel</span><span class="key">F1</span></div>
+    <div class="row"><span class="name">Save quickslot</span><span class="key">F5</span>&nbsp;<span class="key">Num 7</span></div>
+    <div class="row sel"><span class="name">Load quickslot</span><span class="key" style="color:#f2e2c0;background:#5e1418">Press a key…</span></div>
+    <div class="row"><span class="name">Save to slot</span><span class="key">Num 9</span></div>
+    <div class="row"><span class="name">Quickslot to slot</span><span class="key" style="color:var(--dim);border-color:var(--gold)">—</span></div>
+    <div class="row"><span class="name">Slot digits</span><div class="picker"><i class="arrow l"></i><span>Numpad</span><i class="arrow r"></i></div></div>
+    <div class="banner" style="margin-top:8px">Utilities</div>
+    <div class="row"><span class="name">Infinite HP</span><span class="key">H</span></div>
+    <div class="row"><span class="name">Noclip</span><span class="key">N</span></div>
+  </div>
+  <div class="legend"><b>⑥</b> touches dans des carrés dorés, comme la barre de raccourcis du jeu.<br><b>⑤</b> « Slot digits » en sélecteur ◄ Numpad ►.<br><b>⑦</b> « Reset all to default » en bouton orné complet.<br><b>①②</b> bandes et sélecteur sur la ligne en cours de saisie.</div>
+</div>
+
+<!-- ===================== SKILLS / WEAPONS ===================== -->
+<div>
+  <div class="colh">Onglet Skills</div>
+  <div class="panel">
+    <div class="tabs">
+      <div class="tab"><span>General</span></div><div class="tab on"><i class="orn l"></i><i class="orn r"></i><span>Skills</span></div><div class="tab"><span>Weapons</span></div><div class="tab"><span>Keybinds</span></div>
+    </div>
+    <div class="tabline"></div>
+    <div class="banner">Movement</div>
+    <div class="big"><i class="ol"></i><i class="or"></i><span>All movement</span></div>
+    <div class="beltrow"><div class="belt"></div><div class="shields">
+      <div class="sh"><div class="shd"><div class="s"></div><div class="c" style="background:radial-gradient(#d07af0,#5b1f6e)"></div></div><div class="n">Arcane<br>Whip</div></div>
+      <div class="sh"><div class="shd"><div class="s"></div><div class="c" style="background:radial-gradient(#ffe27a,#7a5a10)"></div></div><div class="n">Holy<br>Light</div></div>
+      <div class="sh"><div class="shd"><div class="s"></div><div class="c" style="background:radial-gradient(#7ab8ff,#1f3f7a)"></div></div><div class="n">Double<br>Jump</div></div>
+      <div class="sh"><div class="shd"><div class="s"></div><div class="c" style="background:radial-gradient(#7fe0c0,#1f6a5a)"></div></div><div class="n">Aerial<br>Rush</div></div>
+      <div class="sh"><div class="shd"><div class="s"></div><div class="c" style="background:radial-gradient(#ffd06a,#7a4a10)"></div></div><div class="n">Smash</div></div>
+    </div></div>
+    <div class="banner">Arcanas</div>
+    <div class="spell"><div class="sdia"><div class="g"></div><div class="f"></div><div class="a" style="background:radial-gradient(#ffb36b,#8a1a10)"></div></div><span class="sn">Cursed Flame</span><div class="gline"><div class="gem on"></div><div class="gem on"></div><div class="gem"></div></div><span class="btn" style="width:92px"><span>Absolution</span></span></div>
+    <div class="spell sel"><div class="sdia"><div class="f"></div><div class="a" style="background:radial-gradient(#ff7aa8,#5a1030)"></div></div><span class="sn">Succubus</span><div class="gline"><div class="gem"></div><div class="gem on"></div><div class="gem"></div></div></div>
+    <div class="spell"><div class="sdia"><div class="f"></div><div class="a" style="background:radial-gradient(#ffd06a,#8a3a10)"></div></div><span class="sn">Death</span><div class="gline"><div class="gem on"></div><div class="gem on"></div><div class="gem"></div></div></div>
+  </div>
+  <div class="legend"><b>⑦</b> « All movement » en bouton orné complet (icônes des compétences provisoires).<br><b>①②</b> chaque arcane sur une bande ; la ligne survolée encadrée des flèches ; l'arcane équipée garde son contour bleu.<br>Armes et reliques : inchangées (cases + contours orange / bleu).</div>
+</div>
+</div>
+
+<!-- ===================== SAVESTATES ===================== -->
+<div style="margin-top:34px">
+  <div class="colh">Fenêtre des savestates</div>
+  <div class="window">
+    <div class="wbanner">Savestates</div>
+    <div class="wrow" style="margin-top:6px"><span style="font-family:'Bona Nova SC';color:var(--goldl);font-size:19px;width:120px">Quickslot</span><span style="flex:1;font-size:21px">03_Catacombs Catacombs_SaveRoom02 20:17</span>
+      <span class="btn" style="width:120px"><span>Load&nbsp;&nbsp;&nbsp;F6</span></span><span class="btn" style="width:120px"><span>Save&nbsp;&nbsp;&nbsp;F5</span></span></div>
+    <div class="wrow"><span class="btn" style="width:70px"><span>Edit</span></span><span style="flex:1"></span>
+      <div class="picker" style="font-size:19px"><span class="key">4</span><i class="arrow l"></i><span>Page 1 / 7</span><i class="arrow r"></i><span class="key">6</span></div><span style="flex:1"></span><span class="btn" style="width:80px"><span>+ Page</span></span></div>
+    <div class="slot sel"><div class="dia"><span>0</span></div><span class="nm">Coucou</span><span class="btn hover"><i class="orn l"></i><i class="orn r"></i><span>Read</span></span><span class="btn"><span>Write</span></span></div>
+    <div class="slot"><div class="dia"><span>1</span></div><span class="nm">Djdojdojdodj</span><span class="btn"><span>Read</span></span><span class="btn"><span>Write</span></span></div>
+    <div class="slot"><div class="dia"><span>2</span></div><span class="nm">03_Catacombs MVP_Room08 3:23</span><span class="btn"><span>Read</span></span><span class="btn"><span>Write</span></span></div>
+    <div class="slot empty"><div class="dia"><span>3</span></div><span class="nm">Empty</span><span class="btn" style="opacity:.45"><span>Read</span></span><span class="btn"><span>Write</span></span></div>
+    <div class="slot empty"><div class="dia"><span>4</span></div><span class="nm">Empty</span><span class="btn" style="opacity:.45"><span>Read</span></span><span class="btn"><span>Write</span></span></div>
+    <div class="footer"><span class="hint"><span class="key">9</span>Save to</span><span class="hint"><span class="key">3</span>Load</span><span class="hint"><span class="key">2</span>Read</span><span class="spacer"></span><span class="hint">Close<span class="key">F1</span></span></div>
+  </div>
+  <div class="legend" style="width:780px"><b>①②</b> emplacements sur des bandes sombres, la ligne survolée encadrée des flèches dorées (remplace le surlignage bordeaux).<br><b>⑤</b> navigation de page en ◄ Page 1 / 7 ►, touches 4 / 6 de part et d'autre.<br><b>⑥</b> barre du bas façon jeu : touches en carrés dorés suivies de l'action.</div>
+</div>
+</body></html>

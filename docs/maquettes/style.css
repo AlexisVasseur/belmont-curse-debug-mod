@@ -1,0 +1,159 @@
+@import url('https://fonts.googleapis.com/css2?family=Bona+Nova+SC:wght@400;700&family=IM+Fell+Great+Primer&family=Pirata+One&display=block');
+
+:root {
+  --bg: rgba(20, 14, 12, .88);
+  --btn: rgba(28, 20, 17, .95);
+  --gold: #8a6d3b; --gold-bright: #a8864a; --gold-text: #e2c27e; --gold-label: #c9a865;
+  --text: #e6d3b0; --dim: #6b5640; --crimson: #5e1418; --line: #2e2019;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0c0807 radial-gradient(ellipse at 30% 20%, #3b3a2a 0%, #1d1a12 45%, #0c0807 100%); color: var(--text);
+  font-family: 'IM Fell Great Primer', serif; padding: 26px; }
+h1 { font-family: 'Bona Nova SC', serif; color: var(--gold-text); font-size: 30px; margin-bottom: 4px; }
+.sub { color: var(--gold-label); font-size: 17px; margin-bottom: 22px; }
+.cols { display: flex; gap: 40px; align-items: flex-start; }
+.col h2 { font-family: 'Bona Nova SC', serif; color: var(--gold-label); font-size: 20px; margin-bottom: 10px; letter-spacing: 1px; }
+.note { font-size: 15px; color: #b9a582; margin-top: 10px; max-width: 470px; line-height: 1.35; }
+
+/* ---------- Panneau ---------- */
+.panel { width: 470px; background: var(--bg); border-left: 1px solid var(--gold); padding: 8px 14px 14px; position: relative; }
+.tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+.tab { flex: 1; height: 32px; display: flex; align-items: center; justify-content: center; font-family: 'Bona Nova SC', serif; font-size: 17px; position: relative; }
+.tabsline { height: 1px; background: #5a3a22; margin: 4px 0 12px; }
+
+/* Actuel : cadres plats */
+.old .tab { border: 1px solid var(--gold); background: var(--btn); color: var(--gold-label); }
+.old .tab.on { background: var(--crimson); border-color: var(--gold-bright); color: var(--gold-text); }
+.old .section { display: flex; align-items: center; gap: 10px; height: 44px; margin: 6px 0; }
+.old .section::before, .old .section::after { content: ''; flex: 1; height: 1px; background: #5a3a22; }
+.old .section span { font-family: 'Bona Nova SC', serif; font-size: 32px; color: var(--gold-text); }
+.old .btn { border: 1px solid var(--gold); background: var(--btn); color: #e8cf95; }
+.old .btn.hover { background: #3a2418; }
+.old .pill.on { background: var(--crimson); border-color: var(--gold-bright); color: var(--gold-text); }
+
+/* Proposition : assets du jeu */
+.new .tab { color: var(--gold-label); }
+.new .tab::before { content: ''; position: absolute; inset: 0; background: #1a1210;
+  -webkit-mask-box-image: url(assets/T_CommonUI_SystemButtonBG.png) 0 25 fill / 0 16px stretch; z-index: 0; }
+.new .tab span { position: relative; z-index: 2; }
+.new .tab.on { color: var(--gold-text); }
+.new .tab.on::before { background: #000; }
+.new .tab .orn, .new .btn .orn { display: block; opacity: .38; filter: saturate(.6); }
+.new .tab.on .orn, .new .btn.hover .orn, .new .pill.on .orn { opacity: 1; filter: none; }
+.orn { display: none; position: absolute; top: -9px; bottom: -9px; width: 46%; z-index: 1;
+  background: url(assets/T_CommonUI_SystemButtonHighlighted.png) left center / auto 100% no-repeat; }
+.orn.l { left: -10px; }
+.orn.r { right: -10px; transform: scaleX(-1); }
+.new .section { height: 46px; margin: 8px -6px; display: flex; align-items: center; justify-content: center;
+  background: url(assets/T_UI_WeaponInventory_BannerTitle.png) center / 100% 100% no-repeat; }
+.new .section span { font-family: 'Bona Nova SC', serif; font-size: 25px; color: var(--gold-text); text-shadow: 0 1px 2px #000; padding-top: 2px; }
+.new .btn { color: #e8cf95; position: relative; }
+.new .btn::before { content: ''; position: absolute; inset: 0; background: #1a1210;
+  -webkit-mask-box-image: url(assets/T_CommonUI_SystemButtonBG.png) 0 25 fill / 0 12px stretch; z-index: 0; }
+.new .btn.hover::before { background: #000; }
+.new .btn.hover { color: var(--gold-text); }
+.new .btn span { position: relative; z-index: 2; }
+.new .btn .orn { top: -7px; bottom: -7px; width: 48%; }
+.new .btn .orn.l { left: -7px; } .new .btn .orn.r { right: -7px; }
+.new .pill.on::before { background: var(--crimson); }
+.new .pill.on { color: var(--gold-text); }
+
+/* ---------- Lignes ---------- */
+.row { display: flex; align-items: center; height: 42px; border-bottom: 1px solid var(--line); padding: 0 4px; }
+.row.hl { background: rgba(94, 20, 24, .55); }
+.row .name { font-family: 'Bona Nova SC', serif; font-size: 19px; flex: 1; }
+.btn { height: 26px; display: inline-flex; align-items: center; justify-content: center; font-family: 'Bona Nova SC', serif; font-size: 14px; }
+.pill { width: 64px; }
+.num { font-family: 'Pirata One', cursive; color: var(--gold-text); font-size: 21px; }
+.gauge2 { border-bottom: 1px solid var(--line); padding: 2px 4px 8px; }
+.gauge2 .top { display: flex; align-items: center; height: 32px; }
+.gauge2 .top .name { font-family: 'Bona Nova SC', serif; font-size: 19px; flex: 1; }
+.gauge2 .bot { display: flex; align-items: center; gap: 5px; }
+.gauge2 .bot .btn { width: 42px; height: 24px; font-size: 13px; }
+.bar { flex: 1; height: 12px; border: 1px solid var(--gold); background: #140e0c; margin: 0 4px; position: relative; }
+.bar i { position: absolute; left: 1px; top: 1px; bottom: 1px; }
+.icon34 { width: 34px; height: 34px; object-fit: contain; margin-right: 10px; }
+.hearts { display: flex; gap: 8px; margin: 0 8px; }
+.hearts img { width: 30px; height: 30px; }
+.hearts img.off { opacity: .2; filter: grayscale(.5) brightness(.6); }
+.hearts img.part { opacity: .6; filter: brightness(.6); }
+
+/* ---------- Tuiles armes / reliques ---------- */
+.grid { display: flex; gap: 22px; justify-content: center; margin: 14px 0 6px; }
+.tilebox { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 14px; color: var(--gold-label); }
+.tile { width: 60px; height: 60px; position: relative; display: flex; align-items: center; justify-content: center; }
+.tile img.ic { width: 46px; height: 46px; object-fit: contain; position: relative; z-index: 2; }
+.old .tile { border: 1px solid var(--gold-bright); background: rgba(51, 36, 26, .95); }
+.old .tile.hover { background: var(--crimson); }
+.old .tile.eq { border-color: var(--gold-text); }
+.old .tile.eq::after { content: ''; position: absolute; width: 9px; height: 9px; background: var(--gold-text); transform: rotate(45deg); bottom: -5px; left: 25px; }
+.new .tile::before { content: ''; position: absolute; inset: -6px; background: url(assets/CommonUI_GridSlot.png) center / 100% 100%; filter: brightness(.55) sepia(.4); z-index: 1; }
+.new .tile::after { content: ''; position: absolute; inset: 0; background: #0e0a08; z-index: 0; }
+.new .tile.hover { box-shadow: 0 0 6px 2px #ff8a2a, 0 0 18px 6px rgba(255, 110, 20, .55), inset 0 0 14px 3px rgba(255, 120, 30, .55); }
+.new .tile.hover::before { filter: sepia(1) saturate(4) hue-rotate(-12deg) brightness(1.1); }
+.spikes { position: absolute; inset: -16px; background: url(assets/TalentGem_Slot_Equipped.png) center / 100% 100%; transform: rotate(45deg); z-index: 3; }
+
+/* ---------- Sorts ---------- */
+.spell { display: flex; align-items: center; height: 60px; gap: 8px; }
+.dia { width: 48px; height: 48px; position: relative; flex: none; }
+.old .dia .b { position: absolute; inset: 7px; border: 2px solid var(--gold-bright); transform: rotate(45deg); background: #3a1d12; }
+.new .dia .b { position: absolute; inset: -4px; background: url(assets/CommonUI_SquareSlot.png) center / 100% 100%; }
+.new .dia.hover .b { background-image: url(assets/CommonUI_SquareSlot_04.png); filter: drop-shadow(0 0 6px #ff8a2a) drop-shadow(0 0 10px rgba(255,110,20,.6)); }
+.new .dia .sp { position: absolute; inset: -12px; background: url(assets/TalentGem_Slot_Equipped.png) center / 100% 100%; }
+.dia .art { position: absolute; inset: 15px; background: radial-gradient(circle, #f5b84a 0%, #b5401c 55%, #3a0d08 100%); transform: rotate(45deg); }
+.line { flex: 1; height: 1px; background: var(--gold-bright); position: relative; display: flex; justify-content: space-around; align-items: center; }
+.gem { width: 20px; height: 20px; position: relative; }
+.old .gem { transform: rotate(45deg); border: 1px solid var(--gold); background: #140e0c; width: 14px; height: 14px; }
+.old .gem.on { background: var(--gold-text); border-color: var(--gold-text); }
+.new .gem { width: 28px; height: 28px; background: url(assets/T_UI_TalentGem_Slot.png) center / 100% 100%; }
+.new .gem.on { background-image: url(assets/T_UI_SpellInventory_TalentGem_Atlas_Leon.png); }
+.new .gem.hover::after { content: ''; position: absolute; inset: -8px; background: url(assets/TalentGem_Slot_Select.png) center / 100% 100%; }
+.legend { display: flex; justify-content: space-around; font-size: 14px; color: var(--gold-label); margin-top: 2px; }
+
+.old .spikes { display: none; }
+
+
+/* ===== Retours v2 ===== */
+/* 1. Bannière plus haute */
+.new .section { height: 66px; margin: 6px -10px; background-size: 100% 100%; }
+.new .section span { font-size: 27px; padding-top: 0; }
+
+/* 2-3. Ornements : seulement sur l'élément sélectionné, coupés aux côtés (pas de tiges), sans déborder */
+.new .tab .orn, .new .btn .orn { display: none; }
+.new .tab.on .orn, .new .btn.hover .orn { display: block; opacity: 1; filter: none; }
+.orn { top: -3px; bottom: -3px; width: 18px; background-size: auto 100%; background-position: left center; }
+.orn.l { left: -3px; } .orn.r { right: -3px; }
+.new .btn .orn { top: -3px; bottom: -3px; width: 15px; }
+.new .btn .orn.l { left: -3px; } .new .btn .orn.r { right: -3px; }
+
+/* Onglet sélectionné : fond rouge conservé */
+.new .tab.on::before { background: var(--crimson); }
+
+/* 4. Boutons plus grands (la place des tiges est rendue aux boutons) */
+.tabs { gap: 4px; }
+.tab { height: 38px; font-size: 18px; }
+.btn { height: 30px; font-size: 15px; }
+.gauge2 .bot .btn { width: 46px; height: 28px; font-size: 14px; }
+.pill { width: 70px; }
+
+/* 5. Contraste des boutons au repos (-, +, -10…) */
+.new .btn::before { background: #3b2a1f; filter: drop-shadow(0 0 1px #a8864a) drop-shadow(0 0 0.5px #a8864a); }
+.new .btn { color: #f4dfa8; }
+.new .btn.big { font-size: 22px; font-weight: 700; }
+.new .tab::before { background: #241914; filter: drop-shadow(0 0 1px #8a6d3b); }
+
+/* Bannière v3 : ruban étiré en 3 tranches (extrémités ornées + centre), bande ≈ 24 px */
+.new .section { height: 100px; margin: -18px -12px -34px; background: none; position: relative; display: block;
+  border-image: url(assets/T_UI_WeaponInventory_BannerTitle.png) 0 260 0 260 fill / 0 80px 0 80px stretch; }
+.new .section span { position: absolute; left: 0; right: 0; top: 13px; text-align: center; font-size: 25px; }
+
+/* Bannière v4 : ruban recadré sur sa bande, plus épais, sans déborder */
+.new .section { height: 46px; margin: 10px -8px; display: block; position: relative; background: none;
+  border-image: url(assets/banner_band.png) 0 240 0 240 fill / 0 60px 0 60px stretch; }
+.new .section span { position: absolute; left: 0; right: 0; top: 7px; text-align: center; font-size: 25px; }
+
+/* Survol réel dans le navigateur : ornements uniquement au survol des boutons */
+.new .btn:hover .orn { display: block; opacity: 1; filter: none; }
+.new .btn:hover::before { background: #000; }
+.new .btn:hover { color: var(--gold-text); cursor: pointer; }
+.old .btn:hover { background: #3a2418; cursor: pointer; }
