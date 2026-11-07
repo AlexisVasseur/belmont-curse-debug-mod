@@ -16,14 +16,29 @@ La spécification complète se trouve dans [docs/SPEC.md](docs/SPEC.md).
 
 Pas besoin de compiler : récupère le zip `BelmontPractice-<version>.zip` dans les
 [Releases](../../releases) du dépôt, puis suis le fichier `LISEZMOI_BelmontPractice.txt` qu'il contient.
+Le mod est fait pour la **version 1.1.3 du jeu** : on l'installe dans une copie à part, et l'install Steam reste intacte.
 En résumé :
 
 1. **Sauvegarde tes parties** : `%USERPROFILE%\AppData\LocalLow\KONAMI\Castlevania Belmont's Curse`.
-2. Installe **BepInEx 6.0.0-be.791, variante Unity IL2CPP, win-x64** depuis
-   <https://builds.bepinex.dev/projects/bepinex_be> (build #791). Une autre version risque de ne pas charger le mod.
-3. Lance le jeu une fois jusqu'au menu principal (BepInEx génère ses fichiers), puis quitte-le.
-4. Décompresse le zip du mod dans le dossier du jeu.
-5. En jeu : **F1** ouvre les fenêtres du mod.
+   Ce dossier est partagé par toutes les installations du jeu.
+2. **Télécharge la 1.1.3** : ouvre la console Steam (`steam://open/console`), puis lance
+   `download_depot 4231820 4231821 8796979530797619124`.
+   Déplace ensuite `Steam\steamapps\content\app_4231820\depot_4231821` vers ton dossier de jeu moddé,
+   par exemple `C:\Games\Castlevania Belmont's Curse (Modded)`.
+3. **Crée `steam_appid.txt`** à côté de l'exe, avec pour seul contenu `4231820`.
+   On lance ensuite le jeu par l'exe, avec Steam ouvert.
+4. **Installe BepInEx 6.0.0-be.791, variante Unity IL2CPP, win-x64** depuis
+   <https://builds.bepinex.dev/projects/bepinex_be> (build #791) dans ce dossier.
+   Lance le jeu une fois jusqu'au menu principal, puis quitte-le.
+5. **Installe le mod** : décompresse le zip du mod dans ce dossier.
+   En jeu, **F1** ouvre les fenêtres du mod.
+
+| | ID Steam |
+|---|---|
+| App | 4231820 |
+| Dépôt du jeu | 4231821 |
+| Dépôt du DLC | 4740130, manifeste `7188009525124262301` (identique en 1.1.3 et 1.1.4) |
+| Manifeste 1.1.3 (jeu) | 8796979530797619124 (build 25975867, 16/10/2026) |
 
 ---
 

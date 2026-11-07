@@ -19,7 +19,69 @@ Le mod fait aussi une copie de tes sauvegardes à chaque lancement du jeu,
 dans <dossier du jeu>\BelmontPractice\SauvegardesJeu (les 10 dernières).
 
 
-1. INSTALLER BEPINEX (une seule fois)
+VERSION DU JEU : 1.1.3
+----------------------
+Le mod est fait pour la version 1.1.3 du jeu (patch du 16/10/2026). Steam
+installe toujours la dernière version, qui peut casser le mod : on télécharge
+donc la 1.1.3 dans un dossier à part. Ton install Steam normale n'est pas
+touchée et continue de se mettre à jour.
+
+Attention : les deux versions utilisent le MÊME dossier de sauvegardes
+(voir plus haut). Une partie enregistrée avec une version plus récente risque
+de ne pas se charger correctement en 1.1.3 : garde ta copie de sauvegarde.
+
+
+1. TÉLÉCHARGER LA VERSION 1.1.3 (une seule fois)
+------------------------------------------------
+Il faut posséder le jeu sur le compte Steam connecté.
+
+  a. Lance Steam. Dans la barre d'adresse de ton navigateur, tape :
+
+       steam://open/console
+
+     et accepte d'ouvrir Steam : l'onglet "Console" apparaît dans Steam.
+
+  b. Dans la console Steam, colle cette commande puis Entrée :
+
+       download_depot 4231820 4231821 8796979530797619124
+
+     (4231820 = le jeu, 4231821 = ses fichiers, le dernier nombre = la
+     version 1.1.3). Il n'y a pas de barre de progression : attends le
+     message "Depot download complete" (environ 6 Go).
+
+  c. Les fichiers arrivent dans :
+
+       C:\Program Files (x86)\Steam\steamapps\content\app_4231820\depot_4231821
+
+     Déplace ce dossier où tu veux et renomme-le, par exemple :
+
+       C:\Games\Castlevania Belmont's Curse (Modded)
+
+     C'est ton "dossier du jeu" pour la suite.
+
+
+2. CRÉER LE FICHIER steam_appid.txt
+-----------------------------------
+Hors du dossier Steam, le jeu a besoin de ce fichier pour se lancer.
+
+  a. Dans le dossier du jeu (à côté de "Castlevania Belmont's Curse.exe"),
+     crée un fichier texte nommé exactement :
+
+       steam_appid.txt
+
+     (attention à ne pas obtenir "steam_appid.txt.txt" : dans l'Explorateur,
+     active Affichage > Afficher > Extensions de noms de fichiers).
+
+  b. Mets dedans uniquement ce nombre, sans espace ni ligne vide :
+
+       4231820
+
+  c. Pour jouer à cette version, lance "Castlevania Belmont's Curse.exe"
+     directement (Steam doit être ouvert et connecté). Ne passe pas par le
+     bouton Jouer de Steam, qui lance l'autre install.
+
+
+3. INSTALLER BEPINEX (une seule fois)
 -------------------------------------
 Il faut EXACTEMENT cette version de BepInEx :
 
@@ -32,16 +94,15 @@ Il faut EXACTEMENT cette version de BepInEx :
 Le BepInEx 5 "stable" ne marche pas avec ce jeu, et une autre build 6.0.0-be
 risque de ne pas charger le mod.
 
-  a. Trouve le dossier du jeu : dans Steam, clic droit sur le jeu >
-     Gérer > Parcourir les fichiers locaux.
-  b. Décompresse le zip de BepInEx dans ce dossier (winhttp.dll doit se
-     retrouver à côté de l'exécutable du jeu).
-  c. Lance le jeu une première fois et attends le menu principal : BepInEx
+  a. Décompresse le zip de BepInEx dans le dossier du jeu de l'étape 1
+     (winhttp.dll doit se retrouver à côté de l'exécutable du jeu).
+  b. Lance le jeu (l'exe, voir 2c) et attends le menu principal : BepInEx
      prépare les fichiers du jeu, ça prend 1 à 2 minutes la première fois.
-  d. Quitte le jeu.
+     Une fenêtre de console BepInEx peut s'ouvrir : c'est normal.
+  c. Quitte le jeu.
 
 
-2. INSTALLER LE MOD
+4. INSTALLER LE MOD
 -------------------
 Décompresse BelmontPractice-{VERSION}.zip dans le dossier du jeu (le même que
 pour BepInEx), en acceptant de fusionner les dossiers. Tu dois obtenir :
@@ -49,10 +110,11 @@ pour BepInEx), en acceptant de fusionner les dossiers. Tu dois obtenir :
   <dossier du jeu>\BepInEx\plugins\BelmontPractice\BelmontPractice.dll
   <dossier du jeu>\BepInEx\plugins\BelmontPractice\icons\...
 
-Lance le jeu et charge une partie.
+Lance le jeu et charge une partie. La version du mod et celle du jeu sont
+affichées en haut à droite du menu principal.
 
 
-3. UTILISATION
+5. UTILISATION
 --------------
   F1            ouvre / ferme les fenêtres du mod
   F5 / F6       sauver / charger le quickslot (aussi pavé numérique 7 / 8)
