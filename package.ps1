@@ -1,4 +1,4 @@
-# Crée dist\BelmontPractice-<version>.zip, à décompresser dans le dossier du jeu par-dessus BepInEx 6.0.0-be.791.
+# Crée dist\BelmontPractice-<version>.zip, à décompresser dans le dossier du jeu par-dessus BepInEx 6.0.0-be.793 (791 à 793 testées).
 # Contenu : BepInEx\plugins\BelmontPractice (DLL + icônes), LISEZMOI_BelmontPractice.txt et, sauf -SansDonneesBoss,
 # les conditions des boss et les entrées d'arène déjà apprises (BelmontPractice\scenarios_boss.json, arenes.json).
 # Dossier du jeu : -GameDir, sinon celui du projet (local.props ou valeur par défaut du .csproj).

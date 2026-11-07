@@ -14,7 +14,7 @@ Mod d'entraînement pour **Castlevania: Belmont's Curse** (Steam, Windows), jeu 
    - attends « Depot download complete », puis déplace `Steam\steamapps\content\app_4231820\depot_4231821` où tu veux : ce sera ton dossier du jeu.
 3. **Crée `steam_appid.txt`** à côté de l'exe, avec pour seul contenu `4231820`.
 4. **Installe BepInEx** : décompresse dans le dossier du jeu
-   [BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.791](https://builds.bepinex.dev/projects/bepinex_be/791/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.791%2Bb782da4.zip).
+   [BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.793](https://builds.bepinex.dev/projects/bepinex_be/793/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.793%2Bdbc82f0.zip).
    Lance l'exe une fois jusqu'au menu principal, puis quitte.
 5. **Installe le mod** : décompresse le zip de la [dernière release](../../releases/latest) dans le dossier du jeu, en fusionnant les dossiers.
 

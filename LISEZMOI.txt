@@ -83,16 +83,15 @@ Hors du dossier Steam, le jeu a besoin de ce fichier pour se lancer.
 
 3. INSTALLER BEPINEX (une seule fois)
 -------------------------------------
-Il faut EXACTEMENT cette version de BepInEx :
+Il faut cette version de BepInEx :
 
-  BepInEx 6.0.0-be.791, variante Unity IL2CPP, Windows x64
+  BepInEx 6.0.0-be.793, variante Unity IL2CPP, Windows x64
 
-  - Page des builds : https://builds.bepinex.dev/projects/bepinex_be
-  - Choisis la build #791 (commit b782da4), puis le fichier dont le nom
-    commence par "BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.791"
+  Lien direct :
+  https://builds.bepinex.dev/projects/bepinex_be/793/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.793%2Bdbc82f0.zip
 
-Le BepInEx 5 "stable" ne marche pas avec ce jeu, et une autre build 6.0.0-be
-risque de ne pas charger le mod.
+Le BepInEx 5 "stable" ne marche pas avec ce jeu. Les builds 791 à 793 sont
+testées ; une autre build 6.0.0-be risque de ne pas charger le mod.
 
   a. Décompresse le zip de BepInEx dans le dossier du jeu de l'étape 1
      (winhttp.dll doit se retrouver à côté de l'exécutable du jeu).
@@ -144,8 +143,8 @@ EN CAS DE PROBLÈME
 - Le journal du jeu est dans <dossier du jeu>\BepInEx\LogOutput.log :
   envoie-le avec une description de ce que tu faisais.
 - Si le mod ne se charge pas, vérifie dans ce journal la ligne
-  "BepInEx 6.0.0-be.791" tout en haut. Le mod y signale aussi une autre
-  version de BepInEx.
+  "BepInEx 6.0.0-be.793" tout en haut. Le mod y signale aussi une build
+  de BepInEx non testée.
 - Une mise à jour du jeu peut casser le mod jusqu'à la version suivante.
 - Pour désinstaller : supprime le dossier BepInEx\plugins\BelmontPractice
   (ou winhttp.dll pour désactiver BepInEx entièrement).

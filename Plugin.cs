@@ -10,10 +10,14 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "fr.vasseur.belmontpractice";
     public const string Name = "Belmont Practice";
-    public const string Version = "0.65.1";
+    public const string Version = "0.65.2";
 
-    /// <summary>Build de BepInEx pour laquelle le mod est compilé (les builds « bleeding edge » changent souvent).</summary>
-    public const string BepInExBuild = "6.0.0-be.791";
+    /// <summary>Build de BepInEx recommandée (les builds « bleeding edge » changent souvent).</summary>
+    public const string BepInExBuild = "6.0.0-be.793";
+
+    /// <summary>Builds testées avec le mod : pas d'avertissement dans le journal.
+    /// 791 : build de développement ; 792 / 793 : seulement journal des traces Unity et correctif macOS arm64.</summary>
+    static readonly string[] TestedBepInExBuilds = { "6.0.0-be.791", "6.0.0-be.792", "6.0.0-be.793" };
 
     internal static ManualLogSource Logger;
 
@@ -75,7 +79,8 @@ public class Plugin : BasePlugin
             var info = (System.Reflection.AssemblyInformationalVersionAttribute)System.Attribute.GetCustomAttribute(
                 typeof(Paths).Assembly, typeof(System.Reflection.AssemblyInformationalVersionAttribute));
             string running = info?.InformationalVersion ?? "?";
-            if (running.StartsWith(BepInExBuild + "+") || running == BepInExBuild) return;
+            foreach (string build in TestedBepInExBuilds)
+                if (running.StartsWith(build + "+") || running == build) return;
             Logger.LogWarning($"BepInEx {running} détecté : {Name} est prévu pour BepInEx {BepInExBuild} (Unity IL2CPP, Windows x64). "
                 + "Avec une autre build, certaines fonctions peuvent ne pas marcher.");
         }

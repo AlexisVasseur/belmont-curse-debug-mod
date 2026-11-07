@@ -106,7 +106,7 @@ Onglets : **General · Skills · Items · Bosses · Keybinds**.
 ---
 
 ## 6. Distribution
-- Les collègues installent **BepInEx 6.0.0-be.791 IL2CPP** eux-mêmes ; le zip (`package.ps1`) ne contient que le mod, le LISEZMOI et les données des boss.
+- Les collègues installent **BepInEx 6.0.0-be.793 IL2CPP** (builds 791 à 793 testées) eux-mêmes ; le zip (`package.ps1`) ne contient que le mod, le LISEZMOI et les données des boss.
 - Dépôt GitHub **privé** : `icons/` et `docs/maquettes/assets/` contiennent des images extraites du jeu.
 
 ## 7. Reste à faire / pistes

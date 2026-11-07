@@ -22,7 +22,7 @@
 
   <Target Name="CheckGameDir" BeforeTargets="ResolveAssemblyReferences">
     <Error Condition="!Exists('$(GameDir)\BepInEx\interop')"
-           Text="BepInEx\interop introuvable dans '$(GameDir)'. Indique le dossier du jeu (local.props ou -p:GameDir=...), installe BepInEx 6.0.0-be.791 et lance le jeu une fois pour générer les DLL interop." />
+           Text="BepInEx\interop introuvable dans '$(GameDir)'. Indique le dossier du jeu (local.props ou -p:GameDir=...), installe BepInEx 6.0.0-be.793 et lance le jeu une fois pour générer les DLL interop." />
   </Target>
 
   <ItemGroup>
