@@ -430,8 +430,13 @@ public static class Cheats
             if (dmg != null)
             {
                 var init = new EntityInitHealthEvent { e = e, damageable = dmg };
+                // Barre du joueur seulement : la barre du boss (HUDBossManager) est aussi un HUDControllerHealth
+                // et afficherait sinon les PV du joueur
                 foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppType.Of<HUDControllerHealth>()))
-                    o.Cast<HUDControllerHealth>().ProcessInitHealthEvent(init);
+                {
+                    var hud = o.Cast<HUDControllerHealth>();
+                    if (hud.hudControllerHealthContext == HUDControllerHealthContext.Player) hud.ProcessInitHealthEvent(init);
+                }
             }
             var mana = e.GetComponent<ManaCaster>();
             if (mana != null)

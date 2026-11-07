@@ -48,15 +48,27 @@ public static class BossHealth
                     tracked[id] = t = (e, clamp);
                     Plugin.Logger.LogInfo($"[Boss] PV protégés sur {e.name} ({dmg.currentHealth:0} / {dmg.maxHealth:0}, plancher {(clamp.HasValue ? "oui" : "absent : remplissage à 30 %")})");
                 }
-                if (t.clamp.HasValue) e.GetComponent<StatsStateComponent>()?.SetFloat(clampType, 1f);
+                if (t.clamp.HasValue && dmg.maxHealth > 0)
+                {
+                    // Plancher = part du maximum (1 = 100 % : le boss restait plein, comme le joueur avant la 0.64.3) :
+                    // 1 / max = 1 PV. Écrit seulement s'il change (réécrire une stat la signale modifiée en permanence)
+                    var stats = e.GetComponent<StatsStateComponent>();
+                    float minRatio = 1f / dmg.maxHealth;
+                    if (stats != null && Mathf.Abs(stats.GetStatObject(clampType).GetFloat(e) - minRatio) > 1e-5f)
+                        stats.SetFloat(clampType, minRatio);
+                }
                 if (Lock)
                 {
-                    if (!locked.TryGetValue(id, out int hp)) locked[id] = hp = dmg.currentHealth;
-                    if (dmg.currentHealth != hp) dmg.SetCurrentHealth(e, hp, true);
+                    if (!locked.TryGetValue(id, out int hp))
+                    {
+                        locked[id] = hp = dmg.currentHealth;
+                        Plugin.Logger.LogInfo($"[Boss] PV figés sur {e.name} : {hp} / {dmg.maxHealth}");
+                    }
+                    if (dmg.currentHealth != hp) { dmg.SetCurrentHealth(e, hp, true); RefreshBossBar(e, dmg); }
                     continue;
                 }
                 float floor = t.clamp.HasValue ? 1.5f : dmg.maxHealth * FallbackRefill;
-                if (dmg.currentHealth <= floor) dmg.SetCurrentHealth(e, dmg.maxHealth, true);
+                if (dmg.currentHealth <= floor) { dmg.SetCurrentHealth(e, dmg.maxHealth, true); RefreshBossBar(e, dmg); }
             }
         }
         catch (Exception ex)
@@ -66,16 +78,35 @@ public static class BossHealth
         }
     }
 
-    /// <summary>Boss présents : entités qui portent un BossComponent (sur elles ou un parent).</summary>
+    /// <summary>
+    /// Barre de vie du boss (HUDControllerHealth en contexte Boss) mise à jour avec les PV du boss ; la barre du joueur
+    /// n'est jamais touchée ici (et Cheats.RefreshBars ne touche que celle du joueur).
+    /// </summary>
+    static void RefreshBossBar(Entity e, Damageable dmg)
+    {
+        try
+        {
+            var init = new EntityInitHealthEvent { e = e, damageable = dmg };
+            foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppType.Of<HUDControllerHealth>()))
+            {
+                var hud = o.Cast<HUDControllerHealth>();
+                if (hud.hudControllerHealthContext == HUDControllerHealthContext.Boss) hud.ProcessInitHealthEvent(init);
+            }
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Boss] barre de vie : " + ex.Message); }
+    }
+
+    /// <summary>Boss présents : entités qui portent un BossComponent (sur elles ou un parent), jamais le joueur.</summary>
     static void Scan()
     {
         bosses.Clear();
+        MainCharacterSingleton.TryGetEntity(out var player);
         foreach (var o in UnityEngine.Object.FindObjectsOfType(Il2CppType.Of<BossComponent>()))
         {
             var bc = o.TryCast<BossComponent>();
             if (bc == null) continue;
             var e = bc.GetComponent<Entity>() ?? bc.GetComponentInParent<Entity>();
-            if (e != null && !bosses.Contains(e)) bosses.Add(e);
+            if (e != null && e != player && !bosses.Contains(e)) bosses.Add(e);
         }
     }
 
