@@ -10,7 +10,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "fr.vasseur.belmontpractice";
     public const string Name = "Belmont Practice";
-    public const string Version = "0.65.4";
+    public const string Version = "0.65.5";
 
     /// <summary>Build de BepInEx recommandée (les builds « bleeding edge » changent souvent).</summary>
     public const string BepInExBuild = "6.0.0-be.793";

@@ -70,6 +70,26 @@ public static class PlayerSaveCheck
         return diffs;
     }
 
+    /// <summary>
+    /// Retire du personnage les clés de progression absentes de la savestate (levier frappé, porte ouverte…) :
+    /// ReadPlayerSave ajoute les clés sans retirer les autres. Retourne les clés retirées.
+    /// </summary>
+    public static List<string> RemoveExtraProgressionKeys(Entity entity, string globalSaveJson)
+    {
+        var removed = new List<string>();
+        var p = entity.GetComponent<ProgressionComponent>();
+        if (p?.progressionKeys == null) return removed;
+        using var doc = JsonDocument.Parse(globalSaveJson);
+        if (!doc.RootElement.TryGetProperty("playerSave", out var target)) return removed;
+        var wanted = new HashSet<string>(Strings(target, "progressionPersistentSave"));
+        var extra = new List<ProgressionKeyID>();
+        foreach (var k in p.progressionKeys)
+            if (k != null && !string.IsNullOrEmpty(k.guid) && !wanted.Contains(k.guid)) extra.Add(k);
+        foreach (var k in extra)
+            if (p.UnsetProgressionKey(k)) removed.Add(k.name);
+        return removed;
+    }
+
     static string Sample(List<string> items) => string.Join(", ", items.Take(3)) + (items.Count > 3 ? "…" : "");
 
     static IEnumerable<string> Strings(JsonElement e, string name)

@@ -466,6 +466,13 @@ public static class GameBridge
         // Les composants du joueur (PV, mana, inventaire, stats…) relisent la sauvegarde injectée.
         logic.LoadState(entity);
         Plugin.Logger.LogInfo("[Rapide] état du joueur relu");
+        // Clés de progression posées depuis la capture (levier frappé…) : retirées, la salle rechargée les relit
+        try
+        {
+            var removed = PlayerSaveCheck.RemoveExtraProgressionKeys(entity, state.GlobalSaveJson);
+            if (removed.Count > 0) Plugin.Logger.LogInfo($"[Rapide] clés de progression retirées : {string.Join(", ", removed)}");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Rapide] clés de progression : " + ex.Message); }
         List<string> leftovers = null;
         try { leftovers = PlayerSaveCheck.Leftovers(logic, entity, state.GlobalSaveJson); }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Rapide] vérification de l'état du joueur : " + ex.Message); }
