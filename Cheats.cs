@@ -188,7 +188,6 @@ public static class Cheats
                 var motor = e.GetComponent<CharacterMotor>();
                 SetPhysics(motor, !Noclip);
                 noclipSuspended = false;
-                SetEdgeGrabBlock(e, Noclip);
                 // Le moteur réimpose sa position : on pilote plutôt la vitesse via le composant VelocityOverride du jeu
                 if (Noclip) e.AddComponentDataIfNone(Il2CppType.Of<VelocityOverride>());
                 else e.RemoveComponentDataIfAny(Il2CppType.Of<VelocityOverride>());
@@ -203,40 +202,48 @@ public static class Cheats
     }
 
     static bool noclipSuspended; // noclip mis en pause pendant une transition de salle
+    static float noclipForceAt; // salle changée : transition demandée à cet instant si le jeu n'en a lancé aucune
+    const float ForceTransitionDelay = 0.15f;
+    static string ShortRoom(string id) => id.Length > 0 ? RoomLabel.ShortRoom(id) : "—";
     static float noclipResumeAt; // fin de transition : le jeu finit de placer le perso avant la reprise
     const float TransitionGrace = 0.5f;
 
-    // Part du noclip dans le drapeau « pas d'agrippe aux rebords » (compteur partagé avec les actions du jeu)
-    static PreventEdgeGrabFlag edgeFlag;
-    static bool edgeFlagCreated;
+    // Actions d'escalade lancées par une agrippe (EdgeGrab.edgeClimbAction), reconnues ensuite par leur nom
+    static readonly System.Collections.Generic.HashSet<string> climbActions = new();
 
     /// <summary>
-    /// Noclip : le personnage ne s'agrippe plus aux rebords (passages verticaux où Rose s'accroche à la paroi : l'action
-    /// d'agrippe réactivait les collisions, que le noclip recoupait, et Rose restait suspendue).
+    /// Nom de l'action d'agrippe à un rebord ou de redressement en cours (null sinon) : actions dont une brique est EdgeGrab
+    /// ou EdgeGrabClimbCondition, ou action d'escalade déclarée par une agrippe.
     /// </summary>
-    static void SetEdgeGrabBlock(Entity e, bool on)
+    static string EdgeClimbAction(Entity e)
     {
         try
         {
-            if (on)
+            var actor = e.GetComponentInChildren<Actor>(true);
+            var active = actor?.activeActions;
+            for (int i = 0; active != null && i < active.Count; i++)
             {
-                if (edgeFlag != null && edgeFlag.WasCollected) edgeFlag = null;
-                if (edgeFlag != null) return;
-                edgeFlagCreated = e.GetComponent<PreventEdgeGrabFlag>() == null;
-                edgeFlag = e.AddComponentDataIfNone(Il2CppType.Of<PreventEdgeGrabFlag>())?.TryCast<PreventEdgeGrabFlag>();
-                if (edgeFlag != null) edgeFlag.flagCounter++;
-            }
-            else if (edgeFlag != null)
-            {
-                if (!edgeFlag.WasCollected)
+                var data = active[i]?.data;
+                if (data == null) continue;
+                string name = data.name ?? "?";
+                if (climbActions.Contains(name)) return name;
+                var features = data.actionFeatures;
+                for (int f = 0; features != null && f < features.Count; f++)
                 {
-                    edgeFlag.flagCounter = Math.Max(0, edgeFlag.flagCounter - 1);
-                    if (edgeFlag.flagCounter == 0 && edgeFlagCreated) e.RemoveComponentDataIfAny(Il2CppType.Of<PreventEdgeGrabFlag>());
+                    var feat = features[f];
+                    if (feat == null) continue;
+                    var grab = feat.TryCast<EdgeGrab>();
+                    if (grab != null)
+                    {
+                        if (grab.edgeClimbAction != null) climbActions.Add(grab.edgeClimbAction.name);
+                        return name;
+                    }
+                    if (feat.TryCast<EdgeGrabClimbCondition>() != null) return name;
                 }
-                edgeFlag = null;
             }
         }
-        catch (Exception ex) { Plugin.Logger.LogWarning("[Utilitaires] noclip, agrippe aux rebords : " + ex.Message); }
+        catch { }
+        return null;
     }
 
     /// <summary>Collisions et détection du sol du personnage (false : noclip).</summary>
@@ -255,19 +262,22 @@ public static class Cheats
         try
         {
             var motor = e.GetComponent<CharacterMotor>();
-            // Transition de salle (ex. passage vertical où Rose s'agrippe) : le jeu déplace le perso lui-même, avec
-            // collisions et sol (sans eux, la gravité revenue le faisait retomber à travers le sol dans la salle d'avant)
-            bool transition = RoomManager.RoomManagerSystem.IsLoadingNextRoom || GameBridge.RoomTransitionHudActive();
-            SetEdgeGrabBlock(e, true); // recréé si le jeu a retiré le composant
-            if (transition) noclipResumeAt = Time.unscaledTime + TransitionGrace;
-            if (transition || (noclipSuspended && Time.unscaledTime < noclipResumeAt))
+            // Le jeu déplace le perso lui-même, avec collisions et sol :
+            // - transition de salle (sans collisions, la gravité revenue le faisait retomber dans la salle d'avant) ;
+            // - agrippe à un rebord puis redressement : dans les passages verticaux, c'est lui qui fait changer de salle
+            //   (collisions recoupées pendant l'agrippe : Rose restait suspendue ; agrippe interdite : jamais de changement)
+            bool roomTransition = RoomManager.RoomManagerSystem.IsLoadingNextRoom || GameBridge.RoomTransitionHudActive();
+            string climb = roomTransition ? null : EdgeClimbAction(e);
+            bool gameDriven = roomTransition || climb != null;
+            if (gameDriven) { noclipResumeAt = Time.unscaledTime + TransitionGrace; noclipForceAt = 0f; } // le jeu s'en charge
+            if (gameDriven || (noclipSuspended && Time.unscaledTime < noclipResumeAt))
             {
                 if (!noclipSuspended)
                 {
                     noclipSuspended = true;
                     e.RemoveComponentDataIfAny(Il2CppType.Of<VelocityOverride>());
                     SetPhysics(motor, true);
-                    Plugin.Logger.LogInfo($"[Utilitaires] noclip suspendu pendant la transition de salle, depuis {e.transform.position} ({GameBridge.CurrentRoomId()})");
+                    Plugin.Logger.LogInfo($"[Utilitaires] noclip suspendu ({(climb != null ? "agrippe / redressement : " + climb : "transition de salle")}), depuis {e.transform.position} ({GameBridge.CurrentRoomId()})");
                 }
                 return;
             }
@@ -275,7 +285,7 @@ public static class Cheats
             {
                 noclipSuspended = false;
                 SetPhysics(motor, false);
-                Plugin.Logger.LogInfo($"[Utilitaires] noclip repris après la transition de salle, en {e.transform.position} ({GameBridge.CurrentRoomId()})");
+                Plugin.Logger.LogInfo($"[Utilitaires] noclip repris, en {e.transform.position} ({GameBridge.CurrentRoomId()})");
             }
             // Le jeu réactive collisions / sol de lui-même (réapparition après un piège, dégâts…) : on les recoupe
             else if (motor != null && (motor.solveMovementCollisions || motor.solveGrounding))
@@ -303,6 +313,15 @@ public static class Cheats
                 noclipRoom = room;
                 SetSafeRespawnHere(e);
                 Plugin.Logger.LogInfo($"[Utilitaires] noclip : réapparition fixée dans {room}");
+                noclipForceAt = Time.unscaledTime + ForceTransitionDelay;
+            }
+            // Salle changée sans transition du jeu (passages verticaux où il faut s'agripper au rebord, impossible sans
+            // collisions) : la caméra restait sur l'ancienne salle. On demande la transition, comme un passage de porte
+            if (noclipForceAt > 0f && Time.unscaledTime >= noclipForceAt)
+            {
+                noclipForceAt = 0f;
+                RoomManager.RoomManagerSystem.ForceTriggerRoomChange = true;
+                Plugin.Logger.LogInfo($"[Utilitaires] noclip : salle {ShortRoom(room)} atteinte sans transition du jeu, transition demandée (en {e.transform.position})");
             }
 
             var kb = Keyboard.current;
