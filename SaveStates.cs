@@ -473,6 +473,13 @@ public static class GameBridge
             if (removed.Count > 0) Plugin.Logger.LogInfo($"[Rapide] clés de progression retirées : {string.Join(", ", removed)}");
         }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Rapide] clés de progression : " + ex.Message); }
+        // Objets obtenus depuis la capture (relique d'un coffre…) : retirés, le coffre rechargé avec la salle
+        try
+        {
+            var items = PlayerSaveCheck.RemoveExtraItems(entity, state.GlobalSaveJson);
+            if (items.Count > 0) Plugin.Logger.LogInfo($"[Rapide] objets retirés : {string.Join(", ", items)}");
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Rapide] objets : " + ex.Message); }
         List<string> leftovers = null;
         try { leftovers = PlayerSaveCheck.Leftovers(logic, entity, state.GlobalSaveJson); }
         catch (Exception ex) { Plugin.Logger.LogWarning("[Rapide] vérification de l'état du joueur : " + ex.Message); }

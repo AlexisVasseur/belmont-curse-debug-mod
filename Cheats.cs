@@ -186,12 +186,9 @@ public static class Cheats
             if (Noclip != noclipActive)
             {
                 var motor = e.GetComponent<CharacterMotor>();
-                if (motor != null)
-                {
-                    motor.SetCapsuleCollisionsActivation(!Noclip);
-                    motor.SetMovementCollisionsSolvingActivation(!Noclip);
-                    motor.SetGroundSolvingActivation(!Noclip);
-                }
+                SetPhysics(motor, !Noclip);
+                noclipSuspended = false;
+                SetEdgeGrabBlock(e, Noclip);
                 // Le moteur réimpose sa position : on pilote plutôt la vitesse via le composant VelocityOverride du jeu
                 if (Noclip) e.AddComponentDataIfNone(Il2CppType.Of<VelocityOverride>());
                 else e.RemoveComponentDataIfAny(Il2CppType.Of<VelocityOverride>());
@@ -205,18 +202,99 @@ public static class Cheats
         catch (Exception ex) { Warn("noclip", ex); Noclip = false; }
     }
 
+    static bool noclipSuspended; // noclip mis en pause pendant une transition de salle
+    static float noclipResumeAt; // fin de transition : le jeu finit de placer le perso avant la reprise
+    const float TransitionGrace = 0.5f;
+
+    // Part du noclip dans le drapeau « pas d'agrippe aux rebords » (compteur partagé avec les actions du jeu)
+    static PreventEdgeGrabFlag edgeFlag;
+    static bool edgeFlagCreated;
+
+    /// <summary>
+    /// Noclip : le personnage ne s'agrippe plus aux rebords (passages verticaux où Rose s'accroche à la paroi : l'action
+    /// d'agrippe réactivait les collisions, que le noclip recoupait, et Rose restait suspendue).
+    /// </summary>
+    static void SetEdgeGrabBlock(Entity e, bool on)
+    {
+        try
+        {
+            if (on)
+            {
+                if (edgeFlag != null && edgeFlag.WasCollected) edgeFlag = null;
+                if (edgeFlag != null) return;
+                edgeFlagCreated = e.GetComponent<PreventEdgeGrabFlag>() == null;
+                edgeFlag = e.AddComponentDataIfNone(Il2CppType.Of<PreventEdgeGrabFlag>())?.TryCast<PreventEdgeGrabFlag>();
+                if (edgeFlag != null) edgeFlag.flagCounter++;
+            }
+            else if (edgeFlag != null)
+            {
+                if (!edgeFlag.WasCollected)
+                {
+                    edgeFlag.flagCounter = Math.Max(0, edgeFlag.flagCounter - 1);
+                    if (edgeFlag.flagCounter == 0 && edgeFlagCreated) e.RemoveComponentDataIfAny(Il2CppType.Of<PreventEdgeGrabFlag>());
+                }
+                edgeFlag = null;
+            }
+        }
+        catch (Exception ex) { Plugin.Logger.LogWarning("[Utilitaires] noclip, agrippe aux rebords : " + ex.Message); }
+    }
+
+    /// <summary>Collisions et détection du sol du personnage (false : noclip).</summary>
+    static void SetPhysics(CharacterMotor motor, bool on)
+    {
+        if (motor == null) return;
+        motor.SetCapsuleCollisionsActivation(on);
+        motor.SetMovementCollisionsSolvingActivation(on);
+        motor.SetGroundSolvingActivation(on);
+    }
+
     /// <summary>Appelé en début d'image (Update), avant que le moteur du jeu ne déplace le personnage.</summary>
     public static void ApplyNoclip()
     {
         if (!noclipActive || !Player(out var e)) return;
         try
         {
-            // Transition de salle (ex. passage vertical où Rose s'agrippe) : le jeu doit déplacer le perso lui-même
+            var motor = e.GetComponent<CharacterMotor>();
+            // Transition de salle (ex. passage vertical où Rose s'agrippe) : le jeu déplace le perso lui-même, avec
+            // collisions et sol (sans eux, la gravité revenue le faisait retomber à travers le sol dans la salle d'avant)
             bool transition = RoomManager.RoomManagerSystem.IsLoadingNextRoom || GameBridge.RoomTransitionHudActive();
-            if (transition)
+            SetEdgeGrabBlock(e, true); // recréé si le jeu a retiré le composant
+            if (transition) noclipResumeAt = Time.unscaledTime + TransitionGrace;
+            if (transition || (noclipSuspended && Time.unscaledTime < noclipResumeAt))
             {
-                e.RemoveComponentDataIfAny(Il2CppType.Of<VelocityOverride>());
+                if (!noclipSuspended)
+                {
+                    noclipSuspended = true;
+                    e.RemoveComponentDataIfAny(Il2CppType.Of<VelocityOverride>());
+                    SetPhysics(motor, true);
+                    Plugin.Logger.LogInfo($"[Utilitaires] noclip suspendu pendant la transition de salle, depuis {e.transform.position} ({GameBridge.CurrentRoomId()})");
+                }
                 return;
+            }
+            if (noclipSuspended)
+            {
+                noclipSuspended = false;
+                SetPhysics(motor, false);
+                Plugin.Logger.LogInfo($"[Utilitaires] noclip repris après la transition de salle, en {e.transform.position} ({GameBridge.CurrentRoomId()})");
+            }
+            // Le jeu réactive collisions / sol de lui-même (réapparition après un piège, dégâts…) : on les recoupe
+            else if (motor != null && (motor.solveMovementCollisions || motor.solveGrounding))
+            {
+                SetPhysics(motor, false);
+                Plugin.Logger.LogInfo($"[Utilitaires] noclip : collisions réactivées par le jeu, recoupées (en {e.transform.position})");
+            }
+            // Jamais « au sol » : sinon le jeu garde l'état au sol (détection du sol coupée, il n'est plus remis à jour),
+            // retire la vitesse verticale et il fallait sauter pour décoller
+            if (motor != null)
+            {
+                motor.ForceUnground(0.1f);
+                var g = motor.groundingStatus;
+                if (g.isStableOnGround || g.foundAnyGround)
+                {
+                    g.isStableOnGround = false;
+                    g.foundAnyGround = false;
+                    motor.groundingStatus = g;
+                }
             }
             // Nouvelle salle : elle devient le point de réapparition des pièges
             string room = GameBridge.CurrentRoomId();

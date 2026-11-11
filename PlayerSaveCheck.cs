@@ -90,6 +90,41 @@ public static class PlayerSaveCheck
         return removed;
     }
 
+    /// <summary>
+    /// Retire du personnage les objets absents de la savestate (relique ramassée dans un coffre…) et déséquipe les
+    /// reliques qui n'y étaient pas équipées : ReadPlayerSave ajoute les objets sans retirer les autres.
+    /// Retourne les objets retirés ou déséquipés.
+    /// </summary>
+    public static List<string> RemoveExtraItems(Entity entity, string globalSaveJson)
+    {
+        var changed = new List<string>();
+        var inv = entity.GetComponent<InventoryComponent>()?.inventory;
+        if (inv?._itemsInInventory == null) return changed;
+        using var doc = JsonDocument.Parse(globalSaveJson);
+        if (!doc.RootElement.TryGetProperty("playerSave", out var target)) return changed;
+        var owned = new HashSet<string>(Strings(target, "itemsInInventory"));
+        var equipped = new HashSet<string>(Strings(target, "equippedCharmItems"));
+
+        var items = new List<ItemData>();
+        foreach (var it in inv._itemsInInventory) if (it != null && !string.IsNullOrEmpty(it.itemID)) items.Add(it);
+        foreach (var it in items)
+        {
+            var charm = it.TryCast<CharmItemData>();
+            if (!owned.Contains(it.itemID))
+            {
+                if (charm != null && inv.HasCharmEquipped(charm)) inv.UnequipCharm(charm);
+                inv.RemoveItemFromInventory(it.itemID);
+                changed.Add("-" + it.itemID);
+            }
+            else if (charm != null && !equipped.Contains(it.itemID) && inv.HasCharmEquipped(charm))
+            {
+                inv.UnequipCharm(charm);
+                changed.Add("déséquipé " + it.itemID);
+            }
+        }
+        return changed;
+    }
+
     static string Sample(List<string> items) => string.Join(", ", items.Take(3)) + (items.Count > 3 ? "…" : "");
 
     static IEnumerable<string> Strings(JsonElement e, string name)
