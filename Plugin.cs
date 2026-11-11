@@ -10,7 +10,7 @@ public class Plugin : BasePlugin
 {
     public const string Guid = "fr.vasseur.belmontpractice";
     public const string Name = "Belmont Practice";
-    public const string Version = "0.66.4";
+    public const string Version = "0.67.0";
 
     /// <summary>Build de BepInEx recommandée (les builds « bleeding edge » changent souvent).</summary>
     public const string BepInExBuild = "6.0.0-be.793";
@@ -39,6 +39,7 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<bool> BossShortIntro;
     internal static ConfigEntry<bool> ShowRoomName;
     internal static ConfigEntry<bool> ShowInputViewer;
+    internal static ConfigEntry<string> InputViewerLayout;
 
     public override void Load()
     {
@@ -52,6 +53,7 @@ public class Plugin : BasePlugin
         BossShortIntro = Config.Bind("Utilitaires", "IntroCourteBoss", true, "Fight : le boss arrive avec l'intro courte que le jeu joue après une défaite, au lieu de sa cinématique d'entrée complète");
         ShowRoomName = Config.Bind("Interface", "NomSalle", true, "Affiche la zone et l'identifiant de la salle en bas à droite de l'écran, en jeu");
         ShowInputViewer = Config.Bind("Interface", "AfficheurTouches", false, "Input viewer : affiche la direction et les touches appuyées en bas à droite de l'écran, en jeu");
+        InputViewerLayout = Config.Bind("Interface", "AfficheurTouchesDisposition", InputViewer.LayoutAuto, new ConfigDescription("Input viewer : Auto (dernier périphérique utilisé), Keyboard ou Gamepad (manette façon Xbox)", new AcceptableValueList<string>(InputViewer.Layouts)));
         PanelOpacity = Config.Bind("Interface", "Opacite", 0.85f, "Opacité du fond des fenêtres du mod (1 = opaque, 0.5 = très transparent)");
         FastLoad = Config.Bind("Chargement", "Rapide", true, "Dans le même niveau/biome : restaure sur place sans écran de chargement");
         ReloadRoom = Config.Bind("Chargement", "RechargerSalle", true, "Chargement rapide : force le rechargement de la salle (ennemis remis à zéro)");

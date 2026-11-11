@@ -19,6 +19,7 @@ public partial class SidePanelView
     {
         public Bind bind;           // null pour la ligne « chiffres des emplacements » et les options
         public Option option;       // option activée / désactivée (null pour un raccourci)
+        public bool viewerLayout;   // ligne « Viewer layout » (Auto / Keyboard / Gamepad)
         public Image highlight, chipFill;
         public TextMeshProUGUI name, chip;
         public UiCheck check;       // case des options (à la place de la pastille)
@@ -48,7 +49,7 @@ public partial class SidePanelView
         new("Room name", () => Plugin.ShowRoomName,
             "Shows the area and the room id in the bottom-right corner of the screen while playing."),
         new("Input viewer", () => Plugin.ShowInputViewer,
-            "Shows the direction and the buttons you press in the bottom-right corner of the screen while playing (keyboard or gamepad, whichever you used last)."),
+            "Shows the direction and the buttons you press in the bottom-right corner of the screen while playing. Layout: see Viewer layout below."),
     };
 
     static Key[] allKeys;
@@ -59,9 +60,9 @@ public partial class SidePanelView
         keyButtons.Clear();
         float iw = W - 1;
 
-        void Row(Bind bind, string name, Option option = null)
+        void Row(Bind bind, string name, Option option = null, bool viewerLayout = false)
         {
-            var r = new KeyRowUi { bind = bind, option = option, y = y };
+            var r = new KeyRowUi { bind = bind, option = option, viewerLayout = viewerLayout, y = y };
             r.highlight = Ui.Image(fill, "KeyHl" + name, 12, y, iw - 24, KeyRowH - 2, Theme.Hex(0x5e1418, 0.55f));
             Ui.Image(fill, "KeyLine" + name, 12, y + KeyRowH - 1, iw - 24, 1, Theme.Line);
             r.name = Ui.Text(fill, "KeyName" + name, Pad + 4, y, iw - Pad * 2 - ChipW - 12, KeyRowH, GameFonts.Title, 18f, Theme.Text);
@@ -78,7 +79,11 @@ public partial class SidePanelView
         }
 
         y = SectionTitle("Options", y);
-        foreach (var o in Options) Row(null, o.Name, o);
+        foreach (var o in Options)
+        {
+            Row(null, o.Name, o);
+            if (o.Name == "Input viewer") Row(null, "Viewer layout", viewerLayout: true);
+        }
         y += 10;
 
         foreach (var section in new[] { Keybinds.SectionSavestates, Keybinds.SectionUtilities })
@@ -180,6 +185,26 @@ public partial class SidePanelView
                 r.check.Set(on, hover);
                 r.name.color = on ? Theme.GoldText : Theme.Text;
                 continue;
+            }
+            else if (r.viewerLayout)
+            {
+                var entry = Plugin.InputViewerLayout;
+                string cur = entry.Value;
+                chip = cur == InputViewer.LayoutAuto ? "Auto (last used)" : cur == InputViewer.LayoutGamepad ? "Gamepad" : "Keyboard / mouse";
+                custom = cur != (string)entry.DefaultValue;
+                if (hover)
+                {
+                    title = "Viewer layout";
+                    text = "Input viewer layout. Auto: switches between keyboard and gamepad as soon as you use the other one. Keyboard / mouse: your keys and the game's actions. Gamepad: Xbox-style pad. Click: next layout. Right-click: default (Auto).";
+                }
+                if (hover && (click || rightClick) && !handled)
+                {
+                    handled = true;
+                    Keybinds.Capturing = null;
+                    int i = Array.IndexOf(InputViewer.Layouts, cur);
+                    entry.Value = rightClick ? (string)entry.DefaultValue : InputViewer.Layouts[(i + 1) % InputViewer.Layouts.Length];
+                    Notify?.Invoke($"Viewer layout: {entry.Value}", false);
+                }
             }
             else if (r.bind == null)
             {
