@@ -60,6 +60,7 @@ public class PracticeBehaviour : MonoBehaviour
         // Versions : affichées aussi pendant les chargements du mod (au-dessus de l'écran noir)
         VersionLabel.Update(inGame && !sequence.Active);
         RoomLabel.Update(inGame && !sequence.Active, inGame && panel.Visible);
+        InputViewer.Update(inGame && !sequence.Active, inGame && panel.Visible);
         // Point de réapparition choisi : rechargé après une mort, une fois le personnage revenu
         RespawnPoint.Update(inGame && !sequence.Active, s => Load(s, savestate: true));
         try { UpdateMainMenu(inGame); } catch (Exception ex) { Plugin.Logger.LogWarning("[Menu] " + ex.Message); }

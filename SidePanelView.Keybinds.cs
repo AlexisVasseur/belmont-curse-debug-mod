@@ -47,6 +47,8 @@ public partial class SidePanelView
             "Fast load (Full reload unchecked in the Savestates window): the room is reloaded too, so its enemies and objects are reset."),
         new("Room name", () => Plugin.ShowRoomName,
             "Shows the area and the room id in the bottom-right corner of the screen while playing."),
+        new("Input viewer", () => Plugin.ShowInputViewer,
+            "Shows the direction and the buttons you press in the bottom-right corner of the screen while playing (keyboard or gamepad, whichever you used last)."),
     };
 
     static Key[] allKeys;
